@@ -12,6 +12,7 @@ if (!TOKEN) {
   process.exit(1);
 }
 
+
 console.log(`Using Token: ${TOKEN.slice(0, 10)}...${TOKEN.slice(-10)}`);
 
 async function testEndpoint(name, path) {
