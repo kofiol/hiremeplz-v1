@@ -1,5 +1,7 @@
 "use client"
 
+import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   BadgeCheck,
   Bell,
@@ -9,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react"
 
+import { supabase } from "@/lib/supabaseClient"
 import {
   Avatar,
   AvatarFallback,
@@ -36,10 +39,28 @@ export function NavUser({
   user: {
     name: string
     email: string
-    avatar: string
+    avatarUrl?: string | null
   }
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+  const [isSigningOut, setIsSigningOut] = React.useState(false)
+
+  async function handleLogout() {
+    if (isSigningOut) return
+    setIsSigningOut(true)
+    await supabase.auth.signOut()
+    router.replace("/login")
+    router.refresh()
+  }
+
+  const initials = React.useMemo(() => {
+    const base = user.name?.trim() || user.email?.trim()
+    if (!base) return "?"
+    const parts = base.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }, [user.email, user.name])
 
   return (
     <SidebarMenu>
@@ -51,8 +72,11 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarImage
+                  src={user.avatarUrl ?? undefined}
+                  alt={user.name || user.email}
+                />
+                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -70,8 +94,11 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage
+                    src={user.avatarUrl ?? undefined}
+                    alt={user.name || user.email}
+                  />
+                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -102,7 +129,12 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                void handleLogout()
+              }}
+              disabled={isSigningOut}
+            >
               <LogOut />
               Log out
             </DropdownMenuItem>

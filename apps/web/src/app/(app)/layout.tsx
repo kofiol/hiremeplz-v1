@@ -22,19 +22,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [isLoading, session, router]);
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <main className="w-full max-w-md rounded-xl bg-white p-8 shadow-sm">
-          <p className="text-sm text-zinc-600">
-            Checking your session. Please wait.
-          </p>
-        </main>
-      </div>
-    );
-  }
-
-  if (!session) {
+  if (!session && !isLoading) {
     return null;
   }
 
