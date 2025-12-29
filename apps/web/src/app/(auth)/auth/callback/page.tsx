@@ -32,6 +32,42 @@ export default function AuthCallbackPage() {
       const refreshToken = fragmentParams.get("refresh_token");
       const authCode = searchParams.get("code");
 
+      async function bootstrapAndRedirect(token: string) {
+        try {
+          await fetch("/api/v1/auth/bootstrap", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          const response = await fetch("/api/v1/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            router.replace("/onboarding");
+            return;
+          }
+
+          const payload = await response.json();
+          const completeness =
+            typeof payload.profile_completeness_score === "number"
+              ? payload.profile_completeness_score
+              : 0;
+
+          if (completeness >= 0.8) {
+            router.replace("/overview");
+          } else {
+            router.replace("/onboarding");
+          }
+        } catch {
+          router.replace("/onboarding");
+        }
+      }
+
       if (accessToken && refreshToken) {
         const { data, error: setSessionError } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -45,7 +81,7 @@ export default function AuthCallbackPage() {
         }
 
         window.history.replaceState(null, "", "/auth/callback");
-        router.replace("/overview");
+        await bootstrapAndRedirect(data.session.access_token);
         return;
       }
 
@@ -59,7 +95,7 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        router.replace("/overview");
+        await bootstrapAndRedirect(data.session.access_token);
         return;
       }
 
@@ -71,7 +107,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      router.replace("/overview");
+      await bootstrapAndRedirect(data.session.access_token);
     }
 
     handleCallback();
@@ -103,4 +139,3 @@ export default function AuthCallbackPage() {
     </div>
   );
 }
-

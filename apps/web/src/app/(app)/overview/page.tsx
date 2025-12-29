@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "../../auth/session-provider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +9,52 @@ import { Separator } from "@/components/ui/separator";
 
 export default function OverviewPage() {
   const { session, isLoading } = useSession();
+  const router = useRouter();
+  const [isGuardChecked, setIsGuardChecked] = useState(false);
+
+  useEffect(() => {
+    async function guardOverview() {
+      if (isLoading) {
+        return;
+      }
+
+      if (!session) {
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/v1/me", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          setIsGuardChecked(true);
+          return;
+        }
+
+        const payload = await response.json();
+        const completeness =
+          typeof payload.profile_completeness_score === "number"
+            ? payload.profile_completeness_score
+            : 0;
+
+        if (completeness < 0.8) {
+          router.replace("/onboarding");
+          return;
+        }
+      } finally {
+        setIsGuardChecked(true);
+      }
+    }
+
+    guardOverview();
+  }, [isLoading, session, router]);
+
+  if (!isGuardChecked) {
+    return null;
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 lg:p-6">

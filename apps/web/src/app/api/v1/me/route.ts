@@ -8,9 +8,14 @@ export async function GET(request: NextRequest) {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("plan, display_name, email")
+      .select("plan, display_name, email, profile_completeness_score")
       .eq("user_id", userId)
-      .maybeSingle<{ plan: string | null; display_name: string | null; email: string | null }>();
+      .maybeSingle<{
+        plan: string | null;
+        display_name: string | null;
+        email: string | null;
+        profile_completeness_score: number | null;
+      }>();
 
     if (profileError) {
       return NextResponse.json(
@@ -26,6 +31,7 @@ export async function GET(request: NextRequest) {
       plan: profile?.plan ?? null,
       display_name: profile?.display_name ?? null,
       email: profile?.email ?? null,
+      profile_completeness_score: profile?.profile_completeness_score ?? 0,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unauthorized";
