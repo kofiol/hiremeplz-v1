@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function SiteHeader() {
   return (
@@ -13,9 +13,7 @@ export function SiteHeader() {
         />
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-
-          </Button>
+          <ThemeToggle />
         </div>
       </div>
     </header>

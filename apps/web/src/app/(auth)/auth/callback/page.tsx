@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 function parseFragmentParams(fragment: string) {
   const fragmentString = fragment.startsWith("#") ? fragment.slice(1) : fragment;
@@ -115,27 +117,37 @@ export default function AuthCallbackPage() {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <main className="w-full max-w-md rounded-xl bg-white p-8 shadow-sm">
-          <h1 className="mb-4 text-xl font-semibold text-zinc-950">
-            Sign in failed
-          </h1>
-          <p className="text-sm text-red-600">{error}</p>
-        </main>
+      <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="absolute right-4 top-4">
+          <ThemeToggle />
+        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Sign in failed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-destructive">{error}</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-      <main className="w-full max-w-md rounded-xl bg-white p-8 shadow-sm">
-        <h1 className="mb-2 text-xl font-semibold text-zinc-950">
-          Completing sign in
-        </h1>
-        <p className="text-sm text-zinc-600">
-          Please wait while we finish logging you in.
-        </p>
-      </main>
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Completing sign in</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Please wait while we finish logging you in.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

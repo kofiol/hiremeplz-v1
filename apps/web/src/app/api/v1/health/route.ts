@@ -5,8 +5,6 @@ export async function GET() {
   try {
     const start = Date.now();
     
-    // Perform a lightweight query to check DB connectivity
-    // Using simple select on the primary key (user_id)
     const { error } = await supabaseAdmin
       .from("profiles")
       .select("user_id")

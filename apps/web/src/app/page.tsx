@@ -3,13 +3,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "./auth/session-provider";
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 
 export default function Home() {
   const { session, isLoading } = useSession();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+    <div className="relative flex min-h-screen items-center justify-center bg-background font-sans p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <Card className="flex w-full max-w-3xl flex-col items-center justify-between gap-10 p-10 sm:items-start">
         <Image
           className="dark:invert"
           src="/next.svg"
@@ -19,10 +25,10 @@ export default function Home() {
           priority
         />
         <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
+          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-foreground">
             hireMePlz
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
+          <p className="max-w-md text-lg leading-8 text-muted-foreground">
             {isLoading && "Checking your session..."}
             {!isLoading &&
               (session
@@ -34,24 +40,18 @@ export default function Home() {
           {!isLoading && (
             <>
               {session ? (
-                <Link
-                  href="/overview"
-                  className="flex h-12 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-zinc-50 transition-colors hover:bg-zinc-800 md:w-[180px]"
-                >
-                  Go to dashboard
-                </Link>
+                <Button asChild className="w-full md:w-[180px]">
+                  <Link href="/overview">Go to dashboard</Link>
+                </Button>
               ) : (
-                <Link
-                  href="/login"
-                  className="flex h-12 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-zinc-50 transition-colors hover:bg-zinc-800 md:w-[180px]"
-                >
-                  Sign in
-                </Link>
+                <Button asChild className="w-full md:w-[180px]">
+                  <Link href="/login">Sign in</Link>
+                </Button>
               )}
             </>
           )}
         </div>
-      </main>
+      </Card>
     </div>
   );
 }

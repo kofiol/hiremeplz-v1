@@ -78,7 +78,7 @@ export type OnboardingState = {
 
 const initialState: OnboardingState = {
   currentStep: 1,
-  totalSteps: 4,
+  totalSteps: 7,
   teamMode: "solo",
   profilePath: null,
   profile: {

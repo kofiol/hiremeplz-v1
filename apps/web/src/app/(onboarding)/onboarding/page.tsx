@@ -20,10 +20,6 @@ import {
   setCompletion,
   setCurrency,
   setCurrentStep,
-  setCvUploadError,
-  setCvUploading,
-  setCvUploadProgress,
-  setCvUploadResult,
   setFixedBudgetMin,
   setHourlyRange,
   setPlatforms,
@@ -37,7 +33,6 @@ import {
   setTimeZones,
   setTightness,
 } from "@/lib/state/onboardingSlice"
-import { supabase } from "@/lib/supabaseClient"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -61,8 +56,6 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-
-const CV_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_CV_BUCKET
 
 const AVAILABLE_SKILLS = [
   "React",
@@ -179,7 +172,7 @@ function getIssueLabelsForStep(step: number, keys: Set<string>) {
     if (keys.has("profilePath")) {
       labels.push("Profile path");
     }
-  } else if (step === 4) {
+  } else if (step === 7) {
     add("platforms", "Platforms");
     add("projectTypes", "Project types");
     add("timeZones", "Time zones");
@@ -220,18 +213,18 @@ function StepIndicator() {
     <div className="mb-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Onboarding
           </p>
-          <p className="text-sm font-semibold text-zinc-900">
+          <p className="text-sm font-semibold text-foreground">
             Step {currentStep} of {totalSteps}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Profile completeness
           </p>
-          <p className="text-sm font-semibold text-zinc-900">
+          <p className="text-sm font-semibold text-foreground">
             {formatPercentage(completionScore)}
           </p>
         </div>
@@ -287,7 +280,7 @@ function DateOfBirthField({ invalid }: { invalid: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <Label htmlFor="date-of-birth" className="px-1 text-sm font-medium">
-        Date of birth <span className="text-zinc-400">*</span>
+        Date of birth <span className="text-muted-foreground">*</span>
       </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -296,7 +289,7 @@ function DateOfBirthField({ invalid }: { invalid: boolean }) {
             id="date-of-birth"
             className={
               invalid
-                ? "flex w-52 items-center justify-between border-amber-400 font-normal focus-visible:ring-amber-400"
+                ? "flex w-52 items-center justify-between border-destructive font-normal focus-visible:ring-destructive"
                 : "flex w-52 items-center justify-between font-normal"
             }
           >
@@ -313,7 +306,7 @@ function DateOfBirthField({ invalid }: { invalid: boolean }) {
         </PopoverContent>
       </Popover>
       {invalid && (
-        <p className="px-1 text-xs text-zinc-500">Required to continue</p>
+        <p className="px-1 text-xs text-muted-foreground">Required to continue</p>
       )}
     </div>
   )
@@ -322,7 +315,6 @@ function DateOfBirthField({ invalid }: { invalid: boolean }) {
 function StepOne({ issues }: { issues: Set<string> }) {
   const dispatch = useDispatch()
   const profile = useSelector((state: RootState) => state.onboarding.profile)
-  const cv = useSelector((state: RootState) => state.onboarding.cv)
   const firstNameInvalid = issues.has("firstName")
   const lastNameInvalid = issues.has("lastName")
   const dateOfBirthInvalid = issues.has("dateOfBirth")
@@ -351,65 +343,18 @@ function StepOne({ issues }: { issues: Set<string> }) {
     [dispatch],
   )
 
-  const handleUploadCv = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-
-      if (!file) {
-        return
-      }
-
-      if (!CV_BUCKET) {
-        dispatch(setCvUploadError("CV upload is not configured"))
-        return
-      }
-
-      dispatch(setCvUploading())
-
-      const path = `user-cv/${Date.now()}-${file.name}`
-
-      try {
-        const { error } = await supabase.storage
-          .from(CV_BUCKET)
-          .upload(path, file, {
-            upsert: true,
-          })
-
-        if (error) {
-          dispatch(setCvUploadError(error.message))
-          return
-        }
-
-        dispatch(setCvUploadProgress(100))
-        dispatch(
-          setCvUploadResult({
-            storagePath: path,
-            filename: file.name,
-          }),
-        )
-      } catch (error) {
-        if (error instanceof Error) {
-          dispatch(setCvUploadError(error.message))
-        } else {
-          dispatch(setCvUploadError("Failed to upload CV"))
-        }
-      }
-    },
-    [dispatch],
-  )
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-semibold">
-          Step 1: Basic details and CV
+          Step 1: Personal details
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="first-name">
-              First name <span className="text-zinc-400">*</span>
+              First name <span className="text-muted-foreground">*</span>
             </Label>
             <Input
               id="first-name"
@@ -418,17 +363,17 @@ function StepOne({ issues }: { issues: Set<string> }) {
               placeholder="Jane"
               className={
                 firstNameInvalid
-                  ? "border-amber-400 focus-visible:ring-amber-400"
+                  ? "border-destructive focus-visible:ring-destructive"
                   : undefined
               }
             />
             {firstNameInvalid && (
-              <p className="text-xs text-zinc-500">Required to continue</p>
+              <p className="text-xs text-muted-foreground">Required to continue</p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="last-name">
-              Last name <span className="text-zinc-400">*</span>
+              Last name <span className="text-muted-foreground">*</span>
             </Label>
             <Input
               id="last-name"
@@ -437,43 +382,16 @@ function StepOne({ issues }: { issues: Set<string> }) {
               placeholder="Doe"
               className={
                 lastNameInvalid
-                  ? "border-amber-400 focus-visible:ring-amber-400"
+                  ? "border-destructive focus-visible:ring-destructive"
                   : undefined
               }
             />
             {lastNameInvalid && (
-              <p className="text-xs text-zinc-500">Required to continue</p>
+              <p className="text-xs text-muted-foreground">Required to continue</p>
             )}
           </div>
         </div>
         <DateOfBirthField invalid={dateOfBirthInvalid} />
-        <Separator />
-        <div className="space-y-3">
-          <Label htmlFor="cv-upload">CV upload</Label>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <Input
-              id="cv-upload"
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={handleUploadCv}
-            />
-            {cv.filename && (
-              <Badge variant="outline" className="justify-start">
-                {cv.filename}
-              </Badge>
-            )}
-          </div>
-          {cv.isUploading && (
-            <p className="text-xs text-zinc-500">
-              Uploading CV... {cv.uploadProgress}%
-            </p>
-          )}
-          {cv.error && (
-            <p className="text-xs text-red-600">
-              {cv.error}
-            </p>
-          )}
-        </div>
       </CardContent>
     </Card>
   )
@@ -518,7 +436,7 @@ function StepTwo({ locked }: { locked: boolean }) {
               <RadioGroupItem value="solo" id="team-mode-solo" />
               <div>
                 <div className="text-sm font-semibold">Solo</div>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   I&apos;m a solo freelancer.
                 </p>
               </div>
@@ -532,7 +450,7 @@ function StepTwo({ locked }: { locked: boolean }) {
               <RadioGroupItem value="team" id="team-mode-team" />
               <div>
                 <div className="text-sm font-semibold">Team</div>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   I lead or represent a small team.
                 </p>
               </div>
@@ -587,7 +505,7 @@ function SkillsSection() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Skills</Label>
-        <span className="text-xs text-zinc-500">Optional</span>
+        <span className="text-xs text-muted-foreground">Optional</span>
       </div>
       <div className="flex flex-col gap-3 md:flex-row md:items-end">
         <div className="flex-1 space-y-2">
@@ -625,7 +543,7 @@ function SkillsSection() {
             Add
           </Button>
         </div>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-muted-foreground">
           Leave empty to skip this step.
         </span>
       </div>
@@ -639,7 +557,7 @@ function SkillsSection() {
               className="border-input hover:border-destructive/60 hover:bg-destructive/5 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs"
             >
               <span>{skill.name}</span>
-              <span className="text-zinc-400">×</span>
+              <span className="text-muted-foreground">×</span>
             </button>
           ))}
         </div>
@@ -691,7 +609,7 @@ function ExperienceSection() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Experience</Label>
-        <span className="text-xs text-zinc-500">Optional</span>
+        <span className="text-xs text-muted-foreground">Optional</span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
@@ -748,7 +666,7 @@ function ExperienceSection() {
         >
           Add experience
         </Button>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-muted-foreground">
           You can leave this empty and continue.
         </span>
       </div>
@@ -761,7 +679,7 @@ function ExperienceSection() {
             >
               <div>
                 <div className="font-medium">{experience.title}</div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-xs text-muted-foreground">
                   {experience.company}
                 </div>
               </div>
@@ -824,7 +742,7 @@ function EducationSection() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Education</Label>
-        <span className="text-xs text-zinc-500">Optional</span>
+        <span className="text-xs text-muted-foreground">Optional</span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
@@ -881,7 +799,7 @@ function EducationSection() {
         >
           Add education
         </Button>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-muted-foreground">
           You can leave this empty and continue.
         </span>
       </div>
@@ -894,7 +812,7 @@ function EducationSection() {
             >
               <div>
                 <div className="font-medium">{education.school}</div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-xs text-muted-foreground">
                   {education.degree} {education.field}
                 </div>
               </div>
@@ -934,7 +852,7 @@ function StepThree({ invalid }: { invalid: boolean }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-semibold">
-          Step 3: Profile path
+          Step 3: Profile setup
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -947,7 +865,7 @@ function StepThree({ invalid }: { invalid: boolean }) {
             htmlFor="profile-path-import"
             className={
               isMissing
-                ? "border-amber-400 hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
+                ? "border-destructive hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
                 : "border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
             }
           >
@@ -960,7 +878,7 @@ function StepThree({ invalid }: { invalid: boolean }) {
                 <div className="text-sm font-semibold">
                   Import from LinkedIn or Upwork
                 </div>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   Use your existing profile as a starting point.
                 </p>
               </div>
@@ -970,7 +888,7 @@ function StepThree({ invalid }: { invalid: boolean }) {
             htmlFor="profile-path-manual"
             className={
               isMissing
-                ? "border-amber-400 hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
+                ? "border-destructive hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
                 : "border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
             }
           >
@@ -983,7 +901,7 @@ function StepThree({ invalid }: { invalid: boolean }) {
                 <div className="text-sm font-semibold">
                   Add skills and experience manually
                 </div>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   Describe your skills, experience, and education by hand.
                 </p>
               </div>
@@ -991,22 +909,13 @@ function StepThree({ invalid }: { invalid: boolean }) {
           </label>
         </RadioGroup>
         {profilePath === "import" && (
-          <div className="rounded-md bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="rounded-md bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
             Importing from LinkedIn and Upwork is under construction.
             You can continue onboarding and come back later.
           </div>
         )}
-        {profilePath === "manual" && (
-          <div className="space-y-6">
-            <SkillsSection />
-            <Separator />
-            <ExperienceSection />
-            <Separator />
-            <EducationSection />
-          </div>
-        )}
         {!profilePath && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Choose one of the paths above to continue.
           </p>
         )}
@@ -1015,7 +924,46 @@ function StepThree({ invalid }: { invalid: boolean }) {
   )
 }
 
-function StepFour({ issues }: { issues: Set<string> }) {
+function StepFourSkills() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Step 4: Skills</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <SkillsSection />
+      </CardContent>
+    </Card>
+  )
+}
+
+function StepFiveExperience() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Step 5: Experience</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ExperienceSection />
+      </CardContent>
+    </Card>
+  )
+}
+
+function StepSixEducation() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Step 6: Education</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <EducationSection />
+      </CardContent>
+    </Card>
+  )
+}
+
+function StepSevenPreferences({ issues }: { issues: Set<string> }) {
   const dispatch = useDispatch()
   const preferences = useSelector(
     (state: RootState) => state.onboarding.preferences,
@@ -1134,7 +1082,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-semibold">
-          Step 4: Preferences
+          Step 7: Preferences
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -1147,7 +1095,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
                 onClick={() => handlePlatformsChange("upwork")}
                 className={
                   platformsInvalid
-                    ? "border-amber-400 flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                    ? "border-destructive flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                     : "border-input flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                 }
               >
@@ -1162,7 +1110,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
                 onClick={() => handlePlatformsChange("linkedin")}
                 className={
                   platformsInvalid
-                    ? "border-amber-400 flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                    ? "border-destructive flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                     : "border-input flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                 }
               >
@@ -1229,7 +1177,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
                 onChange={handleHourlyMinChange}
                 className={
                   hourlyMinInvalid
-                    ? "border-amber-400 focus-visible:ring-amber-400"
+                    ? "border-destructive focus-visible:ring-destructive"
                     : undefined
                 }
               />
@@ -1241,7 +1189,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
                 onChange={handleHourlyMaxChange}
                 className={
                   hourlyMaxInvalid
-                    ? "border-amber-400 focus-visible:ring-amber-400"
+                    ? "border-destructive focus-visible:ring-destructive"
                     : undefined
                 }
               />
@@ -1267,7 +1215,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
               onChange={handleFixedBudgetMinChange}
               className={
                 hourlyMinInvalid
-                  ? "border-amber-400 focus-visible:ring-amber-400"
+                  ? "border-destructive focus-visible:ring-destructive"
                   : undefined
               }
             />
@@ -1278,7 +1226,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
               <label
                 className={
                   projectTypesInvalid
-                    ? "flex items-center justify-between rounded-md border border-amber-400 px-3 py-2 text-sm"
+                    ? "flex items-center justify-between rounded-md border border-destructive px-3 py-2 text-sm"
                     : "flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm"
                 }
               >
@@ -1293,7 +1241,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
               <label
                 className={
                   projectTypesInvalid
-                    ? "flex items-center justify-between rounded-md border border-amber-400 px-3 py-2 text-sm"
+                    ? "flex items-center justify-between rounded-md border border-destructive px-3 py-2 text-sm"
                     : "flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm"
                 }
               >
@@ -1329,7 +1277,7 @@ function StepFour({ issues }: { issues: Set<string> }) {
                       active
                         ? "bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs"
                         : timeZonesInvalid
-                          ? "border-amber-400 rounded-full border px-3 py-1 text-xs"
+                          ? "border-destructive rounded-full border px-3 py-1 text-xs"
                           : "border-input rounded-full border px-3 py-1 text-xs"
                     }
                   >
@@ -1383,8 +1331,11 @@ export default function OnboardingPage() {
     const step1 = profileSchema.safeParse(state.profile).success
     const step2 = teamModeSchema.safeParse(state.teamMode).success
     const step3 = profilePathSchema.safeParse(state.profilePath).success
-    const step4 = preferencesSchema.safeParse(state.preferences).success
-    return { step1, step2, step3, step4 }
+    const step4 = true
+    const step5 = true
+    const step6 = true
+    const step7 = preferencesSchema.safeParse(state.preferences).success
+    return { step1, step2, step3, step4, step5, step6, step7 }
   }, [state.preferences, state.profile, state.profilePath, state.teamMode])
 
   const currentStepIssues = useMemo(() => {
@@ -1400,6 +1351,10 @@ export default function OnboardingPage() {
     if (currentStep === 3) {
       const result = profilePathSchema.safeParse(state.profilePath)
       return result.success ? new Set<string>() : new Set<string>(["profilePath"])
+    }
+
+    if (currentStep >= 4 && currentStep <= 6) {
+      return new Set<string>()
     }
 
     const result = preferencesSchema.safeParse(state.preferences)
@@ -1435,6 +1390,10 @@ export default function OnboardingPage() {
         valid: result.success,
         errors: result.success ? [] : ["Choose a profile path to continue"],
       }
+    }
+
+    if (currentStep >= 4 && currentStep <= 6) {
+      return { valid: true, errors: [] }
     }
 
     const result = preferencesSchema.safeParse(state.preferences)
@@ -1510,7 +1469,25 @@ export default function OnboardingPage() {
           (step === 4 &&
             stepValidities.step1 &&
             stepValidities.step2 &&
-            stepValidities.step3)
+            stepValidities.step3) ||
+          (step === 5 &&
+            stepValidities.step1 &&
+            stepValidities.step2 &&
+            stepValidities.step3 &&
+            stepValidities.step4) ||
+          (step === 6 &&
+            stepValidities.step1 &&
+            stepValidities.step2 &&
+            stepValidities.step3 &&
+            stepValidities.step4 &&
+            stepValidities.step5) ||
+          (step === 7 &&
+            stepValidities.step1 &&
+            stepValidities.step2 &&
+            stepValidities.step3 &&
+            stepValidities.step4 &&
+            stepValidities.step5 &&
+            stepValidities.step6)
 
         if (!canNavigate) {
           setClientErrors(remainingLabels.length > 0 ? remainingLabels : ["Complete required fields to continue"])
@@ -1549,34 +1526,25 @@ export default function OnboardingPage() {
             }
           : null,
       path: state.profilePath,
-      skills:
-        state.profilePath === "manual"
-          ? state.skills.map((skill) => ({
-              name: skill.name,
-              level: skill.level,
-              years: skill.years,
-            }))
-          : [],
-      experiences:
-        state.profilePath === "manual"
-          ? state.experiences.map((experience) => ({
-              title: experience.title,
-              company: experience.company,
-              startDate: experience.startDate,
-              endDate: experience.endDate,
-              highlights: experience.highlights,
-            }))
-          : [],
-      educations:
-        state.profilePath === "manual"
-          ? state.educations.map((education) => ({
-              school: education.school,
-              degree: education.degree,
-              field: education.field,
-              startYear: education.startYear ? parseInt(education.startYear) : null,
-              endYear: education.endYear ? parseInt(education.endYear) : null,
-            }))
-          : [],
+      skills: state.skills.map((skill) => ({
+        name: skill.name,
+        level: skill.level,
+        years: skill.years,
+      })),
+      experiences: state.experiences.map((experience) => ({
+        title: experience.title,
+        company: experience.company,
+        startDate: experience.startDate,
+        endDate: experience.endDate,
+        highlights: experience.highlights,
+      })),
+      educations: state.educations.map((education) => ({
+        school: education.school,
+        degree: education.degree,
+        field: education.field,
+        startYear: education.startYear ? parseInt(education.startYear) : null,
+        endYear: education.endYear ? parseInt(education.endYear) : null,
+      })),
       preferences: {
         platforms: state.preferences.platforms,
         currency: state.preferences.currency,
@@ -1667,7 +1635,7 @@ export default function OnboardingPage() {
       >
         <StepTwo locked={userRole === "member"} />
         {userRole === "member" && (
-          <p className="mt-3 text-xs text-zinc-600">
+          <p className="mt-3 text-xs text-muted-foreground">
             Team settings are locked for members.
           </p>
         )}
@@ -1675,8 +1643,14 @@ export default function OnboardingPage() {
     )
   } else if (currentStep === 3) {
     content = <StepThree invalid={currentStepIssues.has("profilePath")} />
+  } else if (currentStep === 4) {
+    content = <StepFourSkills />
+  } else if (currentStep === 5) {
+    content = <StepFiveExperience />
+  } else if (currentStep === 6) {
+    content = <StepSixEducation />
   } else {
-    content = <StepFour issues={currentStepIssues} />
+    content = <StepSevenPreferences issues={currentStepIssues} />
   }
 
   return (
@@ -1688,7 +1662,7 @@ export default function OnboardingPage() {
           {remainingLabels.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {remainingLabels.map((label) => (
-                <Badge key={label} variant="outline" className="text-zinc-600">
+                <Badge key={label} variant="outline" className="text-muted-foreground">
                   {label}
                 </Badge>
               ))}
@@ -1723,20 +1697,20 @@ export default function OnboardingPage() {
             )}
           </div>
           {clientErrors.length > 0 && (
-            <div className="space-y-1 text-xs text-red-600">
+            <div className="space-y-1 text-xs text-destructive">
               {clientErrors.map((error) => (
                 <p key={error}>{error}</p>
               ))}
             </div>
           )}
           {saveError && (
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-destructive">
               {saveError}
             </p>
           )}
         </div>
-        <div className="hidden w-64 flex-none flex-col gap-3 rounded-lg bg-zinc-50 p-4 text-sm text-zinc-700 md:flex">
-          <div className="font-semibold">What this setup powers</div>
+        <div className="hidden w-64 flex-none flex-col gap-3 rounded-lg bg-muted p-4 text-sm text-muted-foreground md:flex">
+          <div className="text-foreground font-semibold">What this setup powers</div>
           <p>
             Your profile, skills, experience, and preferences are used by
             the job search and ranking engine in the backend.
@@ -1758,7 +1732,25 @@ export default function OnboardingPage() {
             (step === 4 &&
               stepValidities.step1 &&
               stepValidities.step2 &&
-              stepValidities.step3)
+              stepValidities.step3) ||
+            (step === 5 &&
+              stepValidities.step1 &&
+              stepValidities.step2 &&
+              stepValidities.step3 &&
+              stepValidities.step4) ||
+            (step === 6 &&
+              stepValidities.step1 &&
+              stepValidities.step2 &&
+              stepValidities.step3 &&
+              stepValidities.step4 &&
+              stepValidities.step5) ||
+            (step === 7 &&
+              stepValidities.step1 &&
+              stepValidities.step2 &&
+              stepValidities.step3 &&
+              stepValidities.step4 &&
+              stepValidities.step5 &&
+              stepValidities.step6)
 
           return (
             <button
@@ -1770,8 +1762,8 @@ export default function OnboardingPage() {
                 step === currentStep
                   ? "bg-primary h-1.5 flex-1 rounded-full"
                   : canNavigate
-                    ? "bg-zinc-200 h-1.5 flex-1 rounded-full"
-                    : "bg-zinc-100 h-1.5 flex-1 rounded-full"
+                    ? "bg-muted h-1.5 flex-1 rounded-full"
+                    : "bg-muted/50 h-1.5 flex-1 rounded-full"
               }
             />
           )

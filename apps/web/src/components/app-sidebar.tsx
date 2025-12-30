@@ -2,15 +2,19 @@
 
 import * as React from "react"
 import { BarChart3, FileText, Home, MessageSquare, Rocket, Search, Settings, Star, Users, Wallet, Command } from "lucide-react"
+import Link from "next/link"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { SettingsDialog } from "@/components/settings-dialog"
 import { useSession } from "@/app/auth/session-provider"
 import { useUserPlan } from "@/hooks/use-user-plan"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -25,18 +29,24 @@ function getPlanLabel(plan: string | null) {
   return plan
 }
 
-const navMain = [
+const navWork = [
   { title: "Overview", url: "/overview", icon: Home },
   { title: "Jobs", url: "/jobs", icon: Search },
   { title: "Applications", url: "/applications", icon: Rocket },
   { title: "Cover Letters", url: "/cover-letters", icon: FileText },
+]
+
+const navComms = [
   { title: "Messages", url: "/messages", icon: MessageSquare },
   { title: "Feedback", url: "/feedback", icon: Star },
+]
+
+const navInsights = [
   { title: "Earnings", url: "/earnings", icon: Wallet },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Team", url: "/team", icon: Users },
-  { title: "Settings", url: "/settings", icon: Settings },
 ]
+
+const navTeam = [{ title: "Team", url: "/team", icon: Users }]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { session } = useSession()
@@ -66,12 +76,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   )
 
   return (
-    <Sidebar collapsible="icon" variant="inset" {...props}>
+    <Sidebar collapsible="icon" variant="sidebar"
+     {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <a href="/overview">
+              <Link href="/overview">
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Command className="size-4" />
                 </div>
@@ -79,13 +90,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <span className="truncate font-medium">{resolvedName}</span>
                   <span className="truncate text-xs">{planLabel}</span>
                 </div>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain label="Work" items={navWork} />
+        <NavMain label="Comms" items={navComms} />
+        <NavMain label="Insights" items={navInsights} />
+        <NavMain label="Team" items={navTeam} />
+        <div className="mt-auto">
+          <SidebarGroup>
+            <SidebarGroupLabel>Account</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SettingsDialog
+                  trigger={
+                    <SidebarMenuButton tooltip="Settings">
+                      <Settings className="size-4" />
+                      <span>Settings</span>
+                    </SidebarMenuButton>
+                  }
+                />
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </div>
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
