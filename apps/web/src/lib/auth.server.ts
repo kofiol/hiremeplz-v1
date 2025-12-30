@@ -13,8 +13,6 @@ const supabaseUrl = SUPABASE_URL;
 const supabaseAnonKey = SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = SUPABASE_SERVICE_ROLE_KEY;
 
-// 1. Service Role Client (Bypasses RLS)
-// Only use this when you absolutely need admin privileges.
 export const supabaseAdmin = createClient(
   supabaseUrl,
   supabaseServiceRoleKey,
@@ -25,6 +23,20 @@ export const supabaseAdmin = createClient(
     },
   },
 );
+
+export function createUserSupabaseClient(accessToken: string) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 export type AuthContext = {
   userId: string;
