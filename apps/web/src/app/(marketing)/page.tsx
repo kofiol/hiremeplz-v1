@@ -1,9 +1,11 @@
-'use client';
-import React from "react";
+"use client";
+
+import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -12,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
   XCircle,
@@ -26,112 +29,106 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import { siteConfig } from "@/config/site";
+
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(mediaQuery.matches);
+    update();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", update);
+      return () => mediaQuery.removeEventListener("change", update);
+    }
+    mediaQuery.addListener(update);
+    return () => mediaQuery.removeListener(update);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+type RevealProps = {
+  children: ReactNode;
+  className?: string;
+  delayMs?: number;
+};
+
+function Reveal({ children, className, delayMs = 0 }: RevealProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [hasIntersected, setHasIntersected] = useState(false);
+  const isVisible = prefersReducedMotion || hasIntersected;
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setHasIntersected(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -10% 0px" },
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [prefersReducedMotion]);
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delayMs}ms` }}
+      className={cn(
+        prefersReducedMotion
+          ? ""
+          : "transform-gpu will-change-[opacity,transform] transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-24 pb-32 md:pt-32 md:pb-48">
-        {/* Aurora Background */}
-        <div className="absolute inset-0 -z-10 h-full w-full bg-background overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[800px] bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 rounded-full blur-[100px] opacity-30 pointer-events-none" />
-        </div>
+      <section className="relative overflow-hidden min-h-[86svh] flex items-center pt-28 pb-10 sm:min-h-[88svh] sm:pt-32 sm:pb-14">
+        <div className="absolute inset-0 -z-10 bg-primary/5 skew-y-3 transform origin-top-left scale-110" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-muted/40 via-background to-background" />
 
-        <div className="container px-4 md:px-6 mx-auto flex flex-col items-center text-center space-y-8">
-          <Badge variant="secondary" className="px-4 py-2 text-sm rounded-full bg-secondary/50 backdrop-blur-sm border border-border/50">
-            Now accepting early access
-          </Badge>
-          
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70 max-w-4xl">
-            Your personal AI agent for finding <span className="text-primary">freelance projects</span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            We find projects for you — 24/7.
-            <br className="hidden md:inline" /> You work. You live. You plan your life.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-            <Button size="lg" className="text-lg px-8 py-6 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all" asChild>
-              <Link href="#waitlist">
-                Join the waitlist <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" className="text-lg px-8 py-6 rounded-full backdrop-blur-sm" asChild>
-              <Link href="#how-it-works">
-                How it works
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Problem Section */}
-      <section className="py-20 bg-muted/30">
         <div className="container px-4 md:px-6 mx-auto">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold">The real problem with freelancing today</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              If you’re a freelancer, you know this all too well. You know how to do your job — but spend hours <span className="font-semibold text-foreground">not actually doing it</span>.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-colors">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
-                  <Users className="h-6 w-6" />
-                </div>
-                <CardTitle>Overcrowded Market</CardTitle>
-                <CardDescription>
-                  The freelance market is saturated. Standing out is harder than ever.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-colors">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center mb-4 text-orange-600 dark:text-orange-400">
-                  <Clock className="h-6 w-6" />
-                </div>
-                <CardTitle>Wasted Time</CardTitle>
-                <CardDescription>
-                  Upwork, LinkedIn, job boards... Hours spent searching instead of earning.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-colors">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center mb-4 text-yellow-600 dark:text-yellow-400">
-                  <TrendingUp className="h-6 w-6" />
-                </div>
-                <CardTitle>Unstable Income</CardTitle>
-                <CardDescription>
-                  The constant question hangs over you: &quot;What&apos;s next?&quot; No predictability.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-          
-          <div className="mt-12 text-center max-w-3xl mx-auto">
-             <p className="text-lg text-muted-foreground italic border-l-4 border-primary/30 pl-6 py-2 bg-muted/50 rounded-r-lg">
-              &quot;The hardest part isn&rsquo;t finding projects — it&rsquo;s building a systematic, predictable workflow.&quot;
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Solution Section */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-primary/5 -z-10 skew-y-3 transform origin-top-left scale-110"></div>
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+            <Reveal className="space-y-8">
               <div>
-                <Badge className="mb-4">Our Solution</Badge>
-                <h2 className="text-3xl md:text-5xl font-bold mb-4">HireMePlz</h2>
-                <p className="text-xl text-muted-foreground">
-                  A <strong>personal AI agent</strong> that handles all the tedious work of finding freelance projects for you.
+                <Badge variant="outline" className="mb-5 gap-2 px-3 py-1.5 border-border/60 inline-flex flex-wrap">
+                  <span className="text-muted-foreground">Now accepting early access</span>
+                  <Link href={siteConfig.getStartedUrl} className="flex items-center gap-1 text-foreground">
+                    Join waitlist
+                    <ArrowRight className="size-3" />
+                  </Link>
+                </Badge>
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter mb-5 text-balance">
+                  Meet your personal <span className="animated-gradient">AI agent</span> for finding freelance work
+                </h1>
+                <p className="text-lg sm:text-xl text-muted-foreground max-w-xl">
+                  HireMePlz monitors the market, filters the noise, and delivers high-fit opportunities while you focus on
+                  delivery.
                 </p>
               </div>
 
@@ -142,7 +139,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">Global Monitoring</h3>
-                    <p className="text-muted-foreground">Monitors all key project sources worldwide.</p>
+                    <p className="text-muted-foreground">Monitors key project sources across the web.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -151,7 +148,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">Smart Filtering</h3>
-                    <p className="text-muted-foreground">Filters opportunities to match your profile and removes junk.</p>
+                    <p className="text-muted-foreground">Matches your profile and filters out junk instantly.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -160,22 +157,25 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">Continuous Stream</h3>
-                    <p className="text-muted-foreground">Provides a reliable stream of projects. A system that works while you sleep.</p>
+                    <p className="text-muted-foreground">Keeps a steady pipeline flowing while you sleep.</p>
                   </div>
                 </div>
               </div>
-              
-              <div className="pt-4">
-                <p className="text-sm text-muted-foreground mb-4">This isn't another marketplace or template generator.</p>
-                <Button size="lg" className="rounded-full">
-                  Learn more about the AI
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Button size="lg" className="text-base sm:text-lg px-7 sm:px-8 py-6 rounded-full transition-all shadow-sm hover:shadow-md" asChild>
+                  <Link href="https://forms.gle/RYhbUrwwxhWn1dwS9">
+                    Get early access <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" className="text-base sm:text-lg px-7 sm:px-8 py-6 rounded-full" asChild>
+                  <Link href="#features">See what it does</Link>
                 </Button>
               </div>
-            </div>
-            
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 blur-3xl rounded-full -z-10 transform rotate-6"></div>
-              <Card className="border-2 border-primary/10 shadow-2xl bg-card/80 backdrop-blur-md">
+            </Reveal>
+
+            <Reveal delayMs={120} className="relative max-h-[460px] overflow-hidden">
+              <Card className="border-2 border-primary/10 shadow-2xl bg-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <span className="relative flex h-3 w-3">
@@ -220,20 +220,134 @@ export default function LandingPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-background" />
+            </Reveal>
           </div>
         </div>
       </section>
 
-      {/* How it works Section */}
-      <section id="how-it-works" className="py-24 bg-muted/30">
+      {/* Problem Section */}
+      <section className="py-20 bg-muted/30">
         <div className="container px-4 md:px-6 mx-auto">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16 space-y-4">
+            <h2 className="text-3xl md:text-4xl font-bold">The real problem with freelancing today</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              If you’re a freelancer, you know this all too well. You know how to do your job — but spend hours{" "}
+              <span className="font-semibold text-foreground">not actually doing it</span>.
+            </p>
+          </Reveal>
+
+          <Reveal delayMs={120} className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <Card className="bg-card border-border/50 hover:border-primary/50 transition-colors">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                  <Users className="h-6 w-6" />
+                </div>
+                <CardTitle>Overcrowded Market</CardTitle>
+                <CardDescription>
+                  The freelance market is saturated. Standing out is harder than ever.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="bg-card border-border/50 hover:border-primary/50 transition-colors">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center mb-4 text-orange-600 dark:text-orange-400">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <CardTitle>Wasted Time</CardTitle>
+                <CardDescription>
+                  Upwork, LinkedIn, job boards... Hours spent searching instead of earning.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="bg-card border-border/50 hover:border-primary/50 transition-colors">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center mb-4 text-yellow-600 dark:text-yellow-400">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <CardTitle>Unstable Income</CardTitle>
+                <CardDescription>
+                  The constant question hangs over you: &quot;What&apos;s next?&quot; No predictability.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Reveal>
+          
+          <Reveal delayMs={220} className="mt-12 text-center max-w-3xl mx-auto">
+             <p className="text-lg text-muted-foreground   border-primary/30 pl-6 py-2  ">
+              The hardest part isn&rsquo;t finding projects — it&rsquo;s building a systematic, <span className="text-green-500">predictable</span> workflow.
+            </p> 
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Solution Section */}
+      <section className="py-24 bg-dark/30">
+        <div className="container px-4 md:px-6 mx-auto">
+          <Reveal className="text-center mb-16 space-y-4">
+            <Badge variant="outline" className="border-border/60">The Outcome</Badge>
+            <h2 className="text-3xl md:text-5xl font-bold">A pipeline that feels predictable</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Stop refreshing boards. Get a stream of opportunities that match your profile and are worth responding to.
+            </p>
+          </Reveal>
+
+          <Reveal delayMs={120} className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <Card className="bg-background border-border/60 shadow-sm">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center mb-4 text-violet-600 dark:text-violet-400">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <CardTitle>Time Back</CardTitle>
+                <CardDescription>
+                  Hours of searching become minutes of decision-making.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card className="bg-background border-border/60 shadow-sm">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center mb-4 text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <CardTitle>Higher Quality Leads</CardTitle>
+                <CardDescription>
+                  Less spam, fewer mismatches, more opportunities you can win.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card className="bg-background border-border/60 shadow-sm">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <CardTitle>More Consistent Work</CardTitle>
+                <CardDescription>
+                  Build a steady system instead of relying on luck.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Reveal>
+
+          <Reveal delayMs={220} className="mt-12 text-center">
+            <Button size="lg" className="rounded-full" asChild>
+              <Link href="#how-it-works">See how it works</Link>
+            </Button>
+            <p className="mt-4 text-sm text-muted-foreground">Onboarding takes ~15 minutes.</p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* How it works Section */}
+      <section id="how-it-works" className="py-24 bg-muted/30 scroll-mt-28">
+        <div className="container px-4 md:px-6 mx-auto">
+          <Reveal className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">How it works</h2>
             <p className="text-xl text-muted-foreground">Onboarding takes just 15 minutes. Then the AI takes over.</p>
-          </div>
+          </Reveal>
 
-          <div className="grid md:grid-cols-4 gap-8">
+          <Reveal delayMs={120} className="grid md:grid-cols-4 gap-8">
             {[
               { title: "1. Upload CV", desc: "Share your professional background." },
               { title: "2. Add Portfolio", desc: "Showcase your best work and profiles." },
@@ -251,11 +365,11 @@ export default function LandingPage() {
                 )}
               </div>
             ))}
-          </div>
+          </Reveal>
 
-          <div className="mt-16 bg-background rounded-2xl p-8 border shadow-sm max-w-4xl mx-auto">
+          <Reveal delayMs={220} className="mt-16 bg-background rounded-2xl p-6 sm:p-8 border shadow-sm max-w-4xl mx-auto">
             <h3 className="text-xl font-bold mb-6 text-center">What the AI analyzes for you:</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div className="p-4 rounded-lg bg-secondary/50">
                 <div className="font-semibold text-primary">Budget</div>
                 <div className="text-xs text-muted-foreground mt-1">Is it worth it?</div>
@@ -273,6 +387,76 @@ export default function LandingPage() {
                 <div className="text-xs text-muted-foreground mt-1">Likelihood to reply</div>
               </div>
             </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section id="features" className="py-24 scroll-mt-28">
+        <div className="container px-4 md:px-6 mx-auto">
+          <Reveal className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Features built for serious freelancers</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              A real pipeline system, not another place to scroll.
+            </p>
+          </Reveal>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {[
+              {
+                icon: Globe,
+                title: "Multi-source monitoring",
+                desc: "Tracks opportunities across marketplaces, networks, and boards.",
+                iconClassName: "text-cyan-600 dark:text-cyan-400",
+                iconBgClassName: "bg-cyan-500/10",
+              },
+              {
+                icon: ShieldCheck,
+                title: "Quality filtering",
+                desc: "Keeps scams, low-budget work, and mismatches out of your feed.",
+                iconClassName: "text-emerald-600 dark:text-emerald-400",
+                iconBgClassName: "bg-emerald-500/10",
+              },
+              {
+                icon: Zap,
+                title: "Fast alerts",
+                desc: "Gets you the best leads early, when response rates are highest.",
+                iconClassName: "text-fuchsia-600 dark:text-fuchsia-400",
+                iconBgClassName: "bg-fuchsia-500/10",
+              },
+              {
+                icon: TrendingUp,
+                title: "Smarter prioritization",
+                desc: "Ranks leads by fit and likelihood to convert, not by hype.",
+                iconClassName: "text-amber-600 dark:text-amber-400",
+                iconBgClassName: "bg-amber-500/10",
+              },
+              {
+                icon: Briefcase,
+                title: "Built for your workflow",
+                desc: "Designed to support a consistent, predictable client pipeline.",
+                iconClassName: "text-blue-600 dark:text-blue-400",
+                iconBgClassName: "bg-blue-500/10",
+              },
+              {
+                icon: Clock,
+                title: "Time back every week",
+                desc: "Turns hours of searching into minutes of decision-making.",
+                iconClassName: "text-violet-600 dark:text-violet-400",
+                iconBgClassName: "bg-violet-500/10",
+              },
+            ].map((feature, i) => (
+              <Reveal key={feature.title} delayMs={80 + i * 60}>
+                <Card className="h-full bg-card border-border/60">
+                  <CardHeader>
+                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center mb-4", feature.iconBgClassName)}>
+                      <feature.icon className={cn("h-6 w-6", feature.iconClassName)} />
+                    </div>
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardDescription className="text-sm">{feature.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
@@ -280,98 +464,102 @@ export default function LandingPage() {
       {/* Comparison Section */}
       <section className="py-24">
         <div className="container px-4 md:px-6 mx-auto">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Current job search vs HireMePlz</h2>
             <p className="text-xl text-muted-foreground">Stop being your own free recruiter.</p>
-          </div>
+          </Reveal>
 
           <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
             {/* Cost Comparison */}
-            <Card>
+            <Reveal delayMs={120}>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle>Financial Cost</CardTitle>
                 <CardDescription>Monthly expenses for a serious freelancer</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
+                <Table className="table-fixed text-xs sm:text-sm">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Yourself</TableHead>
-                      <TableHead className="text-primary font-bold">HireMePlz</TableHead>
+                      <TableHead className="w-[44%] whitespace-normal">Category</TableHead>
+                      <TableHead className="w-[28%] whitespace-normal">Yourself</TableHead>
+                      <TableHead className="w-[28%] whitespace-normal text-primary font-bold">HireMePlz</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
-                      <TableCell className="font-medium">Upwork Connects</TableCell>
-                      <TableCell>$30–50</TableCell>
-                      <TableCell className="text-primary font-bold">$0</TableCell>
+                      <TableCell className="font-medium whitespace-normal">Upwork Connects</TableCell>
+                      <TableCell className="whitespace-normal">$30–50</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">$0</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium">LinkedIn Premium</TableCell>
-                      <TableCell>$39–59</TableCell>
-                      <TableCell className="text-primary font-bold">$0</TableCell>
+                      <TableCell className="font-medium whitespace-normal">LinkedIn Premium</TableCell>
+                      <TableCell className="whitespace-normal">$39–59</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">$0</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium">Job boards</TableCell>
-                      <TableCell>$20–50</TableCell>
-                      <TableCell className="text-primary font-bold">$0</TableCell>
+                      <TableCell className="font-medium whitespace-normal">Job boards</TableCell>
+                      <TableCell className="whitespace-normal">$20–50</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">$0</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium">Tools (CRM, AI)</TableCell>
-                      <TableCell>$60–150</TableCell>
-                      <TableCell className="text-primary font-bold">$0</TableCell>
+                      <TableCell className="font-medium whitespace-normal">Tools (CRM, AI)</TableCell>
+                      <TableCell className="whitespace-normal">$60–150</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">$0</TableCell>
                     </TableRow>
                     <TableRow className="bg-muted/50 font-bold">
-                      <TableCell>Total / mo</TableCell>
-                      <TableCell className="text-destructive">$150–300</TableCell>
-                      <TableCell className="text-primary">~$49–99</TableCell>
+                      <TableCell className="whitespace-normal">Total / mo</TableCell>
+                      <TableCell className="whitespace-normal text-destructive">$150–300</TableCell>
+                      <TableCell className="whitespace-normal text-primary">~$49–99</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+            </Reveal>
 
             {/* Time Comparison */}
-            <Card>
+            <Reveal delayMs={180}>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle>Time = Money</CardTitle>
                 <CardDescription>The hidden cost of your time</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
+                <Table className="table-fixed text-xs sm:text-sm">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Task</TableHead>
-                      <TableHead>Now</TableHead>
-                      <TableHead className="text-primary font-bold">HireMePlz</TableHead>
+                      <TableHead className="w-[44%] whitespace-normal">Task</TableHead>
+                      <TableHead className="w-[28%] whitespace-normal">Now</TableHead>
+                      <TableHead className="w-[28%] whitespace-normal text-primary font-bold">HireMePlz</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
-                      <TableCell className="font-medium">Search time / day</TableCell>
-                      <TableCell>1–3 hrs</TableCell>
-                      <TableCell className="text-primary font-bold">0–15 min</TableCell>
+                      <TableCell className="font-medium whitespace-normal">Search time / day</TableCell>
+                      <TableCell className="whitespace-normal">1–3 hrs</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">0–15 min</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium">Search time / month</TableCell>
-                      <TableCell>30–90 hrs</TableCell>
-                      <TableCell className="text-primary font-bold">2–5 hrs</TableCell>
+                      <TableCell className="font-medium whitespace-normal">Search time / month</TableCell>
+                      <TableCell className="whitespace-normal">30–90 hrs</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">2–5 hrs</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium">Your Role</TableCell>
-                      <TableCell className="text-xs">Freelancer + Recruiter + Sales</TableCell>
-                      <TableCell className="text-primary font-bold">Just Freelancer</TableCell>
+                      <TableCell className="font-medium whitespace-normal">Your Role</TableCell>
+                      <TableCell className="whitespace-normal">Freelancer + Recruiter + Sales</TableCell>
+                      <TableCell className="whitespace-normal text-primary font-bold">Just Freelancer</TableCell>
                     </TableRow>
                     <TableRow className="bg-muted/50 font-bold">
-                      <TableCell>Hidden Cost</TableCell>
-                      <TableCell className="text-destructive">$900–5,400</TableCell>
-                      <TableCell className="text-primary">~$0</TableCell>
+                      <TableCell className="whitespace-normal">Hidden Cost</TableCell>
+                      <TableCell className="whitespace-normal text-destructive">$900–5,400</TableCell>
+                      <TableCell className="whitespace-normal text-primary">~$0</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -381,13 +569,13 @@ export default function LandingPage() {
         <div className="container px-4 md:px-6 mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
              <div className="order-2 lg:order-1">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2">
                     <Smile className="h-8 w-8 text-yellow-500" />
                     <h3 className="font-bold">Peace of Mind</h3>
-                    <p className="text-sm text-muted-foreground">Anxiety about "what's next" disappears.</p>
+                    <p className="text-sm text-muted-foreground">Anxiety about &quot;what&apos;s next&quot; disappears.</p>
                   </div>
-                  <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2 translate-y-8">
+                  <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2 sm:translate-y-8">
                     <Briefcase className="h-8 w-8 text-blue-500" />
                     <h3 className="font-bold">Reliable Income</h3>
                     <p className="text-sm text-muted-foreground">A continuous stream of opportunities.</p>
@@ -397,7 +585,7 @@ export default function LandingPage() {
                     <h3 className="font-bold">More Time</h3>
                     <p className="text-sm text-muted-foreground">Dozens of hours freed per week.</p>
                   </div>
-                  <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2 translate-y-8">
+                  <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2 sm:translate-y-8">
                     <TrendingUp className="h-8 w-8 text-purple-500" />
                     <h3 className="font-bold">Growth</h3>
                     <p className="text-sm text-muted-foreground">Focus on professional growth and hobbies.</p>
@@ -408,7 +596,7 @@ export default function LandingPage() {
              <div className="order-1 lg:order-2 space-y-6">
                <h2 className="text-3xl md:text-5xl font-bold">What changes in your life?</h2>
                <p className="text-xl text-muted-foreground">
-                 This isn’t about "more money at any cost." It’s about a <span className="text-foreground font-semibold">normal, sustainable life</span>.
+                 This isn’t about &quot;more money at any cost.&quot; It’s about a <span className="text-foreground font-semibold">normal, sustainable life</span>.
                </p>
                <ul className="space-y-4">
                  {[
@@ -431,8 +619,10 @@ export default function LandingPage() {
       {/* Target Audience Section */}
       <section className="py-20 border-t">
         <div className="container px-4 md:px-6 mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-12">Who is this for?</h2>
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <Reveal>
+            <h2 className="text-3xl font-bold mb-12">Who is this for?</h2>
+          </Reveal>
+          <Reveal delayMs={120} className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="p-6 rounded-xl bg-secondary/30 border border-border/50">
               <div className="font-bold text-lg mb-2">Solo Freelancers</div>
               <p className="text-sm text-muted-foreground">Looking for stability and time freedom.</p>
@@ -445,71 +635,59 @@ export default function LandingPage() {
               <div className="font-bold text-lg mb-2">Team Leaders</div>
               <p className="text-sm text-muted-foreground">Who need to keep their team busy.</p>
             </div>
-          </div>
-          <p className="mt-8 text-muted-foreground">
-            It’s like having an <strong>HR department for yourself</strong>. Not for a company — for <strong>your life</strong>.
-          </p>
+          </Reveal>
+          <Reveal delayMs={200}>
+            <p className="mt-8 text-muted-foreground">
+              It’s like having an <strong>HR department for yourself</strong>. Not for a company — for <strong>your life</strong>.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       {/* Early Access / CTA */}
-      <section id="waitlist" className="py-24 relative overflow-hidden">
+      <section id="waitlist" className="py-24 relative overflow-hidden scroll-mt-28">
         <div className="absolute inset-0 bg-primary/5 -z-10"></div>
         <div className="container px-4 md:px-6 mx-auto text-center space-y-8 max-w-3xl">
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight">
-            Early Access
-          </h2>
-          <p className="text-xl md:text-2xl text-muted-foreground">
-            We’re opening a waitlist for early users. Get priority access, influence the product, and special pricing.
-          </p>
+          <Reveal>
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tight">Early Access</h2>
+          </Reveal>
+          <Reveal delayMs={120}>
+            <p className="text-xl md:text-2xl text-muted-foreground">
+              We’re opening a waitlist for early users. Get priority access, influence the product, and special pricing.
+            </p>
+          </Reveal>
           
-          <div className="bg-background p-8 rounded-2xl shadow-xl border max-w-md mx-auto">
+          <Reveal delayMs={200} className="bg-background p-6 sm:p-8 rounded-2xl shadow-xl border max-w-md mx-auto">
              <div className="space-y-4">
-               <h3 className="font-semibold text-lg">Join the waitlist</h3>
+
                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                  <div className="space-y-2 text-left">
-                   <label htmlFor="email" className="text-sm font-medium">Email address</label>
-                   <div className="flex gap-2">
-                     <input 
-                        type="email" 
-                        id="email" 
-                        placeholder="you@example.com" 
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                     />
-                   </div>
+                  
                  </div>
-                 <Button type="submit" className="w-full text-lg py-6" size="lg">
-                   Join Waitlist <ArrowRight className="ml-2 h-4 w-4" />
-                 </Button>
+<Button asChild className="w-full text-lg py-6" size="lg">
+  <a
+    href="https://forms.gle/RYhbUrwwxhWn1dwS9"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    Join the waitlist <ArrowRight className="ml-2 h-4 w-4" />
+  </a>
+</Button>
+
                </form>
                <p className="text-xs text-muted-foreground">
-                 Limited spots available. No spam, we promise.
+                 Limited spots available. 
                </p>
              </div>
-          </div>
+          </Reveal>
           
           <div className="pt-8">
-            <p className="font-bold text-2xl tracking-widest text-primary/80">LET&apos;S GO!!!</p>
+
           </div>
         </div>
       </section>
       
-      {/* Footer */}
-      <footer className="py-12 border-t bg-muted/20">
-        <div className="container px-4 md:px-6 mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 font-bold text-xl">
-            HireMePlz
-          </div>
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} HireMePlz. All rights reserved.
-          </p>
-          <div className="flex gap-6 text-sm text-muted-foreground">
-            <Link href="#" className="hover:text-foreground">Privacy</Link>
-            <Link href="#" className="hover:text-foreground">Terms</Link>
-            <Link href="#" className="hover:text-foreground">Twitter</Link>
-          </div>
-        </div>
-      </footer>
+
     </div>
   );
 }
