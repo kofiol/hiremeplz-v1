@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "HireMePlz",
   description: "Your personal AI agent for finding freelance projects",
   icons: {
-    icon: "../public/favicon.svg",
+    icon: "/favicon.svg",
   },
 };
 

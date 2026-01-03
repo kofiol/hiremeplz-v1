@@ -15,6 +15,7 @@ export default function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/_next/")) return NextResponse.next();
   if (pathname === "/favicon.ico") return NextResponse.next();
+  if (pathname === "/favicon.svg") return NextResponse.next();
   if (pathname === "/robots.txt") return NextResponse.next();
   if (pathname === "/sitemap.xml") return NextResponse.next();
   if (pathname.startsWith("/api/v1/health")) return NextResponse.next();
@@ -31,4 +32,3 @@ export default function proxy(request: NextRequest) {
 export const config = {
   matcher: ["/:path*"],
 };
-
