@@ -1,15 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const envSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const envSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set");
+if (process.env.NODE_ENV === "production" && (!envSupabaseUrl || !envSupabaseAnonKey)) {
+  throw new Error("Missing Supabase environment variables");
 }
 
-if (!supabaseAnonKey) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not set");
-}
+const supabaseUrl = envSupabaseUrl ?? "http://localhost:54321";
+const supabaseAnonKey = envSupabaseAnonKey ?? "dev-anon-key";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
