@@ -138,7 +138,7 @@ export default function LandingPage() {
                     <Globe className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Global Monitoring</h3>
+                    <h3 className="font-semibold text-lg tracking-tighter">Global Monitoring</h3>
                     <p className="text-muted-foreground">Monitors key project sources across the web.</p>
                   </div>
                 </div>
@@ -147,7 +147,7 @@ export default function LandingPage() {
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Smart Filtering</h3>
+                    <h3 className="font-semibold text-lg tracking-tighter">Smart Filtering</h3>
                     <p className="text-muted-foreground">Matches your profile and filters out junk instantly.</p>
                   </div>
                 </div>
@@ -156,7 +156,7 @@ export default function LandingPage() {
                     <Zap className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Continuous Stream</h3>
+                    <h3 className="font-semibold text-lg tracking-tighter">Continuous Stream</h3>
                     <p className="text-muted-foreground">Keeps a steady pipeline flowing while you sleep.</p>
                   </div>
                 </div>
@@ -177,7 +177,7 @@ export default function LandingPage() {
             <Reveal delayMs={120} className="relative max-h-[460px] overflow-hidden">
               <Card className="border-2 border-primary/10 shadow-2xl bg-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 tracking-tighter">
                     <span className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
@@ -230,7 +230,7 @@ export default function LandingPage() {
       <section className="py-20 bg-muted/30">
         <div className="container px-4 md:px-6 mx-auto">
           <Reveal className="text-center mb-16 space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold">The real problem with freelancing today</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tighter">The real problem with freelancing today</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               If you’re a freelancer, you know this all too well. You know how to do your job — but spend hours{" "}
               <span className="font-semibold text-foreground">not actually doing it</span>.
@@ -243,7 +243,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
                   <Users className="h-6 w-6" />
                 </div>
-                <CardTitle>Overcrowded Market</CardTitle>
+                <CardTitle className="tracking-tighter">Overcrowded Market</CardTitle>
                 <CardDescription>
                   The freelance market is saturated. Standing out is harder than ever.
                 </CardDescription>
@@ -255,7 +255,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center mb-4 text-orange-600 dark:text-orange-400">
                   <Clock className="h-6 w-6" />
                 </div>
-                <CardTitle>Wasted Time</CardTitle>
+                <CardTitle className="tracking-tighter">Wasted Time</CardTitle>
                 <CardDescription>
                   Upwork, LinkedIn, job boards... Hours spent searching instead of earning.
                 </CardDescription>
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center mb-4 text-yellow-600 dark:text-yellow-400">
                   <TrendingUp className="h-6 w-6" />
                 </div>
-                <CardTitle>Unstable Income</CardTitle>
+                <CardTitle className="tracking-tighter">Unstable Income</CardTitle>
                 <CardDescription>
                   The constant question hangs over you: &quot;What&apos;s next?&quot; No predictability.
                 </CardDescription>
@@ -288,7 +288,7 @@ export default function LandingPage() {
         <div className="container px-4 md:px-6 mx-auto">
           <Reveal className="text-center mb-16 space-y-4">
             <Badge variant="outline" className="border-border/60">The Outcome</Badge>
-            <h2 className="text-3xl md:text-5xl font-bold">A pipeline that feels predictable</h2>
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">A pipeline that feels predictable</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Stop refreshing boards. Get a stream of opportunities that match your profile and are worth responding to.
             </p>
@@ -300,7 +300,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center mb-4 text-violet-600 dark:text-violet-400">
                   <Clock className="h-6 w-6" />
                 </div>
-                <CardTitle>Time Back</CardTitle>
+                <CardTitle className="tracking-tighter">Time Back</CardTitle>
                 <CardDescription>
                   Hours of searching become minutes of decision-making.
                 </CardDescription>
@@ -311,7 +311,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center mb-4 text-emerald-600 dark:text-emerald-400">
                   <ShieldCheck className="h-6 w-6" />
                 </div>
-                <CardTitle>Higher Quality Leads</CardTitle>
+                <CardTitle className="tracking-tighter">Higher Quality Leads</CardTitle>
                 <CardDescription>
                   Less spam, fewer mismatches, more opportunities you can win.
                 </CardDescription>
@@ -322,7 +322,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400">
                   <TrendingUp className="h-6 w-6" />
                 </div>
-                <CardTitle>More Consistent Work</CardTitle>
+                <CardTitle className="tracking-tighter">More Consistent Work</CardTitle>
                 <CardDescription>
                   Build a steady system instead of relying on luck.
                 </CardDescription>
@@ -343,7 +343,7 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-24 bg-muted/30 scroll-mt-28">
         <div className="container px-4 md:px-6 mx-auto">
           <Reveal className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">How it works</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tighter mb-4">How it works</h2>
             <p className="text-xl text-muted-foreground">Onboarding takes just 15 minutes. Then the AI takes over.</p>
           </Reveal>
 
@@ -358,7 +358,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mb-4">
                   {i + 1}
                 </div>
-                <h3 className="font-bold text-lg mb-2">{step.title}</h3>
+                <h3 className="font-bold text-lg tracking-tighter mb-2">{step.title}</h3>
                 <p className="text-muted-foreground text-sm">{step.desc}</p>
                 {i < 3 && (
                   <div className="hidden md:block absolute top-12 left-1/2 w-full h-[2px] bg-border -z-10 transform translate-x-1/2"></div>
@@ -368,7 +368,7 @@ export default function LandingPage() {
           </Reveal>
 
           <Reveal delayMs={220} className="mt-16 bg-background rounded-2xl p-6 sm:p-8 border shadow-sm max-w-4xl mx-auto">
-            <h3 className="text-xl font-bold mb-6 text-center">What the AI analyzes for you:</h3>
+            <h3 className="text-xl font-bold tracking-tighter mb-6 text-center">What the AI analyzes for you:</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div className="p-4 rounded-lg bg-secondary/50">
                 <div className="font-semibold text-primary">Budget</div>
@@ -394,7 +394,7 @@ export default function LandingPage() {
       <section id="features" className="py-24 scroll-mt-28">
         <div className="container px-4 md:px-6 mx-auto">
           <Reveal className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Features built for serious freelancers</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tighter mb-4">Features built for serious freelancers</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               A real pipeline system, not another place to scroll.
             </p>
@@ -451,7 +451,7 @@ export default function LandingPage() {
                     <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center mb-4", feature.iconBgClassName)}>
                       <feature.icon className={cn("h-6 w-6", feature.iconClassName)} />
                     </div>
-                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardTitle className="text-lg tracking-tighter">{feature.title}</CardTitle>
                     <CardDescription className="text-sm">{feature.desc}</CardDescription>
                   </CardHeader>
                 </Card>
@@ -465,7 +465,7 @@ export default function LandingPage() {
       <section className="py-24">
         <div className="container px-4 md:px-6 mx-auto">
           <Reveal className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Current job search vs HireMePlz</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tighter mb-4">Current job search vs HireMePlz</h2>
             <p className="text-xl text-muted-foreground">Stop being your own free recruiter.</p>
           </Reveal>
 
@@ -474,7 +474,7 @@ export default function LandingPage() {
             <Reveal delayMs={120}>
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Financial Cost</CardTitle>
+                <CardTitle className="tracking-tighter">Financial Cost</CardTitle>
                 <CardDescription>Monthly expenses for a serious freelancer</CardDescription>
               </CardHeader>
               <CardContent>
@@ -522,7 +522,7 @@ export default function LandingPage() {
             <Reveal delayMs={180}>
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Time = Money</CardTitle>
+                <CardTitle className="tracking-tighter">Time = Money</CardTitle>
                 <CardDescription>The hidden cost of your time</CardDescription>
               </CardHeader>
               <CardContent>
@@ -572,29 +572,29 @@ export default function LandingPage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2">
                     <Smile className="h-8 w-8 text-yellow-500" />
-                    <h3 className="font-bold">Peace of Mind</h3>
+                    <h3 className="font-bold tracking-tighter">Peace of Mind</h3>
                     <p className="text-sm text-muted-foreground">Anxiety about &quot;what&apos;s next&quot; disappears.</p>
                   </div>
                   <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2 sm:translate-y-8">
                     <Briefcase className="h-8 w-8 text-blue-500" />
-                    <h3 className="font-bold">Reliable Income</h3>
+                    <h3 className="font-bold tracking-tighter">Reliable Income</h3>
                     <p className="text-sm text-muted-foreground">A continuous stream of opportunities.</p>
                   </div>
                   <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2">
                     <Clock className="h-8 w-8 text-green-500" />
-                    <h3 className="font-bold">More Time</h3>
+                    <h3 className="font-bold tracking-tighter">More Time</h3>
                     <p className="text-sm text-muted-foreground">Dozens of hours freed per week.</p>
                   </div>
                   <div className="bg-card p-6 rounded-2xl shadow-sm border space-y-2 sm:translate-y-8">
                     <TrendingUp className="h-8 w-8 text-purple-500" />
-                    <h3 className="font-bold">Growth</h3>
+                    <h3 className="font-bold tracking-tighter">Growth</h3>
                     <p className="text-sm text-muted-foreground">Focus on professional growth and hobbies.</p>
                   </div>
                 </div>
              </div>
              
              <div className="order-1 lg:order-2 space-y-6">
-               <h2 className="text-3xl md:text-5xl font-bold">What changes in your life?</h2>
+               <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">What changes in your life?</h2>
                <p className="text-xl text-muted-foreground">
                  This isn’t about &quot;more money at any cost.&quot; It’s about a <span className="text-foreground font-semibold">normal, sustainable life</span>.
                </p>
@@ -620,19 +620,19 @@ export default function LandingPage() {
       <section className="py-20 border-t">
         <div className="container px-4 md:px-6 mx-auto text-center">
           <Reveal>
-            <h2 className="text-3xl font-bold mb-12">Who is this for?</h2>
+            <h2 className="text-3xl font-bold tracking-tighter mb-12">Who is this for?</h2>
           </Reveal>
           <Reveal delayMs={120} className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="p-6 rounded-xl bg-secondary/30 border border-border/50">
-              <div className="font-bold text-lg mb-2">Solo Freelancers</div>
+              <div className="font-bold text-lg tracking-tighter mb-2">Solo Freelancers</div>
               <p className="text-sm text-muted-foreground">Looking for stability and time freedom.</p>
             </div>
             <div className="p-6 rounded-xl bg-secondary/30 border border-border/50">
-              <div className="font-bold text-lg mb-2">Small Teams (2-10)</div>
+              <div className="font-bold text-lg tracking-tighter mb-2">Small Teams (2-10)</div>
               <p className="text-sm text-muted-foreground">Need a consistent project pipeline.</p>
             </div>
             <div className="p-6 rounded-xl bg-secondary/30 border border-border/50">
-              <div className="font-bold text-lg mb-2">Team Leaders</div>
+              <div className="font-bold text-lg tracking-tighter mb-2">Team Leaders</div>
               <p className="text-sm text-muted-foreground">Who need to keep their team busy.</p>
             </div>
           </Reveal>
@@ -649,7 +649,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-primary/5 -z-10"></div>
         <div className="container px-4 md:px-6 mx-auto text-center space-y-8 max-w-3xl">
           <Reveal>
-            <h2 className="text-4xl md:text-6xl font-bold tracking-tight">Early Access</h2>
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter">Early Access</h2>
           </Reveal>
           <Reveal delayMs={120}>
             <p className="text-xl md:text-2xl text-muted-foreground">
