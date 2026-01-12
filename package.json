@@ -14,6 +14,12 @@
   "name": "hiremeplz-monorepo",
   "packageManager": "pnpm@10.26.0",
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "msw",
+      "protobufjs",
+      "sharp",
+      "unrs-resolver"
+    ],
     "overrides": {
       "@types/react": "19.2.7",
       "@types/react-dom": "19.2.3",

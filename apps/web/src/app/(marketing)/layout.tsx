@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Sparkles, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type MarketingLayoutProps = {
   children: ReactNode;
@@ -33,6 +34,7 @@ export default function MarketingLayout({ children }: MarketingLayoutProps) {
             </nav>
 
             <div className="flex items-center gap-2">
+              <ThemeToggle className="rounded-full" />
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="md:hidden rounded-full">
