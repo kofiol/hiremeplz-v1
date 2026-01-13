@@ -21,17 +21,16 @@ export async function computeAndUpdateProfileCompleteness(
     experiencesResult,
     educationsResult,
     preferencesResult,
+    agentSettingsResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("profiles")
-      .select("email, display_name, timezone, date_of_birth")
+      .select("email, timezone")
       .eq("user_id", userId)
       .eq("team_id", teamId)
       .maybeSingle<{
         email: string | null;
-        display_name: string | null;
         timezone: string | null;
-        date_of_birth: string | null;
       }>(),
     supabaseAdmin
       .from("user_cv_files")
@@ -68,6 +67,13 @@ export async function computeAndUpdateProfileCompleteness(
         fixed_budget_min: number | null;
         project_types: string[] | null;
       }>(),
+    supabaseAdmin
+      .from("user_agent_settings")
+      .select("settings_json")
+      .eq("user_id", userId)
+      .eq("team_id", teamId)
+      .eq("agent_type", "job_search")
+      .maybeSingle<{ settings_json: Record<string, unknown> | null }>(),
   ]);
 
   const missingFields: string[] = [];
@@ -80,11 +86,7 @@ export async function computeAndUpdateProfileCompleteness(
   const profile = profileResult.data;
 
   const hasBasicProfile =
-    !!profile &&
-    !!profile.display_name &&
-    !!profile.email &&
-    !!profile.timezone &&
-    !!profile.date_of_birth;
+    !!profile && !!profile.email && !!profile.timezone;
 
   if (hasBasicProfile) {
     score += 0.2;
@@ -140,13 +142,44 @@ export async function computeAndUpdateProfileCompleteness(
 
   const preferences = preferencesResult.data;
 
+  if (agentSettingsResult.error) {
+    throw agentSettingsResult.error;
+  }
+
+  const agentSettings = agentSettingsResult.data?.settings_json ?? {};
+  const timeZones =
+    Array.isArray(agentSettings.time_zones) &&
+    agentSettings.time_zones.every((value) => typeof value === "string")
+      ? (agentSettings.time_zones as string[])
+      : [];
+  const engagementTypes =
+    Array.isArray(agentSettings.engagement_types) &&
+    agentSettings.engagement_types.every((value) => typeof value === "string")
+      ? (agentSettings.engagement_types as string[])
+      : [];
+  const preferredProjectLengthDays =
+    Array.isArray(agentSettings.preferred_project_length_days) &&
+    agentSettings.preferred_project_length_days.length === 2 &&
+    agentSettings.preferred_project_length_days.every(
+      (value) => typeof value === "number",
+    )
+      ? (agentSettings.preferred_project_length_days as [number, number])
+      : null;
+
+  const hasConstraints =
+    timeZones.length > 0 &&
+    engagementTypes.length > 0 &&
+    !!preferredProjectLengthDays &&
+    preferredProjectLengthDays[0] >= 1 &&
+    preferredProjectLengthDays[1] <= 365 &&
+    preferredProjectLengthDays[0] <= preferredProjectLengthDays[1];
+
   const hasPreferences =
     !!preferences &&
     !!preferences.currency &&
     ((preferences.hourly_min ?? null) !== null ||
       (preferences.fixed_budget_min ?? null) !== null) &&
-    !!preferences.project_types &&
-    preferences.project_types.length > 0;
+    hasConstraints;
 
   if (hasPreferences) {
     score += 0.2;

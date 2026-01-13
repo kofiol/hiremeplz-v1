@@ -30,7 +30,7 @@ function getPlanLabel(plan: string | null) {
 }
 
 const navWork = [
-  { title: "Overview", url: "/overview", icon: Home },
+  { title: "Home", url: "/overview", icon: Home },
   { title: "Jobs", url: "/jobs", icon: Search },
   { title: "Applications", url: "/applications", icon: Rocket },
   { title: "Cover Letters", url: "/cover-letters", icon: FileText },

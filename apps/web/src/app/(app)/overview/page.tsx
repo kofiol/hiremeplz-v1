@@ -40,10 +40,7 @@ export default function OverviewPage() {
             ? payload.profile_completeness_score
             : 0;
 
-        if (completeness < 0.8) {
-          router.replace("/onboarding");
-          return;
-        }
+        void completeness;
       } finally {
         setIsGuardChecked(true);
       }

@@ -4,6 +4,8 @@ import "./globals.css";
 import { SessionProvider } from "./auth/session-provider";
 import { ReduxProvider } from "./redux-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { OnboardingCompletenessReminder } from "@/components/onboarding-completeness-reminder";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +43,8 @@ export default function RootLayout({
         >
           <SessionProvider>
             <ReduxProvider>{children}</ReduxProvider>
+            <OnboardingCompletenessReminder />
+            <Toaster />
           </SessionProvider>
         </ThemeProvider>
       </body>

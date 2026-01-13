@@ -2,7 +2,22 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 export type TeamMode = "solo" | "team";
 
-export type ProfilePath = "import" | "manual" | null;
+export type ProfilePath = "linkedin" | "upwork" | "cv" | "portfolio" | "manual" | null;
+
+export type ExperienceLevel =
+  | "intern_new_grad"
+  | "entry"
+  | "mid"
+  | "senior"
+  | "lead"
+  | "director";
+
+export type OnboardingProfileSetup = {
+  method: Exclude<ProfilePath, null>;
+  linkedinUrl: string;
+  upworkUrl: string;
+  portfolioUrl: string;
+};
 
 export type OnboardingProfile = {
   firstName: string;
@@ -44,6 +59,8 @@ export type OnboardingPreferences = {
   projectTypes: string[];
   timeZones: string[];
   remoteOnly: boolean;
+  preferredProjectLengthDays: [number, number];
+  engagementTypes: ("full_time" | "part_time" | "internship")[];
   tightness: number;
 };
 
@@ -65,6 +82,8 @@ export type OnboardingState = {
   totalSteps: number;
   teamMode: TeamMode;
   profilePath: ProfilePath;
+  profileSetup: OnboardingProfileSetup;
+  experienceLevel: ExperienceLevel | null;
   profile: OnboardingProfile;
   cv: OnboardingCv;
   skills: OnboardingSkill[];
@@ -78,9 +97,16 @@ export type OnboardingState = {
 
 const initialState: OnboardingState = {
   currentStep: 1,
-  totalSteps: 7,
+  totalSteps: 3,
   teamMode: "solo",
   profilePath: null,
+  profileSetup: {
+    method: "manual",
+    linkedinUrl: "",
+    upworkUrl: "",
+    portfolioUrl: "",
+  },
+  experienceLevel: null,
   profile: {
     firstName: "",
     lastName: "",
@@ -105,6 +131,8 @@ const initialState: OnboardingState = {
     projectTypes: ["short_gig", "medium_project"],
     timeZones: [],
     remoteOnly: true,
+    preferredProjectLengthDays: [7, 30],
+    engagementTypes: [],
     tightness: 3,
   },
   completion: {
@@ -141,6 +169,21 @@ const onboardingSlice = createSlice({
     },
     setProfilePath(state, action: PayloadAction<ProfilePath>) {
       state.profilePath = action.payload;
+      if (action.payload) {
+        state.profileSetup.method = action.payload;
+      }
+    },
+    setProfileSetupUrl(
+      state,
+      action: PayloadAction<{
+        field: "linkedinUrl" | "upworkUrl" | "portfolioUrl";
+        value: string;
+      }>,
+    ) {
+      state.profileSetup[action.payload.field] = action.payload.value;
+    },
+    setExperienceLevel(state, action: PayloadAction<ExperienceLevel | null>) {
+      state.experienceLevel = action.payload;
     },
     setProfileField(
       state,
@@ -345,6 +388,18 @@ const onboardingSlice = createSlice({
     setRemoteOnly(state, action: PayloadAction<boolean>) {
       state.preferences.remoteOnly = action.payload;
     },
+    setPreferredProjectLengthDays(
+      state,
+      action: PayloadAction<[number, number]>,
+    ) {
+      state.preferences.preferredProjectLengthDays = action.payload;
+    },
+    setEngagementTypes(
+      state,
+      action: PayloadAction<("full_time" | "part_time" | "internship")[]>,
+    ) {
+      state.preferences.engagementTypes = action.payload;
+    },
     setTightness(state, action: PayloadAction<number>) {
       state.preferences.tightness = action.payload;
     },
@@ -377,6 +432,8 @@ export const {
   previousStep,
   setTeamMode,
   setProfilePath,
+  setProfileSetupUrl,
+  setExperienceLevel,
   setProfileField,
   setCvUploading,
   setCvUploadProgress,
@@ -398,6 +455,8 @@ export const {
   setProjectTypes,
   setTimeZones,
   setRemoteOnly,
+  setPreferredProjectLengthDays,
+  setEngagementTypes,
   setTightness,
   setSaving,
   setSaveError,
@@ -406,4 +465,3 @@ export const {
 } = onboardingSlice.actions;
 
 export default onboardingSlice.reducer;
-

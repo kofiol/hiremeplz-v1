@@ -92,7 +92,7 @@ const defaultNavigationLinks: Navbar12NavItem[] = [
 ];
 
 // Default teams
-const defaultTeams = ['shadcn/ui', 'Acme Inc.', 'Origin UI'];
+const defaultTeams = ['Personal', 'Origin UI'];
 
 export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
   (
@@ -170,6 +170,7 @@ export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
               onTeamChange={onTeamChange}
             />
           </div>
+
           {/* Middle area */}
           <NavigationMenu className="max-md:hidden">
             <NavigationMenuList className="gap-2">
@@ -194,23 +195,9 @@ export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
               })}
             </NavigationMenuList>
           </NavigationMenu>
+
           {/* Right side */}
           <div className="flex flex-1 items-center justify-end gap-4">
-            <Button 
-              size="sm" 
-              className="text-sm max-sm:aspect-square max-sm:p-0"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onUserItemClick) onUserItemClick('post');
-              }}
-            >
-              <PlusIcon
-                className="opacity-60 sm:-ms-1"
-                size={16}
-                aria-hidden={true}
-              />
-              <span className="max-sm:sr-only">Post</span>
-            </Button>
             <NotificationMenu 
               notifications={notifications}
               onNotificationClick={onNotificationClick}
@@ -227,6 +214,7 @@ export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
     );
   }
 );
+
 
 Navbar12.displayName = 'Navbar12';
 

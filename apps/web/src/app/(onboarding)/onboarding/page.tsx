@@ -4,7 +4,8 @@ import * as React from "react"
 import { useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSelector, useDispatch } from "react-redux"
-import { ChevronDownIcon } from "lucide-react"
+import { ChevronDownIcon, InfoIcon } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
 import { z } from "zod"
 import { useSession } from "../../auth/session-provider"
 import type { RootState } from "@/lib/state/store"
@@ -12,28 +13,27 @@ import {
   addEducation,
   addExperience,
   addSkill,
-  nextStep,
-  previousStep,
   removeEducation,
   removeExperience,
   removeSkill,
   setCompletion,
   setCurrency,
   setCurrentStep,
+  setEngagementTypes,
   setFixedBudgetMin,
   setHourlyRange,
-  setPlatforms,
+  setExperienceLevel,
   setProfileField,
   setProfilePath,
-  setProjectTypes,
+  setPreferredProjectLengthDays,
+  setProfileSetupUrl,
   setRemoteOnly,
   setSaveError,
   setSaving,
   setTeamMode,
   setTimeZones,
-  setTightness,
 } from "@/lib/state/onboardingSlice"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Card, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -52,10 +52,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
+import { Slider } from "@/components/ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const AVAILABLE_SKILLS = [
   "React",
@@ -200,14 +201,8 @@ function StepIndicator() {
   const totalSteps = useSelector(
     (state: RootState) => state.onboarding.totalSteps,
   )
-  const completionScore = useSelector(
-    (state: RootState) => state.onboarding.completion.score,
-  )
-  const missingFields = useSelector(
-    (state: RootState) => state.onboarding.completion.missingFields,
-  )
 
-  const progressPercent = completionScore * 100
+  const stepsLeft = Math.max(0, totalSteps - currentStep)
 
   return (
     <div className="mb-6 space-y-4">
@@ -222,23 +217,14 @@ function StepIndicator() {
         </div>
         <div className="text-right">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Profile completeness
+            Steps remaining
           </p>
           <p className="text-sm font-semibold text-foreground">
-            {formatPercentage(completionScore)}
+            {stepsLeft}
           </p>
         </div>
       </div>
-      <Progress value={progressPercent} />
-      {missingFields.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {missingFields.map((field) => (
-            <Badge key={field} variant="outline">
-              Missing {field.replace(/_/g, " ")}
-            </Badge>
-          ))}
-        </div>
-      )}
+      <Progress value={(currentStep / totalSteps) * 100} />
     </div>
   )
 }
@@ -344,13 +330,9 @@ function StepOne({ issues }: { issues: Set<string> }) {
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          Step 1: Personal details
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
+      <h2 className="text-base font-semibold">Step 1: Personal details</h2>
+      <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="first-name">
@@ -392,8 +374,8 @@ function StepOne({ issues }: { issues: Set<string> }) {
           </div>
         </div>
         <DateOfBirthField invalid={dateOfBirthInvalid} />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -416,49 +398,43 @@ function StepTwo({ locked }: { locked: boolean }) {
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          Step 2: Team size
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <RadioGroup
-          value={teamMode}
-          onValueChange={handleChange}
-          className="grid gap-4 md:grid-cols-2"
+    <div className="space-y-6">
+      <h2 className="text-base font-semibold">Step 1: Team size</h2>
+      <RadioGroup
+        value={teamMode}
+        onValueChange={handleChange}
+        className="grid gap-4 md:grid-cols-2"
+      >
+        <label
+          htmlFor="team-mode-solo"
+          className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-left transition"
         >
-          <label
-            htmlFor="team-mode-solo"
-            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-left transition"
-          >
-            <div className="flex items-center gap-3">
-              <RadioGroupItem value="solo" id="team-mode-solo" />
-              <div>
-                <div className="text-sm font-semibold">Solo</div>
-                <p className="text-xs text-muted-foreground">
-                  I&apos;m a solo freelancer.
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <RadioGroupItem value="solo" id="team-mode-solo" />
+            <div>
+              <div className="text-sm font-semibold">Solo</div>
+              <p className="text-xs text-muted-foreground">
+                I&apos;m a solo freelancer.
+              </p>
             </div>
-          </label>
-          <label
-            htmlFor="team-mode-team"
-            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-left transition"
-          >
-            <div className="flex items-center gap-3">
-              <RadioGroupItem value="team" id="team-mode-team" />
-              <div>
-                <div className="text-sm font-semibold">Team</div>
-                <p className="text-xs text-muted-foreground">
-                  I lead or represent a small team.
-                </p>
-              </div>
+          </div>
+        </label>
+        <label
+          htmlFor="team-mode-team"
+          className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-left transition"
+        >
+          <div className="flex items-center gap-3">
+            <RadioGroupItem value="team" id="team-mode-team" />
+            <div>
+              <div className="text-sm font-semibold">Team</div>
+              <p className="text-xs text-muted-foreground">
+                I lead or represent a small team.
+              </p>
             </div>
-          </label>
-        </RadioGroup>
-      </CardContent>
-    </Card>
+          </div>
+        </label>
+      </RadioGroup>
+    </div>
   )
 }
 
@@ -837,11 +813,22 @@ function StepThree({ invalid }: { invalid: boolean }) {
   const profilePath = useSelector(
     (state: RootState) => state.onboarding.profilePath,
   )
-  const isMissing = invalid && !profilePath
+  const profileSetup = useSelector(
+    (state: RootState) => state.onboarding.profileSetup,
+  )
+  const experienceLevel = useSelector(
+    (state: RootState) => state.onboarding.experienceLevel,
+  )
 
   const handlePathChange = useCallback(
     (value: string) => {
-      if (value === "import" || value === "manual") {
+      if (
+        value === "linkedin" ||
+        value === "upwork" ||
+        value === "cv" ||
+        value === "portfolio" ||
+        value === "manual"
+      ) {
         dispatch(setProfilePath(value))
       }
     },
@@ -849,34 +836,26 @@ function StepThree({ invalid }: { invalid: boolean }) {
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          Step 3: Profile setup
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
+      <h2 className="text-base font-semibold">Step 2: Profile setup</h2>
+      <div className="space-y-6">
         <RadioGroup
           value={profilePath ?? undefined}
           onValueChange={handlePathChange}
           className="grid gap-4 md:grid-cols-2"
         >
           <label
-            htmlFor="profile-path-import"
-            className={
-              isMissing
-                ? "border-destructive hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
-                : "border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
-            }
+            htmlFor="profile-path-linkedin"
+            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
           >
             <div className="flex items-center gap-3">
               <RadioGroupItem
-                value="import"
-                id="profile-path-import"
+                value="linkedin"
+                id="profile-path-linkedin"
               />
               <div>
                 <div className="text-sm font-semibold">
-                  Import from LinkedIn or Upwork
+                  Import from LinkedIn
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Use your existing profile as a starting point.
@@ -885,81 +864,272 @@ function StepThree({ invalid }: { invalid: boolean }) {
             </div>
           </label>
           <label
-            htmlFor="profile-path-manual"
-            className={
-              isMissing
-                ? "border-destructive hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
-                : "border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
-            }
+            htmlFor="profile-path-upwork"
+            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
           >
             <div className="flex items-center gap-3">
               <RadioGroupItem
-                value="manual"
-                id="profile-path-manual"
+                value="upwork"
+                id="profile-path-upwork"
               />
               <div>
                 <div className="text-sm font-semibold">
-                  Add skills and experience manually
+                  Import from Upwork
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Describe your skills, experience, and education by hand.
+                  Bring your Upwork profile in with a link.
+                </p>
+              </div>
+            </div>
+          </label>
+          <label
+            htmlFor="profile-path-cv"
+            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
+          >
+            <div className="flex items-center gap-3">
+              <RadioGroupItem value="cv" id="profile-path-cv" />
+              <div>
+                <div className="text-sm font-semibold">Upload CV</div>
+                <p className="text-xs text-muted-foreground">
+                  Upload a resume file to extract details.
+                </p>
+              </div>
+            </div>
+          </label>
+          <label
+            htmlFor="profile-path-portfolio"
+            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition"
+          >
+            <div className="flex items-center gap-3">
+              <RadioGroupItem value="portfolio" id="profile-path-portfolio" />
+              <div>
+                <div className="text-sm font-semibold">Add a portfolio</div>
+                <p className="text-xs text-muted-foreground">
+                  Link a portfolio or personal website.
+                </p>
+              </div>
+            </div>
+          </label>
+          <label
+            htmlFor="profile-path-manual"
+            className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition md:col-span-2"
+          >
+            <div className="flex items-center gap-3">
+              <RadioGroupItem value="manual" id="profile-path-manual" />
+              <div>
+                <div className="text-sm font-semibold">Set up manually</div>
+                <p className="text-xs text-muted-foreground">
+                  Add skills, experience, and education in one place.
                 </p>
               </div>
             </div>
           </label>
         </RadioGroup>
-        {profilePath === "import" && (
-          <div className="rounded-md bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
-            Importing from LinkedIn and Upwork is under construction.
-            You can continue onboarding and come back later.
-          </div>
-        )}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {profilePath && profilePath !== "manual" && (
+            <motion.div
+              key={`import-${profilePath}`}
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{
+                opacity: { duration: 0.16, ease: [0.22, 1, 0.36, 1] },
+                y: { type: "spring", stiffness: 340, damping: 30, mass: 0.7 },
+                layout: { type: "spring", stiffness: 300, damping: 32, mass: 0.8 },
+              }}
+              className="space-y-4"
+            >
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                Under construction for now. You can add everything manually or skip this step.
+              </div>
+              {profilePath === "linkedin" && (
+                <div className="space-y-2">
+                  <Label htmlFor="linkedin-url">LinkedIn URL</Label>
+                  <Input
+                    id="linkedin-url"
+                    value={profileSetup.linkedinUrl}
+                    onChange={(event) =>
+                      dispatch(
+                        setProfileSetupUrl({
+                          field: "linkedinUrl",
+                          value: event.target.value,
+                        }),
+                      )
+                    }
+                    placeholder="https://www.linkedin.com/in/your-name"
+                  />
+                </div>
+              )}
+              {profilePath === "upwork" && (
+                <div className="space-y-2">
+                  <Label htmlFor="upwork-url">Upwork URL</Label>
+                  <Input
+                    id="upwork-url"
+                    value={profileSetup.upworkUrl}
+                    onChange={(event) =>
+                      dispatch(
+                        setProfileSetupUrl({
+                          field: "upworkUrl",
+                          value: event.target.value,
+                        }),
+                      )
+                    }
+                    placeholder="https://www.upwork.com/freelancers/~your-id"
+                  />
+                </div>
+              )}
+              {profilePath === "portfolio" && (
+                <div className="space-y-2">
+                  <Label htmlFor="portfolio-url">Portfolio URL</Label>
+                  <Input
+                    id="portfolio-url"
+                    value={profileSetup.portfolioUrl}
+                    onChange={(event) =>
+                      dispatch(
+                        setProfileSetupUrl({
+                          field: "portfolioUrl",
+                          value: event.target.value,
+                        }),
+                      )
+                    }
+                    placeholder="https://your-portfolio.com"
+                  />
+                </div>
+              )}
+              {profilePath === "cv" && (
+                <div className="space-y-2">
+                  <Label htmlFor="cv-upload">CV file</Label>
+                  <Input id="cv-upload" type="file" />
+                </div>
+              )}
+            </motion.div>
+          )}
+          {profilePath === "manual" && (
+            <motion.div
+              key="manual"
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{
+                opacity: { duration: 0.16, ease: [0.22, 1, 0.36, 1] },
+                y: { type: "spring", stiffness: 340, damping: 30, mass: 0.7 },
+                layout: { type: "spring", stiffness: 300, damping: 32, mass: 0.8 },
+              }}
+              className="space-y-6"
+            >
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Experience level</Label>
+              <RadioGroup
+                value={experienceLevel ?? undefined}
+                onValueChange={(value) => {
+                  if (
+                    value === "intern_new_grad" ||
+                    value === "entry" ||
+                    value === "mid" ||
+                    value === "senior" ||
+                    value === "lead" ||
+                    value === "director"
+                  ) {
+                    dispatch(setExperienceLevel(value))
+                  }
+                }}
+                className="grid gap-3 sm:grid-cols-2"
+              >
+                <label
+                  htmlFor="experience-level-intern"
+                  className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition"
+                >
+                  <RadioGroupItem
+                    value="intern_new_grad"
+                    id="experience-level-intern"
+                  />
+                  <span className="text-sm font-medium">Intern / New grad</span>
+                </label>
+                <label
+                  htmlFor="experience-level-entry"
+                  className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition"
+                >
+                  <RadioGroupItem value="entry" id="experience-level-entry" />
+                  <span className="text-sm font-medium">Entry</span>
+                </label>
+                <label
+                  htmlFor="experience-level-mid"
+                  className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition"
+                >
+                  <RadioGroupItem value="mid" id="experience-level-mid" />
+                  <span className="text-sm font-medium">Mid</span>
+                </label>
+                <label
+                  htmlFor="experience-level-senior"
+                  className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition"
+                >
+                  <RadioGroupItem value="senior" id="experience-level-senior" />
+                  <span className="text-sm font-medium">Senior</span>
+                </label>
+                <label
+                  htmlFor="experience-level-lead"
+                  className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition"
+                >
+                  <RadioGroupItem value="lead" id="experience-level-lead" />
+                  <span className="text-sm font-medium">Lead</span>
+                </label>
+                <label
+                  htmlFor="experience-level-director"
+                  className="border-input hover:border-ring hover:bg-accent/40 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition"
+                >
+                  <RadioGroupItem
+                    value="director"
+                    id="experience-level-director"
+                  />
+                  <span className="text-sm font-medium">Director</span>
+                </label>
+              </RadioGroup>
+            </div>
+            <Separator />
+            <SkillsSection />
+            <Separator />
+            <ExperienceSection />
+            <Separator />
+            <EducationSection />
+            </motion.div>
+          )}
+        </AnimatePresence>
         {!profilePath && (
           <p className="text-xs text-muted-foreground">
-            Choose one of the paths above to continue.
+            Optional for now. Choose a path or skip this step.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
 function StepFourSkills() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Step 4: Skills</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <SkillsSection />
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <h2 className="text-base font-semibold">Skills</h2>
+      <SkillsSection />
+    </div>
   )
 }
 
 function StepFiveExperience() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Step 5: Experience</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ExperienceSection />
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <h2 className="text-base font-semibold">Experience</h2>
+      <ExperienceSection />
+    </div>
   )
 }
 
 function StepSixEducation() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Step 6: Education</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <EducationSection />
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <h2 className="text-base font-semibold">Education</h2>
+      <EducationSection />
+    </div>
   )
 }
 
@@ -968,27 +1138,17 @@ function StepSevenPreferences({ issues }: { issues: Set<string> }) {
   const preferences = useSelector(
     (state: RootState) => state.onboarding.preferences,
   )
-  const platformsInvalid = issues.has("platforms")
-  const projectTypesInvalid = issues.has("projectTypes")
-  const timeZonesInvalid = issues.has("timeZones")
-  const hourlyMinInvalid = issues.has("hourlyMin")
-  const hourlyMaxInvalid = issues.has("hourlyMax")
+  const hideFullTime = preferences.preferredProjectLengthDays[1] < 7
 
-  const handlePlatformsChange = useCallback(
-    (platform: "upwork" | "linkedin") => {
-      const current = new Set(preferences.platforms)
-      if (current.has(platform)) {
-        current.delete(platform)
-      } else {
-        current.add(platform)
-      }
-      if (current.size === 0) {
-        return
-      }
-      dispatch(setPlatforms(Array.from(current)))
-    },
-    [dispatch, preferences.platforms],
-  )
+  React.useEffect(() => {
+    if (!hideFullTime) return
+    if (!preferences.engagementTypes.includes("full_time")) return
+    dispatch(
+      setEngagementTypes(
+        preferences.engagementTypes.filter((value) => value !== "full_time"),
+      ),
+    )
+  }, [dispatch, hideFullTime, preferences.engagementTypes])
 
   const handleCurrencyChange = useCallback(
     (value: string) => {
@@ -997,67 +1157,49 @@ function StepSevenPreferences({ issues }: { issues: Set<string> }) {
     [dispatch],
   )
 
-  const handleHourlyMinChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value
-      const parsed = value ? Number(value) : null
-      dispatch(
-        setHourlyRange({
-          min: parsed !== null && Number.isFinite(parsed) ? parsed : null,
-          max: preferences.hourlyMax,
-        }),
-      )
-    },
-    [dispatch, preferences.hourlyMax],
-  )
-
-  const handleHourlyMaxChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value
-      const parsed = value ? Number(value) : null
-      dispatch(
-        setHourlyRange({
-          min: preferences.hourlyMin,
-          max: parsed !== null && Number.isFinite(parsed) ? parsed : null,
-        }),
-      )
-    },
-    [dispatch, preferences.hourlyMin],
-  )
-
-  const handleFixedBudgetMinChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value
-      const parsed = value ? Number(value) : null
-      dispatch(setFixedBudgetMin(parsed !== null && Number.isFinite(parsed) ? parsed : null))
+  const handleHourlyChange = useCallback(
+    (value: number[]) => {
+      const min = typeof value[0] === "number" ? value[0] : null
+      const max = typeof value[1] === "number" ? value[1] : null
+      dispatch(setHourlyRange({ min, max }))
     },
     [dispatch],
   )
 
-  const handleProjectTypeChange = useCallback(
-    (type: string) => {
-      const current = new Set(preferences.projectTypes)
-      if (current.has(type)) {
-        current.delete(type)
-      } else {
-        current.add(type)
-      }
-      dispatch(setProjectTypes(Array.from(current)))
+  const handleFixedBudgetChange = useCallback(
+    (value: number[]) => {
+      const min = typeof value[0] === "number" ? value[0] : null
+      dispatch(setFixedBudgetMin(min))
     },
-    [dispatch, preferences.projectTypes],
+    [dispatch],
   )
 
-  const handleTimeZoneToggle = useCallback(
-    (zone: string) => {
-      const current = new Set(preferences.timeZones)
-      if (current.has(zone)) {
-        current.delete(zone)
-      } else {
-        current.add(zone)
+  const handleProjectLengthChange = useCallback(
+    (value: number[]) => {
+      if (value.length < 2) return
+      const next: [number, number] = [
+        Math.max(1, Math.round(value[0])),
+        Math.min(365, Math.round(value[1])),
+      ]
+      if (next[0] > next[1]) {
+        next[0] = next[1]
       }
-      dispatch(setTimeZones(Array.from(current)))
+      dispatch(setPreferredProjectLengthDays(next))
     },
-    [dispatch, preferences.timeZones],
+    [dispatch],
+  )
+
+  const handleEngagementToggle = useCallback(
+    (type: "full_time" | "part_time" | "internship") => {
+      const next = new Set(preferences.engagementTypes)
+      if (next.has(type)) {
+        next.delete(type)
+      } else {
+        next.add(type)
+      }
+      dispatch(setEngagementTypes(Array.from(next)))
+    },
+    [dispatch, preferences.engagementTypes],
   )
 
   const handleRemoteOnlyChange = useCallback(
@@ -1067,244 +1209,189 @@ function StepSevenPreferences({ issues }: { issues: Set<string> }) {
     [dispatch],
   )
 
-  const handleTightnessChange = useCallback(
-    (value: string[]) => {
-      const raw = Number(value[0])
-      if (!Number.isFinite(raw)) {
-        return
-      }
-      dispatch(setTightness(raw))
-    },
-    [dispatch],
-  )
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          Step 7: Preferences
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Platforms</Label>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => handlePlatformsChange("upwork")}
-                className={
-                  platformsInvalid
-                    ? "border-destructive flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                    : "border-input flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                }
-              >
-                <span>Upwork</span>
-                <Checkbox
-                  checked={preferences.platforms.includes("upwork")}
-                  onCheckedChange={() => handlePlatformsChange("upwork")}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePlatformsChange("linkedin")}
-                className={
-                  platformsInvalid
-                    ? "border-destructive flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                    : "border-input flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                }
-              >
-                <span>LinkedIn</span>
-                <Checkbox
-                  checked={preferences.platforms.includes("linkedin")}
-                  onCheckedChange={() => handlePlatformsChange("linkedin")}
-                />
-              </button>
-            </div>
-            {platformsInvalid && (
-              <p className="text-xs text-zinc-500">Select at least one</p>
-            )}
+    <div className="space-y-8">
+      <h2 className="text-base font-semibold">Step 3: Preferences</h2>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <Label id="hourly-range-label" className="text-sm font-medium">
+            Hourly range
+          </Label>
+          <div className="text-muted-foreground text-xs tabular-nums">
+            {preferences.hourlyMin ?? "—"}–{preferences.hourlyMax ?? "—"} / hr
           </div>
-          <div className="space-y-2">
-            <Label>Currency</Label>
-            <Select
-              value={preferences.currency}
-              onValueChange={handleCurrencyChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((currency) => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        </div>
+        <Slider
+          aria-labelledby="hourly-range-label"
+          min={0}
+          max={300}
+          step={1}
+          value={[preferences.hourlyMin ?? 25, preferences.hourlyMax ?? 100]}
+          onValueChange={handleHourlyChange}
+        />
+      </div>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <Label id="fixed-budget-label" className="text-sm font-medium">
+            Fixed project budget minimum
+          </Label>
+          <div className="text-muted-foreground text-xs tabular-nums">
+            {preferences.fixedBudgetMin ?? "—"} {preferences.currency}
           </div>
-          <div className="space-y-2">
-            <Label>Job search tightness</Label>
-            <ToggleGroup
-              type="single"
-              value={String(preferences.tightness)}
-              onValueChange={(value) =>
-                handleTightnessChange(value ? [value] : [])
-              }
-              size="sm"
-            >
-              {[1, 2, 3, 4, 5].map((value) => (
-                <ToggleGroupItem key={value} value={String(value)}>
-                  {value}
-                </ToggleGroupItem>
+        </div>
+        <Slider
+          aria-labelledby="fixed-budget-label"
+          min={0}
+          max={50000}
+          step={50}
+          value={[preferences.fixedBudgetMin ?? 2000]}
+          onValueChange={handleFixedBudgetChange}
+        />
+      </div>
+      <Separator />
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Label>Currency</Label>
+          <Select value={preferences.currency} onValueChange={handleCurrencyChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((currency) => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
               ))}
-            </ToggleGroup>
-            <p className="text-xs text-zinc-500">
-              1 = very broad, 5 = very strict.
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <Label id="project-length-label" className="text-sm font-medium">
+              Preferred project length
+            </Label>
+            <div className="text-muted-foreground text-xs tabular-nums">
+              {preferences.preferredProjectLengthDays[0]}–{preferences.preferredProjectLengthDays[1]} days
+            </div>
+          </div>
+          <Slider
+            aria-labelledby="project-length-label"
+            min={1}
+            max={365}
+            step={1}
+            value={preferences.preferredProjectLengthDays}
+            onValueChange={handleProjectLengthChange}
+          />
+          {hideFullTime && (
+            <Tooltip>
+              <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                <span>Full-time is hidden.</span>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground inline-flex items-center"
+                  >
+                    <InfoIcon className="size-3.5" />
+                    <span className="sr-only">
+                      Full-time tooltip
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Full-time is only available for projects of 1 week or longer.
+                </TooltipContent>
+              </div>
+            </Tooltip>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label id="time-zones-label" className="text-sm font-medium">
+            Time zones
+          </Label>
+          <ToggleGroup
+            type="multiple"
+            value={preferences.timeZones}
+            onValueChange={(values) => dispatch(setTimeZones(values))}
+            className="flex flex-wrap justify-start gap-2"
+            size="sm"
+            aria-labelledby="time-zones-label"
+          >
+            {AVAILABLE_TIMEZONES.map((zone) => (
+              <ToggleGroupItem key={zone} value={zone}>
+                {zone}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Full-time / Part-time / Internship</Label>
+          <div className="space-y-3">
+            {!hideFullTime && (
+              <div className="flex items-start gap-3 rounded-lg border border-input p-3">
+                <Checkbox
+                  id="availability-full-time"
+                  checked={preferences.engagementTypes.includes("full_time")}
+                  onCheckedChange={() => handleEngagementToggle("full_time")}
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="availability-full-time" className="text-sm">
+                    Full-time
+                  </Label>
+                  <div className="text-muted-foreground text-xs">
+                    35+ hrs/week
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex items-start gap-3 rounded-lg border border-input p-3">
+              <Checkbox
+                id="availability-part-time"
+                checked={preferences.engagementTypes.includes("part_time")}
+                onCheckedChange={() => handleEngagementToggle("part_time")}
+              />
+              <div className="space-y-0.5">
+                <Label htmlFor="availability-part-time" className="text-sm">
+                  Part-time
+                </Label>
+                <div className="text-muted-foreground text-xs">
+                  &lt; 35 hrs/week
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-lg border border-input p-3">
+              <Checkbox
+                id="availability-internship"
+                checked={preferences.engagementTypes.includes("internship")}
+                onCheckedChange={() => handleEngagementToggle("internship")}
+              />
+              <div className="space-y-0.5">
+                <Label htmlFor="availability-internship" className="text-sm">
+                  Internship
+                </Label>
+                <div className="text-muted-foreground text-xs">
+                  learning-focused, temporary role
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-input px-3 py-2">
+          <div>
+            <Label htmlFor="remote-only" className="text-sm font-medium">
+              Remote only
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Only show fully remote roles.
             </p>
           </div>
+          <Checkbox
+            id="remote-only"
+            checked={preferences.remoteOnly}
+            onCheckedChange={handleRemoteOnlyChange}
+          />
         </div>
-        <Separator />
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Hourly rate range</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                min={0}
-                placeholder="Min"
-                value={preferences.hourlyMin ?? ""}
-                onChange={handleHourlyMinChange}
-                className={
-                  hourlyMinInvalid
-                    ? "border-destructive focus-visible:ring-destructive"
-                    : undefined
-                }
-              />
-              <Input
-                type="number"
-                min={0}
-                placeholder="Max"
-                value={preferences.hourlyMax ?? ""}
-                onChange={handleHourlyMaxChange}
-                className={
-                  hourlyMaxInvalid
-                    ? "border-destructive focus-visible:ring-destructive"
-                    : undefined
-                }
-              />
-            </div>
-            {hourlyMinInvalid && (
-              <p className="text-xs text-zinc-500">
-                Set an hourly min or fixed budget minimum
-              </p>
-            )}
-            {hourlyMaxInvalid && (
-              <p className="text-xs text-zinc-500">
-                Hourly max must be greater than or equal to min
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label>Fixed budget minimum</Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="Optional"
-              value={preferences.fixedBudgetMin ?? ""}
-              onChange={handleFixedBudgetMinChange}
-              className={
-                hourlyMinInvalid
-                  ? "border-destructive focus-visible:ring-destructive"
-                  : undefined
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Project types</Label>
-            <div className="flex flex-col gap-2">
-              <label
-                className={
-                  projectTypesInvalid
-                    ? "flex items-center justify-between rounded-md border border-destructive px-3 py-2 text-sm"
-                    : "flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm"
-                }
-              >
-                <span>Short gigs</span>
-                <Checkbox
-                  checked={preferences.projectTypes.includes("short_gig")}
-                  onCheckedChange={() =>
-                    handleProjectTypeChange("short_gig")
-                  }
-                />
-              </label>
-              <label
-                className={
-                  projectTypesInvalid
-                    ? "flex items-center justify-between rounded-md border border-destructive px-3 py-2 text-sm"
-                    : "flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm"
-                }
-              >
-                <span>Medium projects</span>
-                <Checkbox
-                  checked={preferences.projectTypes.includes(
-                    "medium_project",
-                  )}
-                  onCheckedChange={() =>
-                    handleProjectTypeChange("medium_project")
-                  }
-                />
-              </label>
-            </div>
-            {projectTypesInvalid && (
-              <p className="text-xs text-zinc-500">Select at least one</p>
-            )}
-          </div>
-        </div>
-        <Separator />
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Time zones</Label>
-            <div className="flex flex-wrap gap-2">
-              {AVAILABLE_TIMEZONES.map((zone) => {
-                const active = preferences.timeZones.includes(zone)
-                return (
-                  <button
-                    key={zone}
-                    type="button"
-                    onClick={() => handleTimeZoneToggle(zone)}
-                    className={
-                      active
-                        ? "bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs"
-                        : timeZonesInvalid
-                          ? "border-destructive rounded-full border px-3 py-1 text-xs"
-                          : "border-input rounded-full border px-3 py-1 text-xs"
-                    }
-                  >
-                    {zone}
-                  </button>
-                )
-              })}
-            </div>
-            {timeZonesInvalid && (
-              <p className="text-xs text-zinc-500">Pick at least one</p>
-            )}
-          </div>
-          <div className="flex items-center justify-between rounded-md border border-input px-3 py-2">
-            <div>
-              <Label className="text-sm font-medium">Remote only</Label>
-              <p className="text-xs text-zinc-500">
-                Only show fully remote roles.
-              </p>
-            </div>
-            <Checkbox
-              checked={preferences.remoteOnly}
-              onCheckedChange={handleRemoteOnlyChange}
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -1313,7 +1400,6 @@ export default function OnboardingPage() {
   const dispatch = useDispatch()
   const { session } = useSession()
   const [userRole, setUserRole] = useState<"leader" | "member" | null>(null)
-  const [clientErrors, setClientErrors] = useState<string[]>([])
   const currentStep = useSelector(
     (state: RootState) => state.onboarding.currentStep,
   )
@@ -1321,95 +1407,20 @@ export default function OnboardingPage() {
     (state: RootState) => state.onboarding.totalSteps,
   )
   const state = useSelector((root: RootState) => root.onboarding)
-
   const isSaving = state.isSaving
   const saveError = state.saveError
 
-  const canGoBack = currentStep > 1
-
-  const stepValidities = useMemo(() => {
-    const step1 = profileSchema.safeParse(state.profile).success
-    const step2 = teamModeSchema.safeParse(state.teamMode).success
-    const step3 = profilePathSchema.safeParse(state.profilePath).success
-    const step4 = true
-    const step5 = true
-    const step6 = true
-    const step7 = preferencesSchema.safeParse(state.preferences).success
-    return { step1, step2, step3, step4, step5, step6, step7 }
-  }, [state.preferences, state.profile, state.profilePath, state.teamMode])
-
-  const currentStepIssues = useMemo(() => {
-    if (currentStep === 1) {
-      const result = profileSchema.safeParse(state.profile)
-      return result.success ? new Set<string>() : collectIssueKeys(result.error)
-    }
-
-    if (currentStep === 2) {
-      return new Set<string>()
-    }
-
-    if (currentStep === 3) {
-      const result = profilePathSchema.safeParse(state.profilePath)
-      return result.success ? new Set<string>() : new Set<string>(["profilePath"])
-    }
-
-    if (currentStep >= 4 && currentStep <= 6) {
-      return new Set<string>()
-    }
-
-    const result = preferencesSchema.safeParse(state.preferences)
-    return result.success ? new Set<string>() : collectIssueKeys(result.error)
-  }, [currentStep, state.preferences, state.profile, state.profilePath])
-
-  const remainingLabels = useMemo(
-    () => getIssueLabelsForStep(currentStep, currentStepIssues),
-    [currentStep, currentStepIssues],
-  )
-
-  const stepValidation = useMemo(() => {
-    if (currentStep === 1) {
-      const result = profileSchema.safeParse(state.profile)
-      return {
-        valid: result.success,
-        errors: result.success
-          ? []
-          : Object.values(result.error.flatten().fieldErrors).flatMap(
-              (items) => items ?? [],
-            ),
-      }
-    }
-
-    if (currentStep === 2) {
-      const result = teamModeSchema.safeParse(state.teamMode)
-      return { valid: result.success, errors: result.success ? [] : [result.error.message] }
-    }
-
-    if (currentStep === 3) {
-      const result = profilePathSchema.safeParse(state.profilePath)
-      return {
-        valid: result.success,
-        errors: result.success ? [] : ["Choose a profile path to continue"],
-      }
-    }
-
-    if (currentStep >= 4 && currentStep <= 6) {
-      return { valid: true, errors: [] }
-    }
-
-    const result = preferencesSchema.safeParse(state.preferences)
-    return {
-      valid: result.success,
-      errors: result.success
-        ? []
-        : Object.values(result.error.flatten().fieldErrors).flatMap(
-            (items) => items ?? [],
-          ),
-    }
-  }, [currentStep, state.preferences, state.profile, state.profilePath, state.teamMode])
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [isStepVisible, setIsStepVisible] = useState(true)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [pendingStep, setPendingStep] = useState<number | null>(null)
 
   React.useEffect(() => {
-    setClientErrors([])
-  }, [currentStep])
+    const seen = typeof window !== "undefined"
+      ? window.localStorage.getItem("hmplz:onboarding:welcome_seen")
+      : "1"
+    setShowWelcome(!seen)
+  }, [])
 
   React.useEffect(() => {
     async function loadRole() {
@@ -1442,120 +1453,97 @@ export default function OnboardingPage() {
     loadRole()
   }, [session?.access_token])
 
-  const handleNext = useCallback(() => {
-    if (!stepValidation.valid) {
-      setClientErrors(stepValidation.errors)
-      return
-    }
+  const transitionToStep = useCallback(
+    (step: number) => {
+      if (step < 1 || step > totalSteps) return
+      if (step === currentStep) return
+      if (isTransitioning) return
 
+      setIsTransitioning(true)
+      setPendingStep(step)
+      setIsStepVisible(false)
+    },
+    [currentStep, isTransitioning, totalSteps],
+  )
+
+  const handleStepExitComplete = useCallback(() => {
+    if (pendingStep === null) return
+    dispatch(setCurrentStep(pendingStep))
+    setPendingStep(null)
+    setIsStepVisible(true)
+    setIsTransitioning(false)
+  }, [dispatch, pendingStep])
+
+  const handleNext = useCallback(() => {
     if (currentStep < totalSteps) {
-      dispatch(nextStep())
+      transitionToStep(currentStep + 1)
     }
-  }, [dispatch, currentStep, totalSteps, stepValidation.errors, stepValidation.valid])
+  }, [currentStep, totalSteps, transitionToStep])
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
-      dispatch(previousStep())
+      transitionToStep(currentStep - 1)
     }
-  }, [dispatch, currentStep])
+  }, [currentStep, transitionToStep])
 
-  const handleStepSelect = useCallback(
-    (step: number) => {
-      if (step >= 1 && step <= totalSteps) {
-        const canNavigate =
-          step <= currentStep ||
-          (step === 2 && stepValidities.step1) ||
-          (step === 3 && stepValidities.step1 && stepValidities.step2) ||
-          (step === 4 &&
-            stepValidities.step1 &&
-            stepValidities.step2 &&
-            stepValidities.step3) ||
-          (step === 5 &&
-            stepValidities.step1 &&
-            stepValidities.step2 &&
-            stepValidities.step3 &&
-            stepValidities.step4) ||
-          (step === 6 &&
-            stepValidities.step1 &&
-            stepValidities.step2 &&
-            stepValidities.step3 &&
-            stepValidities.step4 &&
-            stepValidities.step5) ||
-          (step === 7 &&
-            stepValidities.step1 &&
-            stepValidities.step2 &&
-            stepValidities.step3 &&
-            stepValidities.step4 &&
-            stepValidities.step5 &&
-            stepValidities.step6)
+  const handleStart = useCallback(() => {
+    window.localStorage.setItem("hmplz:onboarding:welcome_seen", "1")
+    setShowWelcome(false)
+  }, [])
 
-        if (!canNavigate) {
-          setClientErrors(remainingLabels.length > 0 ? remainingLabels : ["Complete required fields to continue"])
-          return
-        }
-
-        dispatch(setCurrentStep(step))
-      }
-    },
-    [currentStep, dispatch, remainingLabels, stepValidities, totalSteps],
-  )
+  const handleSkipAll = useCallback(() => {
+    window.localStorage.setItem("hmplz:onboarding:welcome_seen", "1")
+    router.replace("/overview")
+  }, [router])
 
   const handleSubmit = useCallback(async () => {
-    if (!stepValidation.valid) {
-      setClientErrors(stepValidation.errors)
-      return
-    }
-
     dispatch(setSaving(true))
     dispatch(setSaveError(null))
 
-    const payload = {
-      profile: {
-        firstName: state.profile.firstName,
-        lastName: state.profile.lastName,
-        dateOfBirth: state.profile.dateOfBirth,
-      },
+    const payload: Record<string, unknown> = {
       team: {
         mode: state.teamMode,
       },
-      cv:
-        state.cv.storagePath && state.cv.filename
-          ? {
-              storagePath: state.cv.storagePath,
-              filename: state.cv.filename,
-            }
-          : null,
       path: state.profilePath,
-      skills: state.skills.map((skill) => ({
+      profileSetup: {
+        linkedinUrl: state.profileSetup.linkedinUrl,
+        upworkUrl: state.profileSetup.upworkUrl,
+        portfolioUrl: state.profileSetup.portfolioUrl,
+      },
+      experienceLevel: state.experienceLevel,
+      preferences: {
+        currency: state.preferences.currency,
+        hourlyMin: state.preferences.hourlyMin,
+        hourlyMax: state.preferences.hourlyMax,
+        fixedBudgetMin: state.preferences.fixedBudgetMin,
+        timeZones: state.preferences.timeZones,
+        remoteOnly: state.preferences.remoteOnly,
+        preferredProjectLengthDays: state.preferences.preferredProjectLengthDays,
+        engagementTypes: state.preferences.engagementTypes,
+        tightness: state.preferences.tightness,
+      },
+    }
+
+    if (state.profilePath === "manual") {
+      payload.skills = state.skills.map((skill) => ({
         name: skill.name,
         level: skill.level,
         years: skill.years,
-      })),
-      experiences: state.experiences.map((experience) => ({
+      }))
+      payload.experiences = state.experiences.map((experience) => ({
         title: experience.title,
         company: experience.company,
         startDate: experience.startDate,
         endDate: experience.endDate,
         highlights: experience.highlights,
-      })),
-      educations: state.educations.map((education) => ({
+      }))
+      payload.educations = state.educations.map((education) => ({
         school: education.school,
         degree: education.degree,
         field: education.field,
         startYear: education.startYear ? parseInt(education.startYear) : null,
         endYear: education.endYear ? parseInt(education.endYear) : null,
-      })),
-      preferences: {
-        platforms: state.preferences.platforms,
-        currency: state.preferences.currency,
-        hourlyMin: state.preferences.hourlyMin,
-        hourlyMax: state.preferences.hourlyMax,
-        fixedBudgetMin: state.preferences.fixedBudgetMin,
-        projectTypes: state.preferences.projectTypes,
-        timeZones: state.preferences.timeZones,
-        remoteOnly: state.preferences.remoteOnly,
-        tightness: state.preferences.tightness,
-      },
+      }))
     }
 
     try {
@@ -1603,9 +1591,7 @@ export default function OnboardingPage() {
       )
       dispatch(setSaving(false))
 
-      if (score >= 0.8) {
-        router.replace("/overview")
-      }
+      router.replace("/overview")
     } catch (error) {
       if (error instanceof Error) {
         dispatch(setSaveError(error.message))
@@ -1619,15 +1605,60 @@ export default function OnboardingPage() {
     router,
     session,
     state,
-    stepValidation.errors,
-    stepValidation.valid,
   ])
+
+  const handleSkipStep = useCallback(() => {
+    if (currentStep < totalSteps) {
+      transitionToStep(currentStep + 1)
+      return
+    }
+    void handleSubmit()
+  }, [currentStep, handleSubmit, totalSteps, transitionToStep])
 
   let content: React.ReactNode
 
-  if (currentStep === 1) {
-    content = <StepOne issues={currentStepIssues} />
-  } else if (currentStep === 2) {
+  if (showWelcome) {
+    content = (
+      <Card className="w-full sm:w-fit sm:max-w-[min(92vw,48rem)] overflow-hidden">
+        <div className="bg-primary/5 p-6 sm:p-8">
+          <CardTitle className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Welcome to HireMePlz</CardTitle>
+          <p className="text-muted-foreground text-base max-w-lg">
+            Let&apos;s get your profile ready for the best opportunities. A complete profile helps you stand out.
+          </p>
+        </div>
+        <CardContent className="space-y-6 p-6 sm:p-8">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-accent/50">
+              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <span className="font-semibold">1</span>
+              </div>
+              <div className="font-semibold">Get Matched</div>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Share your skills and preferences so we can filter the noise and find the right projects for you.
+              </p>
+            </div>
+            <div className="rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-accent/50">
+              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <span className="font-semibold">2</span>
+              </div>
+              <div className="font-semibold">Save Time</div>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Set your defaults now so you don&apos;t have to repeat yourself later. You can always change them.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center pt-2">
+            <Button type="button" variant="ghost" onClick={handleSkipAll} className="text-muted-foreground hover:text-foreground">
+              Skip for now
+            </Button>
+            <Button type="button" size="lg" onClick={handleStart} className="font-semibold">
+              Let&apos;s set you up
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  } else if (currentStep === 1) {
     content = (
       <div
         className={userRole === "member" ? "opacity-60" : undefined}
@@ -1641,134 +1672,130 @@ export default function OnboardingPage() {
         )}
       </div>
     )
-  } else if (currentStep === 3) {
-    content = <StepThree invalid={currentStepIssues.has("profilePath")} />
-  } else if (currentStep === 4) {
-    content = <StepFourSkills />
-  } else if (currentStep === 5) {
-    content = <StepFiveExperience />
-  } else if (currentStep === 6) {
-    content = <StepSixEducation />
+  } else if (currentStep === 2) {
+    content = <StepThree invalid={false} />
   } else {
-    content = <StepSevenPreferences issues={currentStepIssues} />
+    content = (
+      <StepSevenPreferences issues={new Set<string>()} />
+    )
   }
 
   return (
-    <div className="space-y-4">
-      <StepIndicator />
-      <div className="flex flex-col gap-4 md:flex-row">
-        <div className="flex-1 space-y-4">
-          {content}
-          {remainingLabels.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {remainingLabels.map((label) => (
-                <Badge key={label} variant="outline" className="text-muted-foreground">
-                  {label}
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center justify-between pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canGoBack || isSaving}
-              onClick={handleBack}
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8">
+      {showWelcome ? (
+        <div className="mx-auto w-full sm:w-fit sm:max-w-[min(92vw,56rem)]">
+          <AnimatePresence
+            mode="wait"
+            initial={false}
+            onExitComplete={handleStepExitComplete}
+          >
+            {isStepVisible && (
+              <motion.div
+                key="welcome"
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{
+                  opacity: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
+                  y: { type: "spring", stiffness: 320, damping: 28, mass: 0.7 },
+                  layout: { type: "spring", stiffness: 280, damping: 30, mass: 0.8 },
+                }}
+              >
+                {content}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="mx-auto w-full sm:w-fit sm:max-w-[min(92vw,56rem)] space-y-4">
+          <Card className="p-5 sm:p-6">
+            <StepIndicator />
+            <AnimatePresence
+              mode="wait"
+              initial={false}
+              onExitComplete={handleStepExitComplete}
             >
-              Back
-            </Button>
-            {currentStep < totalSteps && (
-              <Button
-                type="button"
-                disabled={isSaving || !stepValidation.valid}
-                onClick={handleNext}
-              >
-                Next
-              </Button>
-            )}
-            {currentStep === totalSteps && (
-              <Button
-                type="button"
-                disabled={isSaving || !stepValidation.valid}
-                onClick={handleSubmit}
-              >
-                {isSaving ? "Saving..." : "Finish onboarding"}
-              </Button>
-            )}
-          </div>
-          {clientErrors.length > 0 && (
-            <div className="space-y-1 text-xs text-destructive">
-              {clientErrors.map((error) => (
-                <p key={error}>{error}</p>
-              ))}
-            </div>
-          )}
-          {saveError && (
-            <p className="text-xs text-destructive">
-              {saveError}
-            </p>
-          )}
-        </div>
-        <div className="hidden w-64 flex-none flex-col gap-3 rounded-lg bg-muted p-4 text-sm text-muted-foreground md:flex">
-          <div className="text-foreground font-semibold">What this setup powers</div>
-          <p>
-            Your profile, skills, experience, and preferences are used by
-            the job search and ranking engine in the backend.
-          </p>
-          <p>
-            The backend persists this data in Supabase tables
-            and computes a profile completeness score used to gate
-            agent triggers.
-          </p>
-        </div>
-      </div>
-      <div className="mt-2 flex gap-2">
-        {Array.from({ length: totalSteps }).map((_, index) => {
-          const step = index + 1
-          const canNavigate =
-            step <= currentStep ||
-            (step === 2 && stepValidities.step1) ||
-            (step === 3 && stepValidities.step1 && stepValidities.step2) ||
-            (step === 4 &&
-              stepValidities.step1 &&
-              stepValidities.step2 &&
-              stepValidities.step3) ||
-            (step === 5 &&
-              stepValidities.step1 &&
-              stepValidities.step2 &&
-              stepValidities.step3 &&
-              stepValidities.step4) ||
-            (step === 6 &&
-              stepValidities.step1 &&
-              stepValidities.step2 &&
-              stepValidities.step3 &&
-              stepValidities.step4 &&
-              stepValidities.step5) ||
-            (step === 7 &&
-              stepValidities.step1 &&
-              stepValidities.step2 &&
-              stepValidities.step3 &&
-              stepValidities.step4 &&
-              stepValidities.step5 &&
-              stepValidities.step6)
+              {isStepVisible && (
+                <motion.div
+                  key={currentStep}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{
+                    opacity: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
+                    y: { type: "spring", stiffness: 320, damping: 28, mass: 0.7 },
+                    layout: { type: "spring", stiffness: 280, damping: 30, mass: 0.8 },
+                  }}
+                >
+                  {content}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          return (
-            <button
-              key={step}
-              type="button"
-              disabled={!canNavigate || isSaving}
-              onClick={() => handleStepSelect(step)}
-              className={
-                step === currentStep
-                  ? "bg-primary h-1.5 flex-1 rounded-full"
-                  : canNavigate
-                    ? "bg-muted h-1.5 flex-1 rounded-full"
-                    : "bg-muted/50 h-1.5 flex-1 rounded-full"
-              }
-            />
-          )
-        })}
-      </div>
+            <div className="flex items-center justify-between pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentStep <= 1 || isSaving || isTransitioning}
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+              <div className="flex items-center gap-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isSaving || isTransitioning}
+                  onClick={handleSkipStep}
+                >
+                  Skip
+                </Button>
+                {currentStep < totalSteps && (
+                  <Button
+                    type="button"
+                    disabled={isSaving || isTransitioning}
+                    onClick={handleNext}
+                  >
+                    Next
+                  </Button>
+                )}
+                {currentStep === totalSteps && (
+                  <Button
+                    type="button"
+                    disabled={isSaving || isTransitioning}
+                    onClick={handleSubmit}
+                  >
+                    {isSaving ? "Saving..." : "Finish onboarding"}
+                  </Button>
+                )}
+              </div>
+            </div>
+            {saveError && (
+              <p className="mt-2 text-xs text-destructive">{saveError}</p>
+            )}
+            <div className="mt-6 flex gap-2">
+              {Array.from({ length: totalSteps }).map((_, index) => {
+                const step = index + 1
+                return (
+                  <button
+                    key={step}
+                    type="button"
+                    disabled={isSaving || isTransitioning}
+                    onClick={() => transitionToStep(step)}
+                    className={
+                      step === currentStep
+                        ? "bg-primary h-1.5 flex-1 rounded-full"
+                        : "bg-muted h-1.5 flex-1 rounded-full"
+                    }
+                  />
+                )
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
