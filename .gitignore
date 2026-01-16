@@ -38,3 +38,4 @@ yarn-error.log*
 *.pem
 
 .trigger
+apps/docs/hiremeplz
