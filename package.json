@@ -1,7 +1,6 @@
-
 {
   "dependencies": {
-    "@trigger.dev/sdk": "4.3.1"
+    "@trigger.dev/sdk": "4.3.2"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
@@ -32,6 +31,7 @@
     "check-types": "turbo run check-types",
     "dev": "turbo run dev",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "test": "turbo run test"
   }
 }

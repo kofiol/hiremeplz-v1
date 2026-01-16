@@ -1,6 +1,42 @@
-# Turborepo starter
+# HireMePlz Monorepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+## Job Search (End-to-End)
+
+This repo includes a production-ready job search pipeline that:
+
+- Builds QueryPlans from user profile/preferences
+- Fetches LinkedIn jobs via Bright Data SDK
+- Normalizes/dedupes jobs and computes explainable rankings
+- Writes `job_sources`, `jobs`, and `job_rankings` atomically to Postgres/Supabase
+- Tracks lifecycle in `agent_runs` (queued → running → succeeded/failed)
+
+### Local setup
+
+1) Copy `.env.example` → `.env` and fill values (never commit real keys).
+
+2) Run Trigger.dev locally:
+
+```bash
+npx trigger.dev@latest dev
+```
+
+3) Trigger the workflow (manual):
+
+- Task id: `job_search.run`
+- Server endpoint: `POST /api/v1/job-search/trigger` ([route.ts](file:///c:/Users/psyhik1769/hiremeplz-monorepo/apps/web/src/app/api/v1/job-search/trigger/route.ts))
+
+### Acceptance checklist
+
+- `packages/job-source-router` exposes `RawJob` and `JobSourceRouter`
+- Bright Data adapter uses `@brightdata/sdk` (no raw HTTP)
+- `packages/query-plan-builder` produces 3–10 QueryPlans
+- `packages/mapping-ranking` normalizes + scores with Zod-validated contracts
+- `packages/workflows/job_search` runs the OpenAI Agent runner with typed tools and writes results idempotently
+- `pnpm test` passes (unit + integration)
+
+## Monorepo
+
+This repo is based on the Turborepo starter.
 
 ## Using this example
 

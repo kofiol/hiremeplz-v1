@@ -1,0 +1,3 @@
+{"job_posting_id":"123","job_title":"Full Stack Engineer","company_name":"Acme","job_location":"Remote","apply_link":"https://www.linkedin.com/jobs/view/123","description_text":"Next.js, TypeScript, Supabase. Build production systems.","job_seniority_level":"Mid-Senior level","country_code":"US","remote":"remote"}
+{"job_posting_id":"456","job_title":"Backend Engineer","company_name":"Contoso","job_location":"New York, NY","apply_link":"https://www.linkedin.com/jobs/view/456","description_text":"Node.js, Postgres, APIs. Work with distributed systems.","job_seniority_level":"Senior","country_code":"US","remote":"hybrid"}
+
