@@ -29,6 +29,8 @@ type JobRecord = {
   team_id: string;
   platform: string;
   platform_job_id: string;
+  company_name: string | null;
+  company_logo_url: string | null;
   title: string;
   description: string;
   apply_url: string;
@@ -131,7 +133,7 @@ export async function writeJobSearchBatch(input: JobSearchBatchWriteInput): Prom
         `
           with upserted as (
             insert into public.jobs(
-              team_id, platform, platform_job_id, title, description, apply_url, posted_at, fetched_at,
+              team_id, platform, platform_job_id, company_name, company_logo_url, title, description, apply_url, posted_at, fetched_at,
               budget_type, fixed_budget_min, fixed_budget_max, hourly_min, hourly_max, currency,
               client_country, client_rating, client_hires, client_payment_verified,
               skills, seniority, category, canonical_hash, source_raw
@@ -140,6 +142,8 @@ export async function writeJobSearchBatch(input: JobSearchBatchWriteInput): Prom
               j.team_id,
               j.platform,
               j.platform_job_id,
+              j.company_name,
+              j.company_logo_url,
               j.title,
               j.description,
               j.apply_url,
@@ -164,6 +168,8 @@ export async function writeJobSearchBatch(input: JobSearchBatchWriteInput): Prom
               team_id uuid,
               platform public.platform,
               platform_job_id text,
+              company_name text,
+              company_logo_url text,
               title text,
               description text,
               apply_url text,
@@ -188,6 +194,8 @@ export async function writeJobSearchBatch(input: JobSearchBatchWriteInput): Prom
             on conflict (team_id, canonical_hash)
             do update set
               platform_job_id = excluded.platform_job_id,
+              company_name = excluded.company_name,
+              company_logo_url = excluded.company_logo_url,
               title = excluded.title,
               description = excluded.description,
               apply_url = excluded.apply_url,
@@ -283,19 +291,21 @@ async function upsertJobsAndRankingsFallback(
     await client.query(
       `
         insert into public.jobs(
-          id, team_id, platform, platform_job_id, title, description, apply_url, posted_at, fetched_at,
+          id, team_id, platform, platform_job_id, company_name, company_logo_url, title, description, apply_url, posted_at, fetched_at,
           budget_type, fixed_budget_min, fixed_budget_max, hourly_min, hourly_max, currency,
           client_country, client_rating, client_hires, client_payment_verified,
           skills, seniority, category, canonical_hash, source_raw
         ) values (
-          $1::uuid, $2::uuid, $3::public.platform, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz,
-          $10, $11, $12, $13, $14, $15,
-          $16, $17, $18, $19,
-          $20::text[], $21, $22, $23, $24::jsonb
+          $1::uuid, $2::uuid, $3::public.platform, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11::timestamptz,
+          $12, $13, $14, $15, $16, $17,
+          $18, $19, $20, $21,
+          $22::text[], $23, $24, $25, $26::jsonb
         )
         on conflict (team_id, canonical_hash)
         do update set
           platform_job_id = excluded.platform_job_id,
+          company_name = excluded.company_name,
+          company_logo_url = excluded.company_logo_url,
           title = excluded.title,
           description = excluded.description,
           apply_url = excluded.apply_url,
@@ -321,6 +331,8 @@ async function upsertJobsAndRankingsFallback(
         j.team_id,
         j.platform,
         j.platform_job_id,
+        j.company_name,
+        j.company_logo_url,
         j.title,
         j.description,
         j.apply_url,
