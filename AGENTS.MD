@@ -1,0 +1,37 @@
+Supabase current schema:
+
+| source_table           | source_column   | target_table  | target_column |
+| ---------------------- | --------------- | ------------- | ------------- |
+| team_members           | team_id         | teams         | id            |
+| profiles               | team_id         | teams         | id            |
+| user_cv_files          | team_id         | teams         | id            |
+| user_profile_snapshots | team_id         | teams         | id            |
+| user_skills            | team_id         | teams         | id            |
+| user_experiences       | team_id         | teams         | id            |
+| user_educations        | team_id         | teams         | id            |
+| user_preferences       | team_id         | teams         | id            |
+| job_sources            | team_id         | teams         | id            |
+| jobs                   | team_id         | teams         | id            |
+| job_rankings           | team_id         | teams         | id            |
+| job_rankings           | job_id          | jobs          | id            |
+| applications           | team_id         | teams         | id            |
+| applications           | job_id          | jobs          | id            |
+| cover_letters          | team_id         | teams         | id            |
+| cover_letters          | job_id          | jobs          | id            |
+| messages               | team_id         | teams         | id            |
+| feedback               | team_id         | teams         | id            |
+| feedback               | application_id  | applications  | id            |
+| feedback               | message_id      | messages      | id            |
+| earnings               | team_id         | teams         | id            |
+| agent_runs             | team_id         | teams         | id            |
+| agent_run_steps        | team_id         | teams         | id            |
+| agent_run_steps        | agent_run_id    | agent_runs    | id            |
+| embeddings             | team_id         | teams         | id            |
+| team_settings          | team_id         | teams         | id            |
+| user_agent_settings    | team_id         | teams         | id            |
+| usage_counters         | team_id         | teams         | id            |
+| events                 | team_id         | teams         | id            |
+| notifications          | team_id         | teams         | id            |
+| apply_sessions         | team_id         | teams         | id            |
+| apply_sessions         | job_id          | jobs          | id            |
+| apply_sessions         | cover_letter_id | cover_letters | id            |

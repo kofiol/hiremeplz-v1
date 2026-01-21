@@ -1,0 +1,240 @@
+{
+  "created_at": "2026-01-19T00:00:00Z",
+  "parent_page": {
+    "obsidian_path": "HireMePlz.app - Product Spec (root)",
+    "notion_page_id": "2ed85385-872a-816d-87e9-c41afc69a36f",
+    "notion_url": "https://www.notion.so/2ed85385872a816d87e9c41afc69a36f"
+  },
+  "pages": {
+    "README.md": {
+      "obsidian_path": "README.md",
+      "notion_page_id": "2ed85385-872a-81e8-b8e4-c9648920ffbf",
+      "notion_url": "https://www.notion.so/2ed85385872a81e8b8e4c9648920ffbf"
+    },
+    "Onboarding v2.md": {
+      "obsidian_path": "Onboarding v2.md",
+      "notion_page_id": "2ed85385-872a-8155-a345-f2b98722c446",
+      "notion_url": "https://www.notion.so/2ed85385872a8155a345f2b98722c446"
+    },
+    "00 Start Here.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/00 📌 Start Here.md",
+      "notion_page_id": "2ed85385-872a-81e4-9bc9-dba81fb91c26",
+      "notion_url": "https://www.notion.so/2ed85385872a81e49bc9dba81fb91c26"
+    },
+    "01 Table of Contents.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/01 🗺️ Table of Contents.md",
+      "notion_page_id": "2ed85385-872a-819e-884c-f0ffc8d728df",
+      "notion_url": "https://www.notion.so/2ed85385872a819e884cf0ffc8d728df"
+    },
+    "Architecture/01 Overview.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/01 🧱 Architecture/01 Overview.md",
+      "notion_page_id": "2ed85385-872a-810e-a364-f89e8aa7e83d",
+      "notion_url": "https://www.notion.so/2ed85385872a810ea364f89e8aa7e83d"
+    },
+    "Architecture/02 Canonical Data Contracts.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/01 🧱 Architecture/02 Canonical Data Contracts.md",
+      "notion_page_id": "2ed85385-872a-8151-900e-dbb1a31adf80",
+      "notion_url": "https://www.notion.so/2ed85385872a8151900edbb1a31adf80"
+    },
+    "Architecture/03 Security, Privacy, Limits.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/01 🧱 Architecture/03 Security, Privacy, Limits.md",
+      "notion_page_id": "2ed85385-872a-8197-8721-e65b973172b7",
+      "notion_url": "https://www.notion.so/2ed85385872a81978721e65b973172b7"
+    },
+    "Architecture/04 Observability & Events.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/01 🧱 Architecture/04 Observability & Events.md",
+      "notion_page_id": "2ed85385-872a-8158-adc7-d8ad9b00303c",
+      "notion_url": "https://www.notion.so/2ed85385872a8158adc7d8ad9b00303c"
+    }
+    ,
+    "Frontend/01 IA & Routes.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/02 🖥️ Frontend (Next.js)/01 IA & Routes.md",
+      "notion_page_id": "2ed85385-872a-81de-bc36-f476363127bc",
+      "notion_url": "https://www.notion.so/2ed85385872a81debc36f476363127bc"
+    },
+    "Frontend/02 Dashboard Tabs.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/02 🖥️ Frontend (Next.js)/02 Dashboard Tabs.md",
+      "notion_page_id": "2ed85385-872a-813d-bf22-fa3183aeda63",
+      "notion_url": "https://www.notion.so/2ed85385872a813dbf22fa3183aeda63"
+    },
+    "Frontend/03 Onboarding UX.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/02 🖥️ Frontend (Next.js)/03 Onboarding UX.md",
+      "notion_page_id": "2ed85385-872a-8132-9c91-d417cb6c5a6b",
+      "notion_url": "https://www.notion.so/2ed85385872a81329c91d417cb6c5a6b"
+    },
+    "Frontend/04 Chrome Extension.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/02 🖥️ Frontend (Next.js)/04 Chrome Extension.md",
+      "notion_page_id": "2ed85385-872a-81bc-9610-c954672fd882",
+      "notion_url": "https://www.notion.so/2ed85385872a81bc9610c954672fd882"
+    },
+    "Frontend/05 Realtime UX.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/02 🖥️ Frontend (Next.js)/05 Realtime UX.md",
+      "notion_page_id": "2ed85385-872a-817b-b2d1-f7882ac5b150",
+      "notion_url": "https://www.notion.so/2ed85385872a817bb2d1f7882ac5b150"
+    },
+    "Backend/01 API Rules.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/03 🧩 Backend (REST API)/01 API Rules.md",
+      "notion_page_id": "2ed85385-872a-819f-80a9-e0d76a0b54cf",
+      "notion_url": "https://www.notion.so/2ed85385872a819f80a9e0d76a0b54cf"
+    },
+    "Backend/02 Endpoints.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/03 🧩 Backend (REST API)/02 Endpoints.md",
+      "notion_page_id": "2ed85385-872a-81b6-a247-cce69b31abaf",
+      "notion_url": "https://www.notion.so/2ed85385872a81b6a247cce69b31abaf"
+    },
+    "Backend/03 Auth, Teams, Billing.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/03 🧩 Backend (REST API)/03 Auth, Teams, Billing.md",
+      "notion_page_id": "2ed85385-872a-81c4-8ce8-f2f838e52e44",
+      "notion_url": "https://www.notion.so/2ed85385872a81c48ce8f2f838e52e44"
+    },
+    "Backend/04 Webhooks & Side Effects.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/03 🧩 Backend (REST API)/04 Webhooks & Side Effects.md",
+      "notion_page_id": "2ed85385-872a-81fe-aa2d-c830cc915462",
+      "notion_url": "https://www.notion.so/2ed85385872a81feaa2dc830cc915462"
+    }
+    ,
+    "Supabase/01 SQL Schema (Canonical).md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/04 🗄️ Supabase (Source of Truth)/01 SQL Schema (Canonical).md",
+      "notion_page_id": "2ed85385-872a-8173-ab10-ea17096c57c8",
+      "notion_url": "https://www.notion.so/2ed85385872a8173ab10ea17096c57c8"
+    },
+    "Supabase/02 RLS Policies.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/04 🗄️ Supabase (Source of Truth)/02 RLS Policies.md",
+      "notion_page_id": "2ed85385-872a-81e5-bd1c-cd1f2ce623f2",
+      "notion_url": "https://www.notion.so/2ed85385872a81e5bd1ccd1f2ce623f2"
+    },
+    "Supabase/03 Realtime & Notifications.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/04 🗄️ Supabase (Source of Truth)/03 Realtime & Notifications.md",
+      "notion_page_id": "2ed85385-872a-8123-a301-e7a5fde161c2",
+      "notion_url": "https://www.notion.so/2ed85385872a8123a301e7a5fde161c2"
+    },
+    "Supabase/04 Embeddings & Vector Search.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/04 🗄️ Supabase (Source of Truth)/04 Embeddings & Vector Search.md",
+      "notion_page_id": "2ed85385-872a-8105-ae5c-d808756fe9c0",
+      "notion_url": "https://www.notion.so/2ed85385872a8105ae5cd808756fe9c0"
+    },
+    "Triggerdev/01 Workflow Catalog.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/05 🧵 Trigger.dev (Workflows)/01 Workflow Catalog.md",
+      "notion_page_id": "2ed85385-872a-81c8-9e80-fa1863229430",
+      "notion_url": "https://www.notion.so/2ed85385872a81c89e80fa1863229430"
+    },
+    "Triggerdev/02 Job Search Agent Run.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/05 🧵 Trigger.dev (Workflows)/02 Job Search Agent Run.md",
+      "notion_page_id": "2ed85385-872a-8147-8bfc-f417cb3a7779",
+      "notion_url": "https://www.notion.so/2ed85385872a81478bfcf417cb3a7779"
+    },
+    "Triggerdev/03 Cover Letter Generation.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/05 🧵 Trigger.dev (Workflows)/03 Cover Letter Generation.md",
+      "notion_page_id": "2ed85385-872a-81a0-99a5-f76e955e8cf1",
+      "notion_url": "https://www.notion.so/2ed85385872a81a099a5f76e955e8cf1"
+    },
+    "Triggerdev/04 Email Ingest (Mailgun).md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/05 🧵 Trigger.dev (Workflows)/04 Email Ingest (Mailgun).md",
+      "notion_page_id": "2ed85385-872a-81f6-92f9-f1a038a20316",
+      "notion_url": "https://www.notion.so/2ed85385872a81f692f9f1a038a20316"
+    },
+    "Triggerdev/05 Scheduled Pollers.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/05 🧵 Trigger.dev (Workflows)/05 Scheduled Pollers.md",
+      "notion_page_id": "2ed85385-872a-818c-b645-f3b5446b00ea",
+      "notion_url": "https://www.notion.so/2ed85385872a818cb645f3b5446b00ea"
+    }
+    ,
+    "Agents/01 Job Search Agent.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/01 Job Search Agent.md",
+      "notion_page_id": "2ed85385-872a-81a7-bb1d-c1f0fb397abb",
+      "notion_url": "https://www.notion.so/2ed85385872a81a7bb1dc1f0fb397abb"
+    },
+    "Agents/02 Cover Letter Agent.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/02 Cover Letter Agent.md",
+      "notion_page_id": "2ed85385-872a-8141-bf1f-ff6ad010c62d",
+      "notion_url": "https://www.notion.so/2ed85385872a8141bf1fff6ad010c62d"
+    },
+    "Agents/03 Dashboard Copilot.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/03 Dashboard Copilot (Read-only).md",
+      "notion_page_id": "2ed85385-872a-8181-89c7-f25fcc3765e1",
+      "notion_url": "https://www.notion.so/2ed85385872a818189c7f25fcc3765e1"
+    },
+    "Agents/04 Upwork Profile Optimizer.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/04 Upwork Profile Optimizer Agent.md",
+      "notion_page_id": "2ed85385-872a-8115-9e9c-ca156700cc07",
+      "notion_url": "https://www.notion.so/2ed85385872a81159e9cca156700cc07"
+    },
+    "Agents/05 Interview Prep Agent.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/05 Interview Prep Agent (Beta).md",
+      "notion_page_id": "2ed85385-872a-81a1-97fb-f041111d4a4a",
+      "notion_url": "https://www.notion.so/2ed85385872a81a197fbf041111d4a4a"
+    },
+    "Agents/06 Agent Settings.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/06 Agent Settings (User-facing).md",
+      "notion_page_id": "2ed85385-872a-81a8-b749-e52fb0a25d82",
+      "notion_url": "https://www.notion.so/2ed85385872a81a8b749e52fb0a25d82"
+    },
+    "Agents/07 Ranking & Filtering Logic.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/06 🤖 AI Agents/07 Ranking & Filtering Logic.md",
+      "notion_page_id": "2ed85385-872a-8117-9ab9-c3337be8a141",
+      "notion_url": "https://www.notion.so/2ed85385872a81179ab9c3337be8a141"
+    },
+    "Business/01 Users, Pains, JTBD.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/07 💼 User & Business Model/01 Users, Pains, JTBD.md",
+      "notion_page_id": "2ed85385-872a-8165-9536-ee2a54eca43b",
+      "notion_url": "https://www.notion.so/2ed85385872a81659536ee2a54eca43b"
+    },
+    "Business/02 Pricing & Packaging.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/07 💼 User & Business Model/02 Pricing & Packaging.md",
+      "notion_page_id": "2ed85385-872a-8194-90b2-c2108d98c050",
+      "notion_url": "https://www.notion.so/2ed85385872a819490b2c2108d98c050"
+    },
+    "Business/03 Acquisition & Marketing.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/07 💼 User & Business Model/03 Acquisition & Marketing.md",
+      "notion_page_id": "2ed85385-872a-819c-963c-f338c8d92d2f",
+      "notion_url": "https://www.notion.so/2ed85385872a819c963cf338c8d92d2f"
+    }
+    ,
+    "Business/04 North Star Metrics & KPIs.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/07 💼 User & Business Model/04 North Star Metrics & KPIs.md",
+      "notion_page_id": "2ed85385-872a-81af-b163-f21fea0e6e2d",
+      "notion_url": "https://www.notion.so/2ed85385872a81afb163f21fea0e6e2d"
+    },
+    "Business/05 Risks, Compliance, Moats.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/07 💼 User & Business Model/05 Risks, Compliance, Moats.md",
+      "notion_page_id": "2ed85385-872a-81ee-a956-ff26b6d95855",
+      "notion_url": "https://www.notion.so/2ed85385872a81eea956ff26b6d95855"
+    },
+    "SprintPlan/Week8_Launch.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/08 🗓️ 8-Week Sprint Plan/08 Week 8 — Interview Prep Beta, Upwork Optimizer, Launch.md",
+      "notion_page_id": "2ed85385-872a-81c9-afd3-d698b41b6453",
+      "notion_url": "https://www.notion.so/2ed85385872a81c9afd3d698b41b6453"
+    }
+    ,
+    "SprintPlan/Weekly_Checklist_Template.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/08 🗓️ 8-Week Sprint Plan/09 Weekly Checklist Template.md",
+      "notion_page_id": "2ed85385-872a-8172-820a-c53524323fdf",
+      "notion_url": "https://www.notion.so/2ed85385872a8172820ac53524323fdf"
+    },
+    "SprintPlan/V1_Pre-Launch_Checklist.md": {
+      "obsidian_path": "HireMePlz.app - Product Spec/08 🗓️ 8-Week Sprint Plan/10 V1 Pre-Launch Checklist.md",
+      "notion_page_id": "2ed85385-872a-8138-99b8-fa152f8fedd8",
+      "notion_url": "https://www.notion.so/2ed85385872a813899b8fa152f8fedd8"
+    },
+    "Misc/Untitled Kanban.md": {
+      "obsidian_path": "Untitled Kanban.md",
+      "notion_page_id": "2ed85385-872a-8164-b849-e9fa7d8f2e1a",
+      "notion_url": "https://www.notion.so/2ed85385872a8164b849e9fa7d8f2e1a"
+    },
+    "Misc/ideas.md": {
+      "obsidian_path": "ideas.md",
+      "notion_page_id": "2ed85385-872a-818b-975c-dc429e12b69d",
+      "notion_url": "https://www.notion.so/2ed85385872a818b975cdc429e12b69d"
+    },
+    "Misc/prompt.md": {
+      "obsidian_path": "prompt.md",
+      "notion_page_id": "2ed85385-872a-81e6-95d6-ffb2fe766305",
+      "notion_url": "https://www.notion.so/2ed85385872a81e695d6ffb2fe766305"
+    },
+    "Misc/sidebar reorganization.md": {
+      "obsidian_path": "sidebar reorganization.md",
+      "notion_page_id": "2ed85385-872a-815b-bb1e-c22b8ce8ee07",
+      "notion_url": "https://www.notion.so/2ed85385872a815bbb1ec22b8ce8ee07"
+    }
+  }
+}

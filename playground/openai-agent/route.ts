@@ -10,7 +10,7 @@ const myAgent = new Agent({
     maxTokens: 2048,
     store: true
   }
-});
+}); 
 
 type WorkflowInput = { input_as_text: 'Hello' };
 
