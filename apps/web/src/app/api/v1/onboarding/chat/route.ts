@@ -71,6 +71,148 @@ const OnboardingResponseSchema = z.object({
 
 type OnboardingResponse = z.infer<typeof OnboardingResponseSchema>;
 
+const nullableString = { type: ["string", "null"] } as const;
+const nullableNumber = { type: ["number", "null"] } as const;
+const nullableBoolean = { type: ["boolean", "null"] } as const;
+const nullableEnum = (values: string[]) => ({
+  anyOf: [{ type: "string", enum: values }, { type: "null" }],
+});
+
+const OnboardingResponseJsonSchema = {
+  type: "json_schema" as const,
+  name: "OnboardingResponse",
+  strict: true,
+  schema: {
+    type: "object" as const,
+    additionalProperties: false,
+    required: ["message", "collectedData", "isComplete"],
+    properties: {
+      message: { type: "string" },
+      collectedData: {
+        type: "object" as const,
+        additionalProperties: false,
+        required: [
+          "teamMode",
+          "profilePath",
+          "linkedinUrl",
+          "upworkUrl",
+          "portfolioUrl",
+          "experienceLevel",
+          "skills",
+          "experiences",
+          "educations",
+          "hourlyMin",
+          "hourlyMax",
+          "fixedBudgetMin",
+          "currency",
+          "preferredProjectLengthMin",
+          "preferredProjectLengthMax",
+          "timeZones",
+          "engagementTypes",
+          "remoteOnly",
+        ],
+        properties: {
+          teamMode: nullableEnum(["solo", "team"]),
+          profilePath: nullableEnum(["linkedin", "upwork", "cv", "portfolio", "manual"]),
+          linkedinUrl: nullableString,
+          upworkUrl: nullableString,
+          portfolioUrl: nullableString,
+          experienceLevel: nullableEnum([
+            "intern_new_grad",
+            "entry",
+            "mid",
+            "senior",
+            "lead",
+            "director",
+          ]),
+          skills: {
+            anyOf: [
+              {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["name"],
+                  properties: {
+                    name: { type: "string" },
+                  },
+                },
+              },
+              { type: "null" },
+            ],
+          },
+          experiences: {
+            anyOf: [
+              {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["title", "company", "startDate", "endDate", "highlights"],
+                  properties: {
+                    title: { type: "string" },
+                    company: nullableString,
+                    startDate: nullableString,
+                    endDate: nullableString,
+                    highlights: nullableString,
+                  },
+                },
+              },
+              { type: "null" },
+            ],
+          },
+          educations: {
+            anyOf: [
+              {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["school", "degree", "field", "startYear", "endYear"],
+                  properties: {
+                    school: { type: "string" },
+                    degree: nullableString,
+                    field: nullableString,
+                    startYear: nullableString,
+                    endYear: nullableString,
+                  },
+                },
+              },
+              { type: "null" },
+            ],
+          },
+          hourlyMin: nullableNumber,
+          hourlyMax: nullableNumber,
+          fixedBudgetMin: nullableNumber,
+          currency: nullableEnum(["USD", "EUR", "GBP", "CAD", "AUD"]),
+          preferredProjectLengthMin: nullableNumber,
+          preferredProjectLengthMax: nullableNumber,
+          timeZones: {
+            anyOf: [
+              { type: "array", items: { type: "string" } },
+              { type: "null" },
+            ],
+          },
+          engagementTypes: {
+            anyOf: [
+              {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: ["full_time", "part_time", "internship"],
+                },
+              },
+              { type: "null" },
+            ],
+          },
+          remoteOnly: nullableBoolean,
+        },
+      },
+      isComplete: { type: "boolean" },
+    },
+  },
+};
+
 // ============================================================================
 // Request Schema
 // ============================================================================
@@ -175,7 +317,7 @@ User's new message: ${message}
       name: "Onboarding Assistant",
       instructions: AGENT_INSTRUCTIONS,
       model: "gpt-4o",
-      outputType: OnboardingResponseSchema,
+      outputType: OnboardingResponseJsonSchema,
     });
 
     // Run the agent
@@ -185,7 +327,7 @@ User's new message: ${message}
       throw new Error("Agent did not produce output");
     }
 
-    const response = result.finalOutput as OnboardingResponse;
+    const response = OnboardingResponseSchema.parse(result.finalOutput) as OnboardingResponse;
 
     return Response.json({
       message: response.message,
