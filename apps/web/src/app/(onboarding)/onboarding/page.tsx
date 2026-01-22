@@ -292,7 +292,6 @@ export default function OnboardingPage() {
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
       if (!hasStarted) {
-        startConversation();
         return;
       }
 
@@ -300,7 +299,7 @@ export default function OnboardingPage() {
         sendMessage(message.text);
       }
     },
-    [hasStarted, startConversation, sendMessage]
+    [hasStarted, sendMessage]
   );
 
   // Save onboarding data
@@ -382,33 +381,25 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div className="w-full max-w-xl">
-              <PromptInput
-                onSubmit={handleSubmit}
-                className="shadow-lg"
+            <div className="flex flex-col items-center gap-4">
+              <Button
+                size="lg"
+                className="gap-2 px-8 py-6 text-base shadow-sm"
+                onClick={startConversation}
+                disabled={isLoading}
               >
-                <PromptInputBody>
-                  <PromptInputTextarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Say hello to get started..."
-                    className="min-h-12"
-                  />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSkip}
-                    className="text-muted-foreground"
-                  >
-                    Skip for now
-                  </Button>
-                  <PromptInputSubmit disabled={isLoading} />
-                </PromptInputFooter>
-              </PromptInput>
+                <Sparkles className="size-4" />
+                Start onboarding
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleSkip}
+                className="text-muted-foreground"
+              >
+                Skip for now
+              </Button>
             </div>
           </motion.div>
         ) : (
@@ -485,7 +476,7 @@ export default function OnboardingPage() {
               <ConversationScrollButton />
             </Conversation>
 
-            <div className="shrink-0 border-t bg-background px-4 py-4">
+            <div className="shrink-0 border-t bg-muted px-4 py-4">
               <PromptInput onSubmit={handleSubmit} className="mx-auto max-w-2xl">
                 <PromptInputBody>
                   <PromptInputTextarea

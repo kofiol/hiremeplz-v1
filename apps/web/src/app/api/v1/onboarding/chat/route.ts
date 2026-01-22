@@ -316,7 +316,7 @@ User's new message: ${message}
     const onboardingAgent = new Agent({
       name: "Onboarding Assistant",
       instructions: AGENT_INSTRUCTIONS,
-      model: "gpt-4o",
+      model: "gpt-5-nano",
       outputType: OnboardingResponseJsonSchema,
     });
 
