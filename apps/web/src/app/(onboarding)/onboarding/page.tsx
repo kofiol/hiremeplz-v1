@@ -13,9 +13,7 @@ import {
 import {
   Message,
   MessageContent,
-  MessageResponse,
   MessageBubble,
-  MessageLoading,
   MessageError,
 } from "@/components/ai-elements/message";
 import {
@@ -168,6 +166,24 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { session } = useSession();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const avatarUrlFromSession =
+    (session?.user?.user_metadata?.avatar_url as string | undefined) ??
+    (session?.user?.user_metadata?.picture as string | undefined) ??
+    null;
+  const userNameFromSession =
+    (session?.user?.user_metadata?.full_name as string | undefined) ??
+    (session?.user?.user_metadata?.name as string | undefined) ??
+    (session?.user?.user_metadata?.display_name as string | undefined) ??
+    null;
+  const emailFromSession = session?.user?.email ?? null;
+  const avatarAlt = userNameFromSession ?? emailFromSession ?? "";
+  const avatarFallback = React.useMemo(() => {
+    const base = (userNameFromSession ?? emailFromSession ?? "").trim();
+    if (!base) return "?";
+    const parts = base.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }, [emailFromSession, userNameFromSession]);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -412,16 +428,28 @@ export default function OnboardingPage() {
             className="flex flex-1 flex-col overflow-hidden"
           >
             <Conversation className="flex-1">
-              <ConversationContent>
+              <ConversationContent className="pb-48">
                 {messages.map((message) => (
-                  <Message key={message.id} from={message.role}>
+                  <Message
+                    key={message.id}
+                    from={message.role}
+                    avatarUrl={
+                      message.role === "user" ? avatarUrlFromSession : null
+                    }
+                    avatarAlt={message.role === "user" ? avatarAlt : null}
+                    avatarFallback={
+                      message.role === "user" ? avatarFallback : null
+                    }
+                  >
                     <MessageContent>
                       {message.role === "user" ? (
                         <MessageBubble variant="user">
                           {message.content}
                         </MessageBubble>
                       ) : (
-                        <MessageResponse>{message.content}</MessageResponse>
+                        <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground [&>p]:my-0 [&>p:not(:last-child)]:mb-2 [&>ul]:my-1 [&>ol]:my-1 [&>ul>li]:my-0.5 [&>ol>li]:my-0.5">
+                          {message.content}
+                        </div>
                       )}
                     </MessageContent>
                   </Message>
@@ -430,7 +458,13 @@ export default function OnboardingPage() {
                 {isLoading && (
                   <Message from="assistant">
                     <MessageContent>
-                      <MessageLoading />
+                      <div className="flex h-8 items-center">
+                        <div className="flex items-center gap-1 translate-y-[1px]">
+                          <span className="size-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:-0.3s]" />
+                          <span className="size-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:-0.15s]" />
+                          <span className="size-2 animate-bounce rounded-full bg-muted-foreground/50" />
+                        </div>
+                      </div>
                     </MessageContent>
                   </Message>
                 )}
@@ -473,13 +507,13 @@ export default function OnboardingPage() {
                   </div>
                 )}
               </ConversationContent>
-              <ConversationScrollButton />
+              <ConversationScrollButton className="bottom-40" />
             </Conversation>
 
-            <div className="shrink-0 bg-muted px-4 pb-10 pt-4">
+            <div className="fixed bottom-0 left-0 right-0 z-50 bg-background px-4 pb-6 pt-4">
               <PromptInput
                 onSubmit={handleSubmit}
-                className="mx-auto max-w-2xl [&_[data-slot=input-group]]:bg-transparent [&_[data-slot=input-group]]:border-transparent [&_[data-slot=input-group]]:shadow-none [&_[data-slot=input-group]]:rounded-none"
+                className="mx-auto max-w-2xl [&_[data-slot=input-group]]:bg-card"
               >
                 <PromptInputBody>
                   <PromptInputTextarea

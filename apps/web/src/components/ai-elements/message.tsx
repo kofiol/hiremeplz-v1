@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { BotIcon, UserIcon } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { HTMLAttributes, PropsWithChildren } from "react";
 
 // ============================================================================
@@ -17,11 +18,23 @@ export type MessageRole = "user" | "assistant";
 export type MessageProps = PropsWithChildren<
   HTMLAttributes<HTMLDivElement> & {
     from: MessageRole;
+    avatarUrl?: string | null;
+    avatarAlt?: string | null;
+    avatarFallback?: string | null;
   }
 >;
 
-export function Message({ from, children, className, ...props }: MessageProps) {
+export function Message({
+  from,
+  avatarUrl,
+  avatarAlt,
+  avatarFallback,
+  children,
+  className,
+  ...props
+}: MessageProps) {
   const isUser = from === "user";
+  const shouldShowUserAvatar = isUser && !!avatarUrl;
 
   return (
     <div
@@ -32,20 +45,27 @@ export function Message({ from, children, className, ...props }: MessageProps) {
       )}
       {...props}
     >
-      <div
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full",
-          isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground"
-        )}
-      >
-        {isUser ? (
-          <UserIcon className="size-4" />
-        ) : (
-          <BotIcon className="size-4" />
-        )}
-      </div>
+      {shouldShowUserAvatar ? (
+        <Avatar className="size-8">
+          <AvatarImage src={avatarUrl ?? undefined} alt={avatarAlt ?? ""} />
+          <AvatarFallback>{avatarFallback ?? "?"}</AvatarFallback>
+        </Avatar>
+      ) : (
+        <div
+          className={cn(
+            "flex size-8 shrink-0 items-center justify-center rounded-full",
+            isUser
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground"
+          )}
+        >
+          {isUser ? (
+            <UserIcon className="size-4" />
+          ) : (
+            <BotIcon className="size-4" />
+          )}
+        </div>
+      )}
       <div
         className={cn(
           "flex max-w-[80%] flex-col gap-1",
