@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BarChart3, FileText, Home, MessageSquare, Rocket, Search, Settings, Star, Users, Wallet, Command } from "lucide-react"
+import { Command, Home, Settings } from "lucide-react"
 import Link from "next/link"
 
 import { NavMain } from "@/components/nav-main"
@@ -29,24 +29,7 @@ function getPlanLabel(plan: string | null) {
   return plan
 }
 
-const navWork = [
-  { title: "Home", url: "/overview", icon: Home },
-  { title: "Jobs", url: "/jobs", icon: Search },
-  { title: "Applications", url: "/applications", icon: Rocket },
-  { title: "Cover Letters", url: "/cover-letters", icon: FileText },
-]
-
-const navComms = [
-  { title: "Messages", url: "/messages", icon: MessageSquare },
-  { title: "Feedback", url: "/feedback", icon: Star },
-]
-
-const navInsights = [
-  { title: "Earnings", url: "/earnings", icon: Wallet },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
-]
-
-const navTeam = [{ title: "Team", url: "/team", icon: Users }]
+const navMain = [{ title: "Overview", url: "/overview", icon: Home }]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { session } = useSession()
@@ -96,10 +79,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain label="Work" items={navWork} />
-        <NavMain label="Comms" items={navComms} />
-        <NavMain label="Insights" items={navInsights} />
-        <NavMain label="Team" items={navTeam} />
+        <NavMain label="App" items={navMain} />
         <div className="mt-auto">
           <SidebarGroup>
             <SidebarGroupLabel>Account</SidebarGroupLabel>
