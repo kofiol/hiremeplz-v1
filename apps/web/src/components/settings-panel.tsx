@@ -248,8 +248,8 @@ export function SettingsPanel({
                 onClick={() => setActiveSection(section.key)}
                 className={
                   isActive
-                    ? "bg-accent text-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm"
+                    ? "bg-accent text-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-base font-medium"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-base"
                 }
               >
                 <Icon className="size-4" />

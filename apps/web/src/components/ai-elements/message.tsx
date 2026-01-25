@@ -107,10 +107,10 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+        "rounded-[calc(var(--radius)+0.35rem)] px-4 py-2.5 text-sm leading-relaxed",
         variant === "user"
-          ? "bg-[#1f1f1f] text-foreground rounded-br-md border border-[#333]"
-          : "bg-muted text-foreground rounded-bl-md",
+          ? "bg-accent text-accent-foreground rounded-br-[calc(var(--radius)-0.25rem)]"
+          : "bg-muted text-foreground rounded-bl-[calc(var(--radius)-0.25rem)]",
         className
       )}
       {...props}
@@ -133,7 +133,7 @@ export function MessageResponse({
     <div
       className={cn(
         "prose prose-sm dark:prose-invert max-w-none",
-        "rounded-2xl rounded-bl-md bg-muted px-4 py-2.5",
+        "rounded-[calc(var(--radius)+0.35rem)] rounded-bl-[calc(var(--radius)-0.25rem)] bg-muted px-4 py-2.5",
         "[&>p]:my-0 [&>p:not(:last-child)]:mb-2",
         "[&>ul]:my-1 [&>ol]:my-1",
         "[&>ul>li]:my-0.5 [&>ol>li]:my-0.5",
@@ -176,7 +176,7 @@ export function MessageLoading({ className, ...props }: MessageLoadingProps) {
   return (
     <div
       className={cn(
-        "flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-4 py-3",
+        "flex items-center gap-1 rounded-[calc(var(--radius)+0.35rem)] rounded-bl-[calc(var(--radius)-0.25rem)] bg-muted px-4 py-3",
         className
       )}
       {...props}
@@ -202,7 +202,7 @@ export function MessageError({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm",
+        "flex flex-col gap-2 rounded-[var(--radius)] border border-destructive/50 bg-destructive/10 p-3 text-sm",
         className
       )}
       {...props}

@@ -428,52 +428,49 @@ export function OnboardingChatbot() {
       content: m.content,
     }));
 
-      const nextMessages = [...historyBefore, updatedUserMessage];
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/v1/onboarding/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          conversationHistory,
+          collectedData: initialCollectedData,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || "Failed to update message");
+      }
+
+      const data = await response.json();
+
+      const assistantMessage: ChatMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: data.message,
+      };
+
+      const nextMessages = [...historyBefore, updatedUserMessage, assistantMessage];
       setMessages(nextMessages);
 
-      setIsLoading(true);
-      setError(null);
+      const nextCollectedData: CollectedData = data.collectedData ?? initialCollectedData;
+      setCollectedData(nextCollectedData);
+      setIsComplete(Boolean(data.isComplete));
+
       setEditingMessageId(null);
       setEditingText("");
 
-      try {
-        const response = await fetch("/api/v1/onboarding/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: trimmed,
-            conversationHistory,
-            collectedData: initialCollectedData,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          throw new Error(errorData?.error?.message || "Failed to update message");
-        }
-
-        const data = await response.json();
-
-        const assistantMessage: ChatMessage = {
-          id: generateId(),
-          role: "assistant",
-          content: data.message,
-        };
-
-        const finalMessages = [...nextMessages, assistantMessage];
-        setMessages(finalMessages);
-
-        const nextCollectedData: CollectedData = data.collectedData ?? initialCollectedData;
-        setCollectedData(nextCollectedData);
-        setIsComplete(Boolean(data.isComplete));
-
-        saveProgress(finalMessages, nextCollectedData, hasStarted);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to update message");
-        // Restore original state on error if needed, or just let user retry
-      } finally {
-        setIsLoading(false);
-      }
+      saveProgress(nextMessages, nextCollectedData, hasStarted);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update message");
+    } finally {
+      setIsLoading(false);
+    }
   }, [
     editingMessageId,
     editingText,
@@ -649,7 +646,7 @@ export function OnboardingChatbot() {
                                 ref={editTextareaRef}
                                 value={editingText}
                                 onChange={(e) => setEditingText(e.target.value)}
-                                className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-base leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                                 rows={Math.min(
                                   6,
                                   Math.max(2, editingText.split("\n").length)
@@ -679,30 +676,28 @@ export function OnboardingChatbot() {
                               </div>
                             </div>
                           ) : (
-                            <div className="group relative pb-2">
-                              <MessageBubble variant="user">
+                            <div className="group relative">
+                              <MessageBubble variant="user" className="text-base">
                                 {message.content}
                               </MessageBubble>
-                              <div className="absolute right-0 top-full -mt-2 p-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => beginEditMessage(message)}
-                                  className="size-8 rounded-xl bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-                                  disabled={isLoading || isSaving}
-                                >
-                                  <Pencil className="size-4" />
-                                </Button>
-                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => beginEditMessage(message)}
+                                className="absolute right-full top-1/2 mr-2 hidden -translate-y-1/2 group-hover:inline-flex"
+                                disabled={isLoading || isSaving}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
                             </div>
                           )}
                         </div>
                       ) : (
-                            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap font-serif text-lg text-foreground [&>p]:my-0 [&>p:not(:last-child)]:mb-2 [&>ul]:my-1 [&>ol]:my-1 [&>ul>li]:my-0.5 [&>ol>li]:my-0.5">
-                              {message.content}
-                            </div>
-                          )}
+                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-base text-white [&>*]:text-white [&>p]:my-0 [&>p:not(:last-child)]:mb-2 [&>ul]:my-1 [&>ol]:my-1 [&>ul>li]:my-0.5 [&>ol>li]:my-0.5">
+                          {message.content}
+                        </div>
+                      )}
                     </MessageContent>
                   </Message>
                 ))}
@@ -765,7 +760,7 @@ export function OnboardingChatbot() {
             <div className="bg-background px-4 pb-6 pt-4">
               <PromptInput
                 onSubmit={handleSubmit}
-                className="mx-auto max-w-3xl [&_[data-slot=input-group]]:bg-card"
+                className="mx-auto max-w-3xl [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
               >
                 <PromptInputBody>
                   <PromptInputTextarea
@@ -778,7 +773,7 @@ export function OnboardingChatbot() {
                         : "Type your response..."
                     }
                     disabled={isLoading || isSaving || editingMessageId !== null}
-                    className="min-h-10"
+                    className="min-h-10 text-base"
                   />
                 </PromptInputBody>
                 <PromptInputFooter>
@@ -793,6 +788,7 @@ export function OnboardingChatbot() {
                     Skip
                   </Button>
                   <PromptInputSubmit
+                    className="bg-accent text-accent-foreground hover:bg-accent/90"
                     disabled={isLoading || isSaving || editingMessageId !== null || !input.trim()}
                   />
                 </PromptInputFooter>
