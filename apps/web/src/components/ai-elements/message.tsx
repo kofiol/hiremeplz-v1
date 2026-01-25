@@ -109,7 +109,7 @@ export function MessageBubble({
       className={cn(
         "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
         variant === "user"
-          ? "bg-primary text-primary-foreground rounded-br-md"
+          ? "bg-[#1f1f1f] text-foreground rounded-br-md border border-[#333]"
           : "bg-muted text-foreground rounded-bl-md",
         className
       )}

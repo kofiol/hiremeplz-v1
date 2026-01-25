@@ -25,7 +25,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { Check, Pencil, Sparkles, X } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -166,6 +166,7 @@ export function OnboardingChatbot() {
   const router = useRouter();
   const { session } = useSession();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const avatarUrlFromSession =
     (session?.user?.user_metadata?.avatar_url as string | undefined) ??
     (session?.user?.user_metadata?.picture as string | undefined) ??
@@ -198,6 +199,8 @@ export function OnboardingChatbot() {
   const [isSaving, setIsSaving] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
 
   // Load progress on mount
   useEffect(() => {
@@ -229,6 +232,15 @@ export function OnboardingChatbot() {
 
     loadProgress();
   }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!editingMessageId) return;
+    editTextareaRef.current?.focus();
+    editTextareaRef.current?.setSelectionRange(
+      editTextareaRef.current.value.length,
+      editTextareaRef.current.value.length
+    );
+  }, [editingMessageId]);
 
   // Save progress
   const saveProgress = useCallback(async (
@@ -381,6 +393,98 @@ export function OnboardingChatbot() {
     [messages, collectedData, isLoading, hasStarted, saveProgress]
   );
 
+  const beginEditMessage = useCallback((message: ChatMessage) => {
+    setEditingMessageId(message.id);
+    setEditingText(message.content);
+  }, []);
+
+  const cancelEditMessage = useCallback(() => {
+    setEditingMessageId(null);
+    setEditingText("");
+  }, []);
+
+  const saveEditedMessage = useCallback(async () => {
+    if (!editingMessageId) return;
+    if (!session?.access_token) return;
+    if (isLoading || isSaving) return;
+
+    const trimmed = editingText.trim();
+    if (!trimmed) return;
+
+    const editedIndex = messages.findIndex((m) => m.id === editingMessageId);
+    if (editedIndex === -1) return;
+
+    const original = messages[editedIndex];
+    if (original.role !== "user") return;
+
+    const historyBefore = messages.slice(0, editedIndex);
+    const updatedUserMessage: ChatMessage = {
+      ...original,
+      content: trimmed,
+    };
+
+    const conversationHistory = historyBefore.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+      const nextMessages = [...historyBefore, updatedUserMessage];
+      setMessages(nextMessages);
+
+      setIsLoading(true);
+      setError(null);
+      setEditingMessageId(null);
+      setEditingText("");
+
+      try {
+        const response = await fetch("/api/v1/onboarding/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: trimmed,
+            conversationHistory,
+            collectedData: initialCollectedData,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.error?.message || "Failed to update message");
+        }
+
+        const data = await response.json();
+
+        const assistantMessage: ChatMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: data.message,
+        };
+
+        const finalMessages = [...nextMessages, assistantMessage];
+        setMessages(finalMessages);
+
+        const nextCollectedData: CollectedData = data.collectedData ?? initialCollectedData;
+        setCollectedData(nextCollectedData);
+        setIsComplete(Boolean(data.isComplete));
+
+        saveProgress(finalMessages, nextCollectedData, hasStarted);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update message");
+        // Restore original state on error if needed, or just let user retry
+      } finally {
+        setIsLoading(false);
+      }
+  }, [
+    editingMessageId,
+    editingText,
+    hasStarted,
+    isLoading,
+    isSaving,
+    messages,
+    saveProgress,
+    session?.access_token,
+  ]);
+
   // Handle form submission
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
@@ -437,7 +541,7 @@ export function OnboardingChatbot() {
     } finally {
       setIsSaving(false);
     }
-  }, [collectedData, session?.access_token, router]);
+  }, [collectedData, session?.access_token]);
 
   // Skip onboarding
   const handleSkip = useCallback(() => {
@@ -538,14 +642,67 @@ export function OnboardingChatbot() {
                   >
                     <MessageContent>
                       {message.role === "user" ? (
-                        <MessageBubble variant="user">
-                          {message.content}
-                        </MessageBubble>
-                      ) : (
-                        <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground [&>p]:my-0 [&>p:not(:last-child)]:mb-2 [&>ul]:my-1 [&>ol]:my-1 [&>ul>li]:my-0.5 [&>ol>li]:my-0.5">
-                          {message.content}
+                        <div className="relative max-w-full">
+                          {editingMessageId === message.id ? (
+                            <div className="w-full max-w-[80%]">
+                              <textarea
+                                ref={editTextareaRef}
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                rows={Math.min(
+                                  6,
+                                  Math.max(2, editingText.split("\n").length)
+                                )}
+                                disabled={isLoading || isSaving}
+                              />
+                              <div className="mt-2 flex items-center justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={cancelEditMessage}
+                                  disabled={isLoading || isSaving}
+                                >
+                                  <X className="size-4" />
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={saveEditedMessage}
+                                  disabled={isLoading || isSaving || !editingText.trim()}
+                                >
+                                  <Check className="size-4" />
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="group relative pb-2">
+                              <MessageBubble variant="user">
+                                {message.content}
+                              </MessageBubble>
+                              <div className="absolute right-0 top-full -mt-2 p-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => beginEditMessage(message)}
+                                  className="size-8 rounded-xl bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  disabled={isLoading || isSaving}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      ) : (
+                            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap font-serif text-lg text-foreground [&>p]:my-0 [&>p:not(:last-child)]:mb-2 [&>ul]:my-1 [&>ol]:my-1 [&>ul>li]:my-0.5 [&>ol>li]:my-0.5">
+                              {message.content}
+                            </div>
+                          )}
                     </MessageContent>
                   </Message>
                 ))}
@@ -620,7 +777,7 @@ export function OnboardingChatbot() {
                         ? "Anything else you'd like to add?"
                         : "Type your response..."
                     }
-                    disabled={isLoading || isSaving}
+                    disabled={isLoading || isSaving || editingMessageId !== null}
                     className="min-h-10"
                   />
                 </PromptInputBody>
@@ -631,12 +788,12 @@ export function OnboardingChatbot() {
                     size="sm"
                     onClick={handleSkip}
                     className="text-muted-foreground"
-                    disabled={isSaving}
+                    disabled={isSaving || editingMessageId !== null}
                   >
                     Skip
                   </Button>
                   <PromptInputSubmit
-                    disabled={isLoading || isSaving || !input.trim()}
+                    disabled={isLoading || isSaving || editingMessageId !== null || !input.trim()}
                   />
                 </PromptInputFooter>
               </PromptInput>
