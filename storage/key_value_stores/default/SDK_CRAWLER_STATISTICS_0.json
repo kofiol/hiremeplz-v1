@@ -1,0 +1,52 @@
+{
+  "requestsFinished": 0,
+  "requestsFailed": 2,
+  "requestsRetries": 2,
+  "requestsFailedPerMinute": 47,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 872,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-01-25T13:38:58.305Z",
+  "crawlerFinishedAt": "2026-01-25T13:39:00.713Z",
+  "statsPersistedAt": "2026-01-25T13:39:00.713Z",
+  "crawlerRuntimeMillis": 2502,
+  "crawlerLastStartTimestamp": 1769348338211,
+  "requestRetryHistogram": [
+    null,
+    null,
+    null,
+    2
+  ],
+  "statsId": 0,
+  "requestAvgFailedDurationMillis": 436,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 872,
+  "requestsTotal": 2,
+  "requestsWithStatusCode": {
+    "403": 8
+  },
+  "errors": {
+    "C:\\Users\\psyhik1769\\hiremeplz-v1\\node_modules\\.pnpm\\@crawlee+basic@3.15.3\\node_modules\\@crawlee\\src\\internals\\basic-crawler.ts:1353:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 403 status code.": {
+            "count": 2
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "C:\\Users\\psyhik1769\\hiremeplz-v1\\node_modules\\.pnpm\\@crawlee+basic@3.15.3\\node_modules\\@crawlee\\src\\internals\\basic-crawler.ts:1353:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 403 status code.": {
+            "count": 6
+          }
+        }
+      }
+    }
+  }
+}
