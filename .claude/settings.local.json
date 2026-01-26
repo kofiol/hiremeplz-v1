@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check-types:*)",
+      "Bash(pnpm dev)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find:*)"
+    ]
+  }
+}
