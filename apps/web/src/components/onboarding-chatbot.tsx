@@ -9,7 +9,6 @@ import { useUserPlan } from "@/hooks/use-user-plan"
 import {
   Conversation,
   ConversationContent,
-  ConversationScrollButton,
 } from "@/components/ai-elements/conversation"
 import {
   Message,
@@ -26,7 +25,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
-import { Check, Pencil, Sparkles, X } from "lucide-react"
+import { Check, Pencil, X } from "lucide-react"
 
 // ============================================================================
 // Types
@@ -200,8 +199,6 @@ export function OnboardingChatbot() {
   const [collectedData, setCollectedData] =
     useState<CollectedData>(initialCollectedData)
   const [hasStarted, setHasStarted] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isComplete, setIsComplete] = useState(false)
   const [isRestoring, setIsRestoring] = useState(true)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState("")
@@ -287,7 +284,6 @@ export function OnboardingChatbot() {
     const decoder = new TextDecoder()
     let fullContent = ""
     let finalCollectedData = currentCollectedData
-    let finalIsComplete = false
 
     setIsStreaming(true)
     setStreamingContent("")
@@ -316,7 +312,6 @@ export function OnboardingChatbot() {
               if (parsed.collectedData) {
                 finalCollectedData = parsed.collectedData
               }
-              finalIsComplete = parsed.isComplete ?? false
             }
           } catch {
             // Ignore parse errors for incomplete chunks
@@ -337,10 +332,6 @@ export function OnboardingChatbot() {
     const finalMessages = [...updatedMessages, assistantMessage]
     setMessages(finalMessages)
     setCollectedData(finalCollectedData)
-
-    if (finalIsComplete) {
-      setIsComplete(true)
-    }
 
     saveProgress(finalMessages, finalCollectedData, currentHasStarted)
   }, [saveProgress])
@@ -467,10 +458,6 @@ export function OnboardingChatbot() {
             setCollectedData(finalData)
           }
 
-          if (data.isComplete) {
-            setIsComplete(true)
-          }
-
           saveProgress(finalMessages, finalData, hasStarted)
         }
       } catch (err) {
@@ -495,7 +482,7 @@ export function OnboardingChatbot() {
   const saveEditedMessage = useCallback(async () => {
     if (!editingMessageId) return
     if (!session?.access_token) return
-    if (isLoading || isSaving || isStreaming) return
+    if (isLoading || isStreaming) return
 
     const trimmed = editingText.trim()
     if (!trimmed) return
@@ -561,7 +548,6 @@ export function OnboardingChatbot() {
 
         const nextCollectedData: CollectedData = data.collectedData ?? initialCollectedData
         setCollectedData(nextCollectedData)
-        setIsComplete(Boolean(data.isComplete))
 
         saveProgress(nextMessages, nextCollectedData, hasStarted)
       }
@@ -575,7 +561,6 @@ export function OnboardingChatbot() {
     editingText,
     hasStarted,
     isLoading,
-    isSaving,
     isStreaming,
     messages,
     processStreamResponse,
@@ -596,45 +581,6 @@ export function OnboardingChatbot() {
     },
     [hasStarted, sendMessage]
   )
-
-  // Save onboarding data
-  const saveOnboarding = useCallback(async () => {
-    if (!session?.access_token) {
-      setError("Not authenticated")
-      return
-    }
-
-    setIsSaving(true)
-    setError(null)
-
-    try {
-      const payload = transformToOnboardingPayload(collectedData)
-
-      const response = await fetch("/api/v1/onboarding", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(
-          errorData?.error?.message || "Failed to save onboarding"
-        )
-      }
-
-      // Redirect to overview with a refresh to update the completeness state
-      window.location.href = "/overview"
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save")
-    } finally {
-      setIsSaving(false)
-    }
-  }, [collectedData, session?.access_token])
 
   // Focus textarea when started
   useEffect(() => {
@@ -713,7 +659,7 @@ export function OnboardingChatbot() {
             className="flex flex-1 flex-col min-h-0 overflow-hidden"
           >
             <Conversation className="flex-1 min-h-0">
-              <ConversationContent className="mx-auto w-full max-w-3xl pt-6 pb-4">
+              <ConversationContent className="mx-auto w-full max-w-3xl pt-12 pb-4">
                 {messages.map((message) => (
                   <Message
                     key={message.id}
@@ -734,7 +680,7 @@ export function OnboardingChatbot() {
                                   6,
                                   Math.max(2, editingText.split("\n").length)
                                 )}
-                                disabled={isLoading || isSaving || isStreaming}
+                                disabled={isLoading || isStreaming}
                               />
                               <div className="mt-2 flex items-center justify-end gap-2">
                                 <Button
@@ -742,7 +688,7 @@ export function OnboardingChatbot() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={cancelEditMessage}
-                                  disabled={isLoading || isSaving || isStreaming}
+                                  disabled={isLoading || isStreaming}
                                 >
                                   <X className="size-4" />
                                   Cancel
@@ -751,7 +697,7 @@ export function OnboardingChatbot() {
                                   type="button"
                                   size="sm"
                                   onClick={saveEditedMessage}
-                                  disabled={isLoading || isSaving || isStreaming || !editingText.trim()}
+                                  disabled={isLoading || isStreaming || !editingText.trim()}
                                 >
                                   <Check className="size-4" />
                                   Save
@@ -760,16 +706,17 @@ export function OnboardingChatbot() {
                             </div>
                           ) : (
                             <div className="group relative flex items-center gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => beginEditMessage(message)}
-                                className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                                disabled={isLoading || isSaving || isStreaming}
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
+                              {!isLoading && !isStreaming && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => beginEditMessage(message)}
+                                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                              )}
                               <MessageBubble variant="user" className="text-base">
                                 {message.content}
                               </MessageBubble>
@@ -823,33 +770,7 @@ export function OnboardingChatbot() {
                   />
                 )}
 
-                {isComplete && !isSaving && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-center pt-4"
-                  >
-                    <Button
-                      onClick={saveOnboarding}
-                      size="lg"
-                      className="gap-2"
-                    >
-                      <Sparkles className="size-4" />
-                      Complete Setup
-                    </Button>
-                  </motion.div>
-                )}
-
-                {isSaving && (
-                  <div className="flex justify-center pt-4">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      <span>Saving your profile...</span>
-                    </div>
-                  </div>
-                )}
               </ConversationContent>
-              <ConversationScrollButton />
             </Conversation>
 
             <div className="shrink-0 bg-background px-4 pb-6 pt-4">
@@ -862,19 +783,15 @@ export function OnboardingChatbot() {
                     ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={
-                      isComplete
-                        ? "Anything else you'd like to add?"
-                        : "Type your response..."
-                    }
-                    disabled={isLoading || isSaving || isStreaming || editingMessageId !== null}
+                    placeholder="Type your response..."
+                    disabled={editingMessageId !== null}
                     className="min-h-10 text-base"
                   />
                 </PromptInputBody>
                 <PromptInputFooter>
                   <PromptInputSubmit
                     className="bg-accent text-accent-foreground hover:bg-accent/90"
-                    disabled={isLoading || isSaving || isStreaming || editingMessageId !== null || !input.trim()}
+                    disabled={isLoading || isStreaming || editingMessageId !== null || !input.trim()}
                   />
                 </PromptInputFooter>
               </PromptInput>

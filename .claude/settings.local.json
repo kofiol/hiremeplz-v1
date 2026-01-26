@@ -8,7 +8,15 @@
       "Bash(xargs ls:*)",
       "Bash(find:*)",
       "WebSearch",
-      "WebFetch(domain:openai.github.io)"
+      "WebFetch(domain:openai.github.io)",
+      "WebFetch(domain:docs.brightdata.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:trigger.dev)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }
