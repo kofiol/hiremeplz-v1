@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "../auth/session-provider";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
 import { Navbar12 } from '@/components/ui/shadcn-io/navbar-12';
 import { OnboardingCompletenessReminder } from "@/components/onboarding-completeness-reminder";
 
@@ -31,13 +30,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <div className="relative w-full">
+      <SidebarInset className="h-svh max-h-svh flex flex-col overflow-hidden">
+        {/* Fixed header section */}
+        <div className="shrink-0 z-20 bg-sidebar">
           <Navbar12 />
         </div>
-        <SiteHeader />
         <OnboardingCompletenessReminder />
-        <div className="flex-1">{children}</div>
+        {/* Main content area - fills remaining space */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

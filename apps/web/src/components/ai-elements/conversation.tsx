@@ -92,7 +92,7 @@ export function Conversation({
       <div
         ref={scrollAreaRef}
         className={cn(
-          "relative flex-1 overflow-y-auto scroll-smooth",
+          "relative flex-1 overflow-y-auto scroll-smooth scrollbar-thin",
           className
         )}
         {...props}

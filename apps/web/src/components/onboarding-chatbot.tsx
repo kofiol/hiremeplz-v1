@@ -568,7 +568,7 @@ export function OnboardingChatbot() {
   // ============================================================================
 
   return (
-    <div className="flex h-full w-full flex-col p-6">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       <AnimatePresence mode="wait">
         {!hasStarted ? (
           // Welcome state - centered input
@@ -578,7 +578,7 @@ export function OnboardingChatbot() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="flex flex-1 flex-col items-center justify-center gap-8 p-6"
+            className="flex flex-1 flex-col items-center justify-center gap-8 p-6 min-h-0"
           >
             <div className="text-center">
               <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary/10 p-4">
@@ -621,9 +621,9 @@ export function OnboardingChatbot() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="flex flex-1 flex-col overflow-hidden"
+            className="flex flex-1 flex-col min-h-0 overflow-hidden"
           >
-            <Conversation className="flex-1">
+            <Conversation className="flex-1 min-h-0">
               <ConversationContent className="mx-auto w-full max-w-3xl pb-4">
                 {messages.map((message) => (
                   <Message
@@ -757,7 +757,7 @@ export function OnboardingChatbot() {
               <ConversationScrollButton />
             </Conversation>
 
-            <div className="bg-background px-4 pb-6 pt-4">
+            <div className="shrink-0 bg-background px-4 pb-6 pt-4">
               <PromptInput
                 onSubmit={handleSubmit}
                 className="mx-auto max-w-3xl [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
