@@ -12,11 +12,14 @@
       "WebFetch(domain:docs.brightdata.com)",
       "WebFetch(domain:github.com)",
       "Bash(npx tsc:*)",
-      "WebFetch(domain:trigger.dev)"
+      "WebFetch(domain:trigger.dev)",
+      "Bash(pnpm lint:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
