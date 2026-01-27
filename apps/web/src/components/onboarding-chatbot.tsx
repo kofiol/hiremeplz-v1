@@ -202,6 +202,11 @@ export function OnboardingChatbot() {
   const [isRestoring, setIsRestoring] = useState(true)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState("")
+  const [activeToolCall, setActiveToolCall] = useState<{
+    name: string
+    status: string
+    elapsed?: number
+  } | null>(null)
 
   // Load progress on mount
   useEffect(() => {
@@ -308,6 +313,24 @@ export function OnboardingChatbot() {
             if (parsed.type === "text") {
               fullContent += parsed.content
               setStreamingContent(fullContent)
+            } else if (parsed.type === "tool_call") {
+              if (parsed.status === "started") {
+                setActiveToolCall({
+                  name: parsed.name,
+                  status: "running",
+                })
+              } else if (
+                parsed.status === "completed" ||
+                parsed.status === "failed"
+              ) {
+                setActiveToolCall(null)
+              }
+            } else if (parsed.type === "tool_status") {
+              setActiveToolCall((prev) =>
+                prev
+                  ? { ...prev, elapsed: parsed.elapsed }
+                  : null
+              )
             } else if (parsed.type === "final") {
               if (parsed.collectedData) {
                 finalCollectedData = parsed.collectedData
@@ -321,6 +344,7 @@ export function OnboardingChatbot() {
     } finally {
       setIsStreaming(false)
       setStreamingContent("")
+      setActiveToolCall(null)
     }
 
     const assistantMessage: ChatMessage = {
@@ -739,6 +763,24 @@ export function OnboardingChatbot() {
                       <div className="max-w-none whitespace-pre-wrap text-base text-white">
                         {streamingContent}
                         <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-white/50" />
+                      </div>
+                    </MessageContent>
+                  </Message>
+                )}
+
+                {/* Tool invocation badge */}
+                {activeToolCall && (
+                  <Message from="assistant" hideAvatar>
+                    <MessageContent>
+                      <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                        <span className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <span>
+                          Fetching LinkedIn profile
+                          {activeToolCall.elapsed
+                            ? ` (${activeToolCall.elapsed}s)`
+                            : ""}
+                          ...
+                        </span>
                       </div>
                     </MessageContent>
                   </Message>

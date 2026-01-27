@@ -1,51 +1,134 @@
-# Claude Code Guide - hiremeplz.app
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+hiremeplz.app is a personal AI agent for finding freelance work. It's a Next.js monorepo that combines job scraping, AI-powered candidate matching, and a web application for managing freelance opportunities.
+
+## Monorepo Structure
+
+**Turbo + pnpm monorepo** with the following layout:
+
+```
+apps/
+  web/                 # Main Next.js 16 frontend + backend
+packages/
+  db/                  # PostgreSQL utilities (pg client)
+  trigger/             # trigger.dev workflow definitions
+  ui/                  # Shared React component library
+  eslint-config/       # Shared ESLint config
+  typescript-config/   # Shared TypeScript config
+```
+
+Use Turbo filters to run tasks on specific packages: `pnpm turbo run <task> --filter <package_name>`
 
 ## Tech Stack
-- **Frontend:** Next.js (App Router), React
-- **Language & Modules:** TypeScript, ESM modules
-- **Monorepo & Package Management:** pnpm + Turborepo
-- **UI & Styling:** Tailwind CSS, shadcn/ui, Radix UI
-- **State & Data:** Redux Toolkit, TanStack Table
-- **AI & Automation:** OpenAI Agents SDK, trigger.dev
-- **Testing & Quality:** Vitest, ESLint (flat config), Prettier
 
-## Rules:
+- **Frontend & Backend:** Next.js 16 (App Router), React 19, TypeScript
+- **UI & Styling:** Tailwind CSS 4, shadcn/ui, Radix UI, Framer Motion
+- **State Management:** Redux Toolkit, TanStack Table
+- **Database:** Supabase PostgreSQL
+- **API Client:** Supabase JS SDK
+- **AI & Agents:** OpenAI Agents SDK
+- **Workflows:** trigger.dev (background jobs)
+- **Web Scraping:** Apify, Crawlee, Playwright, Bright Data
+- **Testing:** Vitest (db package), Prettier, ESLint (flat config)
+- **Package Manager:** pnpm 10.26.0 | **Node:** >=18
 
-After completing a task that involves tool use, provide a quick summary of the work you've done
+## Common Commands
 
-By default, implement changes rather than only suggesting them. If the user's intent is unclear, infer the most useful likely action and proceed, using tools to discover any missing details instead of guessing. Try to infer the user's intent about whether a tool call (e.g. file edit or read) is intended or not, and act accordingly.
+**Development:**
+```bash
+pnpm dev                      # Start all dev servers (uses Turbo TUI)
+cd apps/web && pnpm dev       # Start web app only (port 3000)
+```
 
-If you intend to call multiple tools and there are no dependencies between the tool calls, make all of the independent tool calls in parallel. Prioritize calling tools simultaneously whenever the actions can be done in parallel rather than sequentially. For example, when reading 3 files, run 3 tool calls in parallel to read all 3 files into context at the same time. Maximize use of parallel tool calls where possible to increase speed and efficiency.
+**Building & Type Checking:**
+```bash
+pnpm build                    # Build all workspaces
+pnpm check-types              # Type-check entire monorepo
+pnpm lint                     # Lint all files (ESLint flat config)
+pnpm format                   # Format with Prettier (ts, tsx, md)
+```
 
-However, if some tool calls depend on previous calls to inform dependent values like the parameters, do not call these tools in parallel and instead call them sequentially. Never use placeholders or guess missing parameters in tool calls.
+**Testing:**
+```bash
+pnpm test                     # Run all tests (Vitest)
+pnpm turbo run test --filter db    # Run db package tests only
+```
 
-Never speculate about code you have not opened. If the user references a specific file, you MUST read the file before answering. Make sure to investigate and read relevant files BEFORE answering questions about the codebase. Never make any claims about code before investigating unless you are certain of the correct answer - give grounded and hallucination-free answers. If the user asks you to use web search to retrieve information, always do so before providing any answers.
+**Package-Specific Tasks:**
+```bash
+pnpm turbo run <task> --filter <package_name>
+```
 
-When an LLM is needed, please default to ChatGPT 5 Nano unless the user requests otherwise. The exact model string for ChatGPT 5 Nano is gpt-5-nano-2025-08-07.
+## Code Architecture
 
-Please write a high-quality, general-purpose solution using the standard tools available. Do not create helper scripts or workarounds to accomplish the task more efficiently. Implement a solution that works correctly for all valid inputs, not just the test cases. Do not hard-code values or create solutions that only work for specific test inputs. Instead, implement the actual logic that solves the problem generally.
+### Web App (`apps/web`)
 
-Focus on understanding the problem requirements and implementing the correct algorithm. Tests are there to verify correctness, not to define the solution. Provide a principled implementation that follows best practices and software design principles.
+**Directory structure:**
+- `src/app/` - Next.js pages and API routes (App Router)
+  - `api/v1/` - Backend API endpoints
+  - Page components and layouts
+- `src/components/` - React components (mostly client-side with shadcn/ui patterns)
+- `src/lib/`
+  - `auth.server.ts` - JWT/session-based authentication (server-side utilities)
+  - `supabaseClient.ts` - Supabase JS client
+  - `state/` - Redux store and slices
+  - `utils.ts` - Helper functions (cn, date utils, etc.)
+- `src/config/` - App configuration
+- `src/hooks/` - Custom React hooks
+- `src/middleware.ts` - Next.js middleware (auth, request logging)
 
-If the task is unreasonable or infeasible, or if any of the tests are incorrect, please inform me rather than working around them. The solution should be robust, maintainable, and extendable.
+**Key API Routes:**
+- `api/v1/auth/bootstrap` - Initial auth setup
+- `api/v1/me` - User profile
+- `api/v1/onboarding/` - Onboarding flow endpoints
+- `api/v1/teams/` - Team management
+- `api/v1/settings/` - User settings
 
-## Dev environment tips
-- Start the web app: `cd apps/web; pnpm dev`
-- Build everything: `pnpm build`
-- Lint all files: `pnpm lint`
-- Type-check all: `pnpm check-types`
-- Test everything: `pnpm test`
-- For package-specific tasks, use Turbo filters: `pnpm turbo run <task> --filter <package_name>`
+**Authentication:** JWT-based via Supabase. Server-side verification using `lib/auth.server.ts`.
 
-## Code style & best practices
-- Use **double quotes**; omit semicolons
-- Prefer **named exports**
-- Keep functions **small, pure, and typed**
-- Follow **shadcn/ui** patterns (`cn` util, `cva` variants, `data-*` attributes)
-- Separate server/client logic and **never log secrets**
-- You MUST consult `skills/react-best-practices` and `skills/web-design-guidelines` for React and web guidelines prior to any significant code changes.
+### Database (`packages/db`)
 
-## PR instructions
-- Title format: `[<project_name>] <Title>`
-- Always run `pnpm lint` and `pnpm test` before committing
-- Add or update tests for any code changes
+Raw PostgreSQL utilities using `pg` client. Contains:
+- `src/fetch-profile.ts` - Database query functions
+- Integration and unit tests (Vitest)
+
+Access Supabase TypeScript types via `mcp__supabase__generate_typescript_types`.
+
+### Workflows (`packages/trigger`)
+
+Contains trigger.dev job definitions for background work (scraping, notifications, etc.).
+
+## Code Style & Best Practices
+
+- **Quotes:** Double quotes; **Semicolons:** Omitted
+- **Exports:** Named exports preferred
+- **Component patterns:** Follow shadcn/ui patterns (`cn` utility, `cva` variants, `data-*` attributes)
+- **Server/Client:** Use "use server" and "use client" directives; never log secrets
+- **Function design:** Small, pure, well-typed functions
+- Consult `skills/react-best-practices` and `skills/web-design-guidelines` before major React changes
+
+## Environment Setup
+
+Copy `.env.example` to `.env.local` and configure:
+- **Supabase:** `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- **OpenAI:** `OPENAI_API_KEY`
+- **trigger.dev:** `TRIGGER_API_KEY`, `TRIGGER_SECRET_KEY`
+- **Bright Data:** `BRIGHTDATA_API_KEY`, dataset IDs
+- **Database:** `DATABASE_URL` (PostgreSQL connection string)
+
+For local development: Supabase runs on `http://localhost:54321`.
+
+## Before Committing
+
+Run these checks:
+```bash
+pnpm lint
+pnpm check-types
+pnpm test
+```
+
+Add or update tests for any code changes. PR title format: `[<project_name>] <Title>`

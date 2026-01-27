@@ -3,6 +3,10 @@ import { Agent, run } from "@openai/agents"
 import { z } from "zod"
 import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
+import {
+  triggerLinkedInScrape as triggerScrapeUtil,
+  getLinkedInScrapeStatus as getScrapeStatusUtil,
+} from "@/lib/linkedin-scraper.server"
 
 // ============================================================================
 // Zod Schema for Collected Onboarding Data
@@ -353,6 +357,16 @@ const DATA_EXTRACTION_INSTRUCTIONS = `You are a data extraction agent. Extract s
 - engagementTypes: full_time, part_time, internship
 - remoteOnly: true/false based on remote preference
 
+## LinkedIn Import Data
+When LinkedIn profile data is available from the scraping tool results in the conversation:
+- Extract skills, experiences, educations directly from the scraped profile data
+- Set profilePath to "linkedin"
+- Set linkedinUrl to the provided URL
+- Set experienceLevel from the profile's inferred experience level
+- Map the profile's skills array to the skills field
+- Map the profile's experiences array to the experiences field (title, company, startDate, endDate, highlights)
+- Map the profile's educations array to the educations field (school, degree, field, startYear, endYear)
+
 ## Completion Criteria
 Set isComplete to true when you have:
 - teamMode (solo/team)
@@ -360,6 +374,23 @@ Set isComplete to true when you have:
 - At least basic rate info (hourlyMin or fixedBudgetMin)
 
 Don't require every single field - users can finish with partial data.`
+
+// ============================================================================
+// LinkedIn Scraping Helpers
+// ============================================================================
+
+const POLL_INTERVAL_MS = 5_000
+const MAX_TOTAL_POLLS = 60 // 5 minutes max
+
+const LINKEDIN_URL_RE = /https?:\/\/(?:www\.)?linkedin\.com\/in\/[\w-]+\/?/i
+
+/**
+ * Extract a LinkedIn profile URL from the user message, or return null.
+ */
+function extractLinkedInUrl(message: string): string | null {
+  const match = message.match(LINKEDIN_URL_RE)
+  return match ? match[0] : null
+}
 
 // ============================================================================
 // API Route
@@ -414,40 +445,158 @@ User's new message: ${message}
 
 Respond naturally to continue the onboarding conversation. Remember to validate the user's response - if it's incomplete or unclear, ask for clarification.`
 
-    // Create conversational agent
-    const conversationalAgent = new Agent({
-      name: "Conversational Assistant",
-      instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
-      model: "gpt-4.1-nano",
-    })
-
     // Handle streaming response
     if (stream) {
       const encoder = new TextEncoder()
 
-      // Run conversational agent with streaming
-      const conversationalResult = await run(conversationalAgent, conversationalPrompt, { stream: true })
-
       const readableStream = new ReadableStream({
         async start(controller) {
+          const sseEmit = (event: object) => {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
+            )
+          }
+
+          /** Helper to stream an agent run and accumulate text */
+          async function streamAgent(
+            agent: Agent,
+            prompt: string,
+          ): Promise<string> {
+            let text = ""
+            const result = await run(agent, prompt, { stream: true })
+            const textStream = result.toTextStream({
+              compatibleWithNodeStreams: false,
+            })
+            for await (const chunk of textStream) {
+              text += chunk
+              sseEmit({ type: "text", content: chunk })
+            }
+            await result.completed
+            return text
+          }
+
+          const linkedInUrl = extractLinkedInUrl(message)
           let fullConversationalResponse = ""
 
           try {
-            // Stream the conversational response
-            const textStream = conversationalResult.toTextStream({ compatibleWithNodeStreams: false })
+            if (linkedInUrl) {
+              // ── Phase 1: Stream filler text ──────────────────────────
+              const fillerAgent = new Agent({
+                name: "Conversational Assistant",
+                instructions:
+                  CONVERSATIONAL_AGENT_INSTRUCTIONS +
+                  `\n\nIMPORTANT: The user just provided their LinkedIn profile URL. Acknowledge it briefly and let them know you're fetching their profile data now. Keep your response to 1-2 short sentences. Do NOT list any profile details yet — you don't have them.`,
+                model: "gpt-4.1-nano",
+              })
+              fullConversationalResponse += await streamAgent(
+                fillerAgent,
+                conversationalPrompt,
+              )
 
-            for await (const chunk of textStream) {
-              fullConversationalResponse += chunk
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: "text", content: chunk })}\n\n`)
+              // ── Phase 2: Trigger scrape + poll with heartbeats ──────
+              sseEmit({
+                type: "tool_call",
+                name: "linkedin_scrape",
+                status: "started",
+              })
+
+              const { runId } = await triggerScrapeUtil(linkedInUrl)
+
+              let scrapeResult: Awaited<
+                ReturnType<typeof getScrapeStatusUtil>
+              > | null = null
+
+              for (let i = 0; i < MAX_TOTAL_POLLS; i++) {
+                const status = await getScrapeStatusUtil(runId)
+
+                if (status.status === "completed" || status.status === "failed") {
+                  scrapeResult = status
+                  break
+                }
+
+                sseEmit({ type: "tool_status", elapsed: (i + 1) * 5 })
+                await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+              }
+
+              if (!scrapeResult) {
+                scrapeResult = {
+                  status: "failed" as const,
+                  error: "Scraping timed out",
+                }
+              }
+
+              // ── Phase 3: Stream results or error ────────────────────
+              if (scrapeResult.status === "completed") {
+                sseEmit({
+                  type: "tool_call",
+                  name: "linkedin_scrape",
+                  status: "completed",
+                })
+
+                const profileJson = JSON.stringify(
+                  scrapeResult.profile,
+                  null,
+                  2,
+                )
+
+                const summaryAgent = new Agent({
+                  name: "Conversational Assistant",
+                  instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
+                  model: "gpt-4.1-nano",
+                })
+
+                const summaryPrompt = `${conversationalPrompt}
+
+You already acknowledged the LinkedIn URL and told the user you're fetching their profile. The scrape is now complete. Here is their scraped LinkedIn profile data:
+
+${profileJson}
+
+Summarize the key highlights (name, headline, number of experiences, top skills) and continue the onboarding — since you have their profile data, skip questions about experience level, skills, and past work, and move directly to preferences (rates, engagement type, remote preference).`
+
+                fullConversationalResponse += "\n\n"
+                sseEmit({ type: "text", content: "\n\n" })
+                fullConversationalResponse += await streamAgent(
+                  summaryAgent,
+                  summaryPrompt,
+                )
+              } else {
+                sseEmit({
+                  type: "tool_call",
+                  name: "linkedin_scrape",
+                  status: "failed",
+                })
+
+                const errorAgent = new Agent({
+                  name: "Conversational Assistant",
+                  instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
+                  model: "gpt-4.1-nano",
+                })
+
+                const errorPrompt = `${conversationalPrompt}
+
+You already told the user you'd fetch their LinkedIn profile, but the scrape failed with error: "${scrapeResult.error}". Apologize briefly and ask them to try again or set up their profile manually instead.`
+
+                fullConversationalResponse += "\n\n"
+                sseEmit({ type: "text", content: "\n\n" })
+                fullConversationalResponse += await streamAgent(
+                  errorAgent,
+                  errorPrompt,
+                )
+              }
+            } else {
+              // ── Normal flow (no LinkedIn URL) ───────────────────────
+              const conversationalAgent = new Agent({
+                name: "Conversational Assistant",
+                instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
+                model: "gpt-4.1-nano",
+              })
+              fullConversationalResponse += await streamAgent(
+                conversationalAgent,
+                conversationalPrompt,
               )
             }
 
-            // Wait for conversational agent to complete
-            await conversationalResult.completed
-
-            // Now run data extraction AFTER conversational agent completes
-            // The extraction agent only sees the CONFIRMED conversation
+            // ── Data extraction (runs for all paths) ────────────────
             const fullConversation = `${conversationContext}
 user: ${message}
 assistant: ${fullConversationalResponse}`
@@ -468,34 +617,34 @@ Extract ONLY data that the assistant has clearly confirmed/acknowledged. If the 
               outputType: DataExtractionJsonSchema,
             })
 
-            const dataResult = await run(dataExtractionAgent, dataExtractionPrompt)
+            const dataResult = await run(
+              dataExtractionAgent,
+              dataExtractionPrompt,
+            )
 
             if (dataResult.finalOutput) {
-              const extracted = DataExtractionResponseSchema.parse(dataResult.finalOutput) as DataExtractionResponse
+              const extracted = DataExtractionResponseSchema.parse(
+                dataResult.finalOutput,
+              ) as DataExtractionResponse
 
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "final",
-                    collectedData: extracted.collectedData,
-                    isComplete: extracted.isComplete,
-                  })}\n\n`
-                )
-              )
+              sseEmit({
+                type: "final",
+                collectedData: extracted.collectedData,
+                isComplete: extracted.isComplete,
+              })
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"))
             controller.close()
           } catch (error) {
             console.error("Streaming error:", error)
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "error",
-                  message: error instanceof Error ? error.message : "Streaming failed",
-                })}\n\n`
-              )
-            )
+            sseEmit({
+              type: "error",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "Streaming failed",
+            })
             controller.close()
           }
         },
@@ -511,11 +660,67 @@ Extract ONLY data that the assistant has clearly confirmed/acknowledged. If the 
     }
 
     // Non-streaming response: run conversational agent first, then extraction
-    const conversationalResult = await run(conversationalAgent, conversationalPrompt)
+    let messageText = ""
+    const linkedInUrl = extractLinkedInUrl(message)
 
-    const messageText = typeof conversationalResult.finalOutput === "string"
-      ? conversationalResult.finalOutput
-      : String(conversationalResult.finalOutput ?? "")
+    if (linkedInUrl) {
+      // Phase 1: filler
+      const fillerAgent = new Agent({
+        name: "Conversational Assistant",
+        instructions:
+          CONVERSATIONAL_AGENT_INSTRUCTIONS +
+          `\n\nIMPORTANT: The user just provided their LinkedIn profile URL. Acknowledge it briefly and let them know you're fetching their profile data now. Keep your response to 1-2 short sentences.`,
+        model: "gpt-4.1-nano",
+      })
+      const fillerResult = await run(fillerAgent, conversationalPrompt)
+      messageText += typeof fillerResult.finalOutput === "string"
+        ? fillerResult.finalOutput
+        : String(fillerResult.finalOutput ?? "")
+
+      // Phase 2: scrape
+      const { runId } = await triggerScrapeUtil(linkedInUrl)
+      let scrapeResult: Awaited<ReturnType<typeof getScrapeStatusUtil>> | null = null
+      for (let i = 0; i < MAX_TOTAL_POLLS; i++) {
+        const status = await getScrapeStatusUtil(runId)
+        if (status.status === "completed" || status.status === "failed") {
+          scrapeResult = status
+          break
+        }
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+      }
+      if (!scrapeResult) {
+        scrapeResult = { status: "failed" as const, error: "Scraping timed out" }
+      }
+
+      // Phase 3: summary or error
+      if (scrapeResult.status === "completed") {
+        const profileJson = JSON.stringify(scrapeResult.profile, null, 2)
+        const summaryAgent = new Agent({
+          name: "Conversational Assistant",
+          instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
+          model: "gpt-4.1-nano",
+        })
+        const summaryResult = await run(
+          summaryAgent,
+          `${conversationalPrompt}\n\nLinkedIn profile data:\n${profileJson}\n\nSummarize key highlights and move to preferences.`,
+        )
+        messageText += "\n\n" + (typeof summaryResult.finalOutput === "string"
+          ? summaryResult.finalOutput
+          : String(summaryResult.finalOutput ?? ""))
+      } else {
+        messageText += `\n\nSorry, I couldn't fetch your LinkedIn profile (${scrapeResult.error}). Would you like to try again or set up your profile manually?`
+      }
+    } else {
+      const conversationalAgent = new Agent({
+        name: "Conversational Assistant",
+        instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
+        model: "gpt-4.1-nano",
+      })
+      const conversationalResult = await run(conversationalAgent, conversationalPrompt)
+      messageText = typeof conversationalResult.finalOutput === "string"
+        ? conversationalResult.finalOutput
+        : String(conversationalResult.finalOutput ?? "")
+    }
 
     // Build full conversation with the assistant's response
     const fullConversation = `${conversationContext}

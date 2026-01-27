@@ -21,7 +21,7 @@ However, if some tool calls depend on previous calls to inform dependent values 
 
 Never speculate about code you have not opened. If the user references a specific file, you MUST read the file before answering. Make sure to investigate and read relevant files BEFORE answering questions about the codebase. Never make any claims about code before investigating unless you are certain of the correct answer - give grounded and hallucination-free answers. If the user asks you to use web search to retrieve information, always do so before providing any answers.
 
-When an LLM is needed, please default to ChatGPT 5 Nano unless the user requests otherwise. The exact model string for ChatGPT 5 Nano is gpt-5-nano-2025-08-07.
+When an LLM is needed, please default to ChatGPT 4.1 nano unless the user requests otherwise. The exact model string for ChatGPT 4.1 nano is gpt-4.1-nano.
 
 Please write a high-quality, general-purpose solution using the standard tools available. Do not create helper scripts or workarounds to accomplish the task more efficiently. Implement a solution that works correctly for all valid inputs, not just the test cases. Do not hard-code values or create solutions that only work for specific test inputs. Instead, implement the actual logic that solves the problem generally.
 

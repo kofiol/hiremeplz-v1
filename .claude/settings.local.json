@@ -15,7 +15,14 @@
       "WebFetch(domain:trigger.dev)",
       "Bash(pnpm lint:*)",
       "Bash(grep:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(pnpm list:*)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:www.shadcn.io)",
+      "WebFetch(domain:platform.openai.com)",
+      "Bash(npx shadcn@latest add:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
