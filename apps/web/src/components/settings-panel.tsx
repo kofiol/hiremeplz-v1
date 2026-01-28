@@ -9,8 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
 import { useSession } from "@/app/auth/session-provider"
 import { useFocusMode } from "@/hooks/use-focus-mode"
+import { useLinkedinPopup } from "@/hooks/use-linkedin-popup"
 
 type SettingsSectionKey = "profile" | "job_search" | "beta"
 
@@ -55,7 +57,8 @@ export function SettingsPanel({
   onSaveSuccess?: () => void
 }) {
   const { session } = useSession()
-  const [focusModeEnabled, setFocusModeEnabled] = useFocusMode()
+  const [focusModeEnabled, setFocusModeEnabled, focusOpacity, setFocusOpacity] = useFocusMode()
+  const [linkedinPopupEnabled, setLinkedinPopupEnabled] = useLinkedinPopup()
 
   const [activeSection, setActiveSection] =
     React.useState<SettingsSectionKey>("profile")
@@ -226,6 +229,7 @@ export function SettingsPanel({
       toast.success("Settings saved")
       window.dispatchEvent(new Event(USER_PLAN_REFRESH_EVENT))
       onSaveSuccess?.()
+      window.location.reload()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save settings")
     } finally {
@@ -503,6 +507,43 @@ export function SettingsPanel({
                   <Checkbox
                     checked={focusModeEnabled}
                     onCheckedChange={(value) => setFocusModeEnabled(value === true)}
+                  />
+                </div>
+                
+                {focusModeEnabled && (
+                  <div className="space-y-3 rounded-md border border-input p-3 bg-accent/20">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Opacity</Label>
+                      <span className="text-sm text-muted-foreground">{focusOpacity}%</span>
+                    </div>
+                    <Slider
+                      value={[focusOpacity]}
+                      min={0}
+                      max={100}
+                      step={5}
+                      onValueChange={(vals) => setFocusOpacity(vals[0])}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>LinkedIn Import Popup</Label>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    BETA
+                  </span>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  Open a dedicated popup for entering your LinkedIn URL with real-time validation.
+                </p>
+                <div className="border-input flex items-center justify-between rounded-md border px-3 py-2">
+                  <span className="text-sm">Enable LinkedIn Popup</span>
+                  <Checkbox
+                    checked={linkedinPopupEnabled}
+                    onCheckedChange={(value) => setLinkedinPopupEnabled(value === true)}
                   />
                 </div>
               </div>

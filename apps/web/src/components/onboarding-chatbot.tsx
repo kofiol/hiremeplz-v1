@@ -6,6 +6,11 @@ import Image from "next/image"
 import { AnimatePresence, motion } from "framer-motion"
 import { useSession } from "@/app/auth/session-provider"
 import { useFocusMode } from "@/hooks/use-focus-mode"
+import {
+  useLinkedinPopup,
+  validateLinkedinUrl,
+  normalizeLinkedinUrl,
+} from "@/hooks/use-linkedin-popup"
 import { useUserPlan } from "@/hooks/use-user-plan"
 import {
   Conversation,
@@ -26,7 +31,18 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Button } from "@/components/ui/button"
-import { Check, CheckCircle, LoaderIcon, Pencil, X, XCircle } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ProfileScoreCard } from "@/components/ui/score-indicator"
+import { Check, CheckCircle, Linkedin, LoaderIcon, OctagonX, Pencil, Sparkles, Square, X, XCircle } from "lucide-react"
 
 // ============================================================================
 // Types
@@ -34,8 +50,15 @@ import { Check, CheckCircle, LoaderIcon, Pencil, X, XCircle } from "lucide-react
 
 type ToolCallInfo = {
   name: string
-  status: "completed" | "failed"
+  status: "completed" | "failed" | "aborted"
   elapsed?: number
+}
+
+type ProfileAnalysis = {
+  score: number
+  title: string
+  summary: string
+  analysis: string
 }
 
 type ChatMessage = {
@@ -43,6 +66,7 @@ type ChatMessage = {
   role: "user" | "assistant"
   content: string
   toolCall?: ToolCallInfo
+  profileAnalysis?: ProfileAnalysis
 }
 
 type CollectedData = {
@@ -202,6 +226,7 @@ export function OnboardingChatbot() {
   const { displayName: planDisplayName } = useUserPlan()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Resolve user name
   const userName = React.useMemo(() => {
@@ -250,7 +275,7 @@ export function OnboardingChatbot() {
   )
 
   // Focus mode
-  const [focusModeEnabled] = useFocusMode()
+  const [focusModeEnabled, , opacity] = useFocusMode()
   const [showFocus, setShowFocus] = useState(false)
   const inputAreaRef = useRef<HTMLDivElement>(null)
 
@@ -262,6 +287,15 @@ export function OnboardingChatbot() {
       setShowFocus(false)
     }
   }, [isLoading, isStreaming, focusModeEnabled, messages.length, hasStarted])
+
+  // LinkedIn popup (BETA)
+  const [linkedinPopupEnabled] = useLinkedinPopup()
+  const [linkedinDialogOpen, setLinkedinDialogOpen] = useState(false)
+  const [linkedinUrl, setLinkedinUrl] = useState("")
+  const linkedinValidation = React.useMemo(
+    () => validateLinkedinUrl(linkedinUrl),
+    [linkedinUrl]
+  )
 
   // Load progress on mount
   useEffect(() => {
@@ -334,7 +368,8 @@ export function OnboardingChatbot() {
     response: Response,
     updatedMessages: ChatMessage[],
     currentCollectedData: CollectedData,
-    currentHasStarted: boolean
+    currentHasStarted: boolean,
+    signal?: AbortSignal
   ) => {
     const reader = response.body?.getReader()
     if (!reader) {
@@ -349,12 +384,27 @@ export function OnboardingChatbot() {
     let toolCallResult: ToolCallInfo | null = null
     let lastElapsed: number | undefined
     let finalCollectedData = currentCollectedData
+    let wasAborted = false
+    let profileAnalysisResult: ProfileAnalysis | null = null
 
     setIsStreaming(true)
     setStreamingContent("")
 
+    // Set up abort handler to cancel the reader
+    const abortHandler = () => {
+      wasAborted = true
+      reader.cancel()
+    }
+    signal?.addEventListener("abort", abortHandler)
+
     try {
       while (true) {
+        // Check if already aborted
+        if (signal?.aborted) {
+          wasAborted = true
+          break
+        }
+
         const { done, value } = await reader.read()
         if (done) break
 
@@ -409,16 +459,49 @@ export function OnboardingChatbot() {
               if (parsed.collectedData) {
                 finalCollectedData = parsed.collectedData
               }
+            } else if (parsed.type === "analysis_started") {
+              // Profile analysis is starting - show loading state
+              setActiveToolCall({
+                name: "profile_analysis",
+                status: "running",
+              })
+            } else if (parsed.type === "profile_analysis") {
+              // Profile analysis completed
+              setActiveToolCall(null)
+              profileAnalysisResult = {
+                score: parsed.score,
+                title: parsed.title,
+                summary: parsed.summary,
+                analysis: parsed.analysis,
+              }
+            } else if (parsed.type === "analysis_error") {
+              setActiveToolCall(null)
             }
           } catch {
             // Ignore parse errors for incomplete chunks
           }
         }
       }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        wasAborted = true
+      } else {
+        throw err
+      }
     } finally {
+      signal?.removeEventListener("abort", abortHandler)
       setIsStreaming(false)
       setStreamingContent("")
       setActiveToolCall(null)
+    }
+
+    // If aborted during a tool call, mark it as aborted
+    if (wasAborted && toolCallSeen && !toolCallFinished) {
+      toolCallResult = {
+        name: "linkedin_scrape",
+        status: "aborted",
+        elapsed: lastElapsed,
+      }
     }
 
     // Build messages — split into filler, tool badge, and summary when a tool call occurred
@@ -456,6 +539,16 @@ export function OnboardingChatbot() {
       }
     }
 
+    // Add profile analysis message if available
+    if (profileAnalysisResult) {
+      newMessages.push({
+        id: generateId(),
+        role: "assistant",
+        content: profileAnalysisResult.analysis,
+        profileAnalysis: profileAnalysisResult,
+      })
+    }
+
     const finalMessages = [...updatedMessages, ...newMessages]
     setMessages(finalMessages)
     setCollectedData(finalCollectedData)
@@ -470,6 +563,10 @@ export function OnboardingChatbot() {
     setIsLoading(true)
     setError(null)
 
+    // Create abort controller
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     try {
       const response = await fetch("/api/v1/onboarding/chat", {
         method: "POST",
@@ -480,6 +577,7 @@ export function OnboardingChatbot() {
           collectedData: initialCollectedData,
           stream: true,
         }),
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -489,7 +587,7 @@ export function OnboardingChatbot() {
       const contentType = response.headers.get("content-type")
 
       if (contentType?.includes("text/event-stream")) {
-        await processStreamResponse(response, [], initialCollectedData, newHasStarted)
+        await processStreamResponse(response, [], initialCollectedData, newHasStarted, controller.signal)
       } else {
         // Fallback for non-streaming response
         const data = await response.json()
@@ -513,11 +611,16 @@ export function OnboardingChatbot() {
         saveProgress(newMessages, newData, newHasStarted)
       }
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        // User stopped the request, don't show error
+        return
+      }
       setError(
         err instanceof Error ? err.message : "Failed to start conversation"
       )
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null
     }
   }, [collectedData, processStreamResponse, saveProgress])
 
@@ -539,6 +642,10 @@ export function OnboardingChatbot() {
       setIsLoading(true)
       setError(null)
 
+      // Create abort controller
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       // Optimistic save
       saveProgress(updatedMessages, collectedData, hasStarted)
 
@@ -559,6 +666,7 @@ export function OnboardingChatbot() {
             collectedData,
             stream: true,
           }),
+          signal: controller.signal,
         })
 
         if (!response.ok) {
@@ -569,7 +677,7 @@ export function OnboardingChatbot() {
         const contentType = response.headers.get("content-type")
 
         if (contentType?.includes("text/event-stream")) {
-          await processStreamResponse(response, updatedMessages, collectedData, hasStarted)
+          await processStreamResponse(response, updatedMessages, collectedData, hasStarted, controller.signal)
         } else {
           // Fallback for non-streaming response
           const data = await response.json()
@@ -591,13 +699,42 @@ export function OnboardingChatbot() {
           saveProgress(finalMessages, finalData, hasStarted)
         }
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          // User stopped the request, don't show error
+          return
+        }
         setError(err instanceof Error ? err.message : "Failed to send message")
       } finally {
         setIsLoading(false)
+        abortControllerRef.current = null
       }
     },
     [messages, collectedData, isLoading, isStreaming, hasStarted, processStreamResponse, saveProgress]
   )
+
+  // Stop streaming/tool usage
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      // Immediately update UI
+      setIsLoading(false)
+      setIsStreaming(false)
+      setStreamingContent("")
+      setActiveToolCall(null)
+    }
+  }, [])
+
+  // LinkedIn popup submit handler
+  const handleLinkedinSubmit = useCallback(() => {
+    if (!linkedinValidation.isValid) return
+    const normalizedUrl = normalizeLinkedinUrl(linkedinUrl)
+    setLinkedinDialogOpen(false)
+    setLinkedinUrl("")
+    setShowFocus(false)
+    // Send the URL as a message to the chat
+    sendMessage(`Here's my LinkedIn profile: ${normalizedUrl}`)
+  }, [linkedinUrl, linkedinValidation.isValid, sendMessage])
 
   const beginEditMessage = useCallback((message: ChatMessage) => {
     setEditingMessageId(message.id)
@@ -739,7 +876,7 @@ export function OnboardingChatbot() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      {/* Focus mode scrim — outside AnimatePresence to avoid transform containment */}
+      {/* Focus mode scrim — full page blur, input elevated above */}
       <AnimatePresence>
         {showFocus && (
           <motion.div
@@ -747,7 +884,8 @@ export function OnboardingChatbot() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-30 bg-black/50"
+            className="fixed inset-0 z-30"
+            style={{ backgroundColor: `rgba(0, 0, 0, ${opacity / 100})` }}
             onClick={() => {
               setShowFocus(false)
               textareaRef.current?.focus()
@@ -755,6 +893,69 @@ export function OnboardingChatbot() {
           />
         )}
       </AnimatePresence>
+
+      {/* LinkedIn URL Dialog (BETA) */}
+      <Dialog open={linkedinDialogOpen} onOpenChange={setLinkedinDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Linkedin className="size-5 text-[#0A66C2]" />
+              Import from LinkedIn
+            </DialogTitle>
+            <DialogDescription>
+              Enter your LinkedIn profile URL to import your professional information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="linkedin-url">Profile URL</Label>
+              <Input
+                id="linkedin-url"
+                type="url"
+                placeholder="https://linkedin.com/in/yourprofile"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && linkedinValidation.isValid) {
+                    e.preventDefault()
+                    handleLinkedinSubmit()
+                  }
+                }}
+                className={linkedinValidation.error ? "border-red-500 focus-visible:ring-red-500/20" : ""}
+                autoFocus
+              />
+            </div>
+            {linkedinValidation.error && (
+              <p className="text-sm text-red-500">{linkedinValidation.error}</p>
+            )}
+            {linkedinUrl.trim() && linkedinValidation.isValid && (
+              <p className="text-sm text-green-600 flex items-center gap-1.5">
+                <CheckCircle className="size-3.5" />
+                Valid LinkedIn profile URL
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLinkedinDialogOpen(false)
+                setLinkedinUrl("")
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLinkedinSubmit}
+              disabled={!linkedinValidation.isValid}
+              className="gap-2"
+            >
+              <Check className="size-4" />
+              Import Profile
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AnimatePresence mode="wait">
         {!hasStarted ? (
@@ -877,11 +1078,13 @@ export function OnboardingChatbot() {
                         <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
                           {message.toolCall.status === "completed" ? (
                             <CheckCircle className="size-3.5 text-green-500" />
+                          ) : message.toolCall.status === "aborted" ? (
+                            <OctagonX className="size-3.5 text-orange-500" />
                           ) : (
                             <XCircle className="size-3.5 text-red-500" />
                           )}
                           <span>
-                            Fetched LinkedIn profile
+                            {message.toolCall.status === "aborted" ? "Stopped" : "Fetched"} LinkedIn profile
                             {message.toolCall.elapsed
                               ? ` (${message.toolCall.elapsed}s)`
                               : ""}
@@ -958,26 +1161,34 @@ export function OnboardingChatbot() {
             {/* Input area wrapper — elevated above focus scrim */}
             <div
               ref={inputAreaRef}
-              className={`relative z-40 shrink-0 transition-all duration-150 ${showFocus ? "mx-4 mb-4 rounded-2xl bg-card/95 p-6 ring-1 ring-white/10 shadow-2xl backdrop-blur-sm" : ""}`}
+              className={`relative z-40 shrink-0 transition-all duration-150 ${showFocus ? "mx-auto w-[calc(100%-2rem)] max-w-3xl mb-4 rounded-2xl bg-card/95 p-6 ring-1 ring-white/10 shadow-2xl" : ""}`}
             >
             <div className={showFocus ? "" : "bg-background px-4 pb-6 pt-4"}>
               {/* Quick reply badges */}
               {hasStarted && !isLoading && !isStreaming && suggestedReplies.length > 0 && editingMessageId === null && (
                 <div className="mx-auto max-w-3xl pb-2">
                   <div className="flex flex-wrap gap-2">
-                    {suggestedReplies.map((reply) => (
-                      <button
-                        key={reply}
-                        type="button"
-                        onClick={() => {
-                          setShowFocus(false)
-                          sendMessage(reply)
-                        }}
-                        className="rounded-full border bg-card px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      >
-                        {reply}
-                      </button>
-                    ))}
+                    {suggestedReplies.map((reply) => {
+                      const isLinkedinBadge = reply === "Import from LinkedIn"
+                      return (
+                        <button
+                          key={reply}
+                          type="button"
+                          onClick={() => {
+                            setShowFocus(false)
+                            if (isLinkedinBadge && linkedinPopupEnabled) {
+                              setLinkedinDialogOpen(true)
+                            } else {
+                              sendMessage(reply)
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        >
+                          {isLinkedinBadge && <Linkedin className="size-3.5" />}
+                          {reply}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -1000,10 +1211,20 @@ export function OnboardingChatbot() {
                   />
                 </PromptInputBody>
                 <PromptInputFooter>
-                  <PromptInputSubmit
-                    className="bg-accent text-accent-foreground hover:bg-accent/90"
-                    disabled={isLoading || isStreaming || editingMessageId !== null || !input.trim()}
-                  />
+                  {isLoading || isStreaming ? (
+                    <PromptInputSubmit
+                      type="button"
+                      onClick={stopGeneration}
+                      className="bg-accent text-accent-foreground hover:bg-accent/90"
+                    >
+                      <Square className="size-4 fill-current" />
+                    </PromptInputSubmit>
+                  ) : (
+                    <PromptInputSubmit
+                      className="bg-accent text-accent-foreground hover:bg-accent/90"
+                      disabled={editingMessageId !== null || !input.trim()}
+                    />
+                  )}
                 </PromptInputFooter>
               </PromptInput>
             </div>

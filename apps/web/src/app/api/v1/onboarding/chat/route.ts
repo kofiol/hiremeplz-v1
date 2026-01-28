@@ -76,6 +76,33 @@ const DataExtractionResponseSchema = z.object({
 
 type DataExtractionResponse = z.infer<typeof DataExtractionResponseSchema>
 
+// Profile Analysis Response Schema
+const ProfileAnalysisResponseSchema = z.object({
+  score: z.number().min(0).max(100),
+  title: z.string(),
+  summary: z.string(),
+  analysis: z.string(),
+})
+
+type ProfileAnalysisResponse = z.infer<typeof ProfileAnalysisResponseSchema>
+
+const ProfileAnalysisJsonSchema = {
+  type: "json_schema" as const,
+  name: "ProfileAnalysisResponse",
+  strict: true,
+  schema: {
+    type: "object" as const,
+    additionalProperties: false,
+    required: ["score", "title", "summary", "analysis"],
+    properties: {
+      score: { type: "number" },
+      title: { type: "string" },
+      summary: { type: "string" },
+      analysis: { type: "string" },
+    },
+  },
+}
+
 const nullableString = { type: ["string", "null"] } as const
 const nullableNumber = { type: ["number", "null"] } as const
 const nullableBoolean = { type: ["boolean", "null"] } as const
@@ -287,52 +314,46 @@ const CONVERSATIONAL_AGENT_INSTRUCTIONS = `You are a friendly, casual onboarding
 - If someone makes a joke or sarcastic comment, play along briefly before continuing
 - Never be annoying or repetitive
 
+## STRICT Conversation Flow
+Follow this EXACT order. Do NOT skip steps or combine questions:
+
+### Step 1: GREETING (First message only)
+If this is the very first message (no conversation history), greet the user warmly as if meeting them for the first time. Something like: "Hey there! Welcome to HireMePlz. I'm here to help you set up your freelancer profile. Let's get started - are you working solo, or do you have a team?"
+
+### Step 2: SOLO OR TEAM
+First real question: Are they working solo or with a team?
+- Wait for their answer before moving on
+- Valid answers: solo, team, just me, with others, etc.
+
+### Step 3: PROFILE SETUP METHOD
+After they answer solo/team, ask: "How would you like to set up your profile?"
+- Import from LinkedIn
+- Share a portfolio link
+- Tell me about yourself manually
+- Do NOT list Upwork as an option
+
+### Step 4A: If LinkedIn - After scraping completes
+Review the scraped data. If ANY of these are missing or unclear, ASK about them:
+- Experience level (if not clear from job titles)
+- Primary skills (if skill list is empty or too vague)
+- Hourly rate range
+- Full-time vs part-time preference
+- Remote preference
+
+### Step 4B: If Portfolio/Manual
+Ask about: experience level → skills → past work highlights → rate range → engagement type → remote preference
+
 ## BE SMART - Infer Information
-You MUST use common sense to infer details:
-- "$45-100" or "$45-$100" → They mean USD (the dollar sign tells you!)
+- "$45-100" → USD (dollar sign!)
 - "€50-80" → EUR
 - "£40-60" → GBP
-- "45-100/hr" → hourly rate, assume USD unless context says otherwise
-- If they give a range like "45-100", and you already know context (e.g., discussing rates), don't ask redundant questions
-
-## Handling Unclear Responses
-If someone types gibberish or a very unclear response (like random letters):
-- Don't be annoying about it. Give ONE gentle nudge, then move on with a reasonable assumption or skip that field
-- NEVER keep asking the same question more than twice - it's frustrating
-- Example: If they type "asd" when you ask about experience level, say something like "No worries, we can figure that out later. Let's move on - what's your preferred hourly rate range?"
-
-## Conversation Flow
-Keep it moving! Don't dwell on any single topic.
-
-1. **Quick Start**: Ask if they're solo or have a team (just one question)
-2. **Profile Setup**: Ask how they'd like to set up - LinkedIn import, Upwork import, portfolio link, or manually. Don't list all options every time.
-3. **If Manual**: Ask about experience level (entry/mid/senior/lead), then skills, then briefly about past work
-4. **Preferences**:
-   - Hourly rate range (infer currency from symbols!)
-   - Only ask about currency if they didn't use a symbol
-   - Engagement type preference (full-time, part-time, contract)
-   - Remote preference
-5. **Wrap Up**: When you have the basics, give a quick summary and let them know they're all set
-
-## Example Good Responses
-User: "solo"
-You: "Working solo, nice! How would you like to set up your profile - import from LinkedIn/Upwork, share a portfolio link, or just tell me about yourself?"
-
-User: "$45-100"
-You: "Cool, $45-100 USD per hour works. Are you open to both full-time and part-time gigs, or do you have a preference?"
-
-User: "well dont u see the dollar sign???"
-You: "Ha, fair point - USD it is! Moving on, are you looking for remote work only, or open to on-site?"
-
-User: "sdf"
-You: "Hmm, didn't quite catch that. No worries though - what's your hourly rate range?"
+- Don't re-ask if info is already given
 
 ## Important Rules
-- Keep the conversation flowing naturally
-- If you've asked the same question twice with no clear answer, SKIP IT and move on
-- Be brief - users want to finish quickly
-- Sound human, not like a form
-- INFER details from context - don't ask questions that are already answered by the user's input`
+- ONE question at a time
+- Keep responses short (1-3 sentences max)
+- If they give gibberish twice, skip and move on
+- Sound human, not like a form`
 
 const DATA_EXTRACTION_INSTRUCTIONS = `You are a data extraction agent. Extract structured data from the conversation.
 
@@ -348,8 +369,8 @@ const DATA_EXTRACTION_INSTRUCTIONS = `You are a data extraction agent. Extract s
 
 ## What to Extract
 - teamMode: "solo" or "team" when user indicates working alone or with a team
-- profilePath: when user chooses linkedin/upwork/portfolio/manual
-- URLs: when user provides linkedin/upwork/portfolio links
+- profilePath: when user chooses linkedin/portfolio/manual (NOT upwork)
+- URLs: when user provides linkedin/portfolio links
 - hourlyMin/hourlyMax: numbers from rate ranges
 - currency: INFER from symbols ($=USD, €=EUR, £=GBP) or explicit mention
 - experienceLevel: entry, mid, senior, lead, director, intern_new_grad
@@ -368,12 +389,64 @@ When LinkedIn profile data is available from the scraping tool results in the co
 - Map the profile's educations array to the educations field (school, degree, field, startYear, endYear)
 
 ## Completion Criteria
-Set isComplete to true when you have:
-- teamMode (solo/team)
-- profilePath chosen
-- At least basic rate info (hourlyMin or fixedBudgetMin)
+Set isComplete to true ONLY when ALL of these are collected:
+1. teamMode (solo/team) - REQUIRED
+2. profilePath chosen (linkedin/portfolio/manual) - REQUIRED
+3. experienceLevel - REQUIRED
+4. skills array with at least 1 skill - REQUIRED
+5. hourlyMin OR hourlyMax set - REQUIRED
+6. engagementTypes set - REQUIRED
+7. remoteOnly set (true or false) - REQUIRED
 
-Don't require every single field - users can finish with partial data.`
+If ANY of these are missing, isComplete MUST be false.`
+
+const PROFILE_ANALYSIS_INSTRUCTIONS = `You are a professional career advisor and profile analyst. Analyze the user's freelancer profile and provide comprehensive feedback.
+
+## Your Task
+Analyze the collected profile data and provide:
+1. A profile score (0-100) based on completeness and quality
+2. A brief 3-5 word summary of the profile
+3. A detailed analysis with actionable insights
+
+## Scoring Criteria (100 points total)
+- Profile completeness (30 points): All fields filled, detailed information
+- Experience quality (25 points): Relevant experience, clear progression, notable companies
+- Skills relevance (20 points): In-demand skills, variety, depth
+- Rate competitiveness (15 points): Market-aligned rates for their level
+- Professional presentation (10 points): Clear, well-organized information
+
+## Response Format
+Your response MUST be valid JSON with this exact structure:
+{
+  "score": <number 0-100>,
+  "title": "Profile Analysis",
+  "summary": "<3-5 word summary like 'Strong Senior Developer Profile' or 'Promising Entry-Level Designer'>",
+  "analysis": "<Full markdown analysis - see format below>"
+}
+
+## Analysis Markdown Format
+The "analysis" field should contain markdown with these sections:
+
+### Overview
+Brief 2-3 sentence overview of the profile.
+
+### Strengths
+- Bullet points of what's strong about this profile
+- Be specific and encouraging
+
+### Areas for Improvement
+- Bullet points of what could be better
+- Actionable suggestions
+
+### Market Insights
+- How this profile compares to market standards
+- Rate recommendations based on experience level
+- In-demand skills they have or should consider
+
+### Next Steps
+Numbered list of 3-5 specific actions to improve their profile.
+
+Be encouraging but honest. Provide real value.`
 
 // ============================================================================
 // LinkedIn Scraping Helpers
@@ -632,6 +705,55 @@ Extract ONLY data that the assistant has clearly confirmed/acknowledged. If the 
                 collectedData: extracted.collectedData,
                 isComplete: extracted.isComplete,
               })
+
+              // ── Profile Analysis (when onboarding is complete) ────────
+              if (extracted.isComplete) {
+                sseEmit({ type: "analysis_started" })
+
+                const profileAnalysisPrompt = `
+Analyze this freelancer profile and provide comprehensive feedback:
+
+Profile Data:
+${JSON.stringify(extracted.collectedData, null, 2)}
+
+Provide a score (0-100), brief summary, and detailed markdown analysis following the format in your instructions.`
+
+                const profileAnalysisAgent = new Agent({
+                  name: "Profile Analyst",
+                  instructions: PROFILE_ANALYSIS_INSTRUCTIONS,
+                  model: "gpt-5-mini-2025-08-07",
+                  outputType: ProfileAnalysisJsonSchema,
+                })
+
+                try {
+                  const analysisResult = await run(
+                    profileAnalysisAgent,
+                    profileAnalysisPrompt,
+                    { reasoningEffort: "high" }
+                  )
+
+                  if (analysisResult.finalOutput) {
+                    const analysis = ProfileAnalysisResponseSchema.parse(
+                      analysisResult.finalOutput,
+                    ) as ProfileAnalysisResponse
+
+                    sseEmit({
+                      type: "profile_analysis",
+                      score: analysis.score,
+                      title: analysis.title,
+                      summary: analysis.summary,
+                      analysis: analysis.analysis,
+                    })
+                  }
+                } catch (analysisError) {
+                  console.error("Profile analysis error:", analysisError)
+                  // Don't fail the whole request if analysis fails
+                  sseEmit({
+                    type: "analysis_error",
+                    message: "Could not generate profile analysis",
+                  })
+                }
+              }
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"))

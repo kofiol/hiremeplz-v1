@@ -22,7 +22,10 @@
       "Bash(node -e:*)",
       "WebFetch(domain:www.shadcn.io)",
       "WebFetch(domain:platform.openai.com)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "WebFetch(domain:codesandbox.io)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(pnpm add:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
