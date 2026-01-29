@@ -58,12 +58,15 @@ export async function computeAndUpdateProfileCompleteness(
       .limit(1),
     supabaseAdmin
       .from("user_preferences")
-      .select("currency, hourly_min, fixed_budget_min, project_types")
+      .select("currency, hourly_min, hourly_max, current_hourly_min, current_hourly_max, fixed_budget_min, project_types")
       .eq("user_id", userId)
       .eq("team_id", teamId)
       .maybeSingle<{
         currency: string | null;
         hourly_min: number | null;
+        hourly_max: number | null;
+        current_hourly_min: number | null;
+        current_hourly_max: number | null;
         fixed_budget_min: number | null;
         project_types: string[] | null;
       }>(),
@@ -146,40 +149,13 @@ export async function computeAndUpdateProfileCompleteness(
     throw agentSettingsResult.error;
   }
 
-  const agentSettings = agentSettingsResult.data?.settings_json ?? {};
-  const timeZones =
-    Array.isArray(agentSettings.time_zones) &&
-    agentSettings.time_zones.every((value) => typeof value === "string")
-      ? (agentSettings.time_zones as string[])
-      : [];
-  const engagementTypes =
-    Array.isArray(agentSettings.engagement_types) &&
-    agentSettings.engagement_types.every((value) => typeof value === "string")
-      ? (agentSettings.engagement_types as string[])
-      : [];
-  const preferredProjectLengthDays =
-    Array.isArray(agentSettings.preferred_project_length_days) &&
-    agentSettings.preferred_project_length_days.length === 2 &&
-    agentSettings.preferred_project_length_days.every(
-      (value) => typeof value === "number",
-    )
-      ? (agentSettings.preferred_project_length_days as [number, number])
-      : null;
-
-  const hasConstraints =
-    timeZones.length > 0 &&
-    engagementTypes.length > 0 &&
-    !!preferredProjectLengthDays &&
-    preferredProjectLengthDays[0] >= 1 &&
-    preferredProjectLengthDays[1] <= 365 &&
-    preferredProjectLengthDays[0] <= preferredProjectLengthDays[1];
-
   const hasPreferences =
     !!preferences &&
     !!preferences.currency &&
     ((preferences.hourly_min ?? null) !== null ||
-      (preferences.fixed_budget_min ?? null) !== null) &&
-    hasConstraints;
+      (preferences.hourly_max ?? null) !== null) &&
+    ((preferences.current_hourly_min ?? null) !== null ||
+      (preferences.current_hourly_max ?? null) !== null);
 
   if (hasPreferences) {
     score += 0.2;

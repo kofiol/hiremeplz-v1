@@ -78,6 +78,8 @@ const onboardingSchema = z.object({
       currency: z.string().min(1).optional(),
       hourlyMin: z.number().min(0).optional().nullable(),
       hourlyMax: z.number().min(0).optional().nullable(),
+      currentHourlyMin: z.number().min(0).optional().nullable(),
+      currentHourlyMax: z.number().min(0).optional().nullable(),
       fixedBudgetMin: z.number().min(0).optional().nullable(),
       timeZones: z.array(z.string()).optional().nullable(),
       remoteOnly: z.boolean().optional().nullable(),
@@ -343,6 +345,8 @@ export async function POST(request: NextRequest) {
             currency: preferences.currency ?? "USD",
             hourly_min: preferences.hourlyMin ?? null,
             hourly_max: preferences.hourlyMax ?? null,
+            current_hourly_min: preferences.currentHourlyMin ?? null,
+            current_hourly_max: preferences.currentHourlyMax ?? null,
             fixed_budget_min: preferences.fixedBudgetMin ?? null,
             project_types: ["short_gig", "medium_project"],
             tightness: preferences.tightness ?? 3,
@@ -406,9 +410,6 @@ export async function POST(request: NextRequest) {
 
     if (preferences?.timeZones) {
       nextSettings.time_zones = preferences.timeZones;
-    }
-    if (typeof preferences?.remoteOnly === "boolean") {
-      nextSettings.remote_only = preferences.remoteOnly;
     }
     if (preferences?.preferredProjectLengthDays) {
       nextSettings.preferred_project_length_days = preferences.preferredProjectLengthDays;

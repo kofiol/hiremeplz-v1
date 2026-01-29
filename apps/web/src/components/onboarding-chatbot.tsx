@@ -80,10 +80,8 @@ type ChatMessage = {
 
 type CollectedData = {
   teamMode: "solo" | "team" | null
-  profilePath: "linkedin" | "upwork" | "cv" | "portfolio" | "manual" | null
+  profilePath: "linkedin" | "manual" | null
   linkedinUrl: string | null
-  upworkUrl: string | null
-  portfolioUrl: string | null
   experienceLevel:
     | "intern_new_grad"
     | "entry"
@@ -111,36 +109,28 @@ type CollectedData = {
         endYear: string | null
       }[]
     | null
-  hourlyMin: number | null
-  hourlyMax: number | null
-  fixedBudgetMin: number | null
+  currentRateMin: number | null
+  currentRateMax: number | null
+  dreamRateMin: number | null
+  dreamRateMax: number | null
   currency: "USD" | "EUR" | "GBP" | "CAD" | "AUD" | null
-  preferredProjectLengthMin: number | null
-  preferredProjectLengthMax: number | null
-  timeZones: string[] | null
-  engagementTypes: ("full_time" | "part_time" | "internship")[] | null
-  remoteOnly: boolean | null
+  engagementTypes: ("full_time" | "part_time")[] | null
 }
 
 const initialCollectedData: CollectedData = {
   teamMode: null,
   profilePath: null,
   linkedinUrl: null,
-  upworkUrl: null,
-  portfolioUrl: null,
   experienceLevel: null,
   skills: null,
   experiences: null,
   educations: null,
-  hourlyMin: null,
-  hourlyMax: null,
-  fixedBudgetMin: null,
+  currentRateMin: null,
+  currentRateMax: null,
+  dreamRateMin: null,
+  dreamRateMax: null,
   currency: null,
-  preferredProjectLengthMin: null,
-  preferredProjectLengthMax: null,
-  timeZones: null,
   engagementTypes: null,
-  remoteOnly: null,
 }
 
 // ============================================================================
@@ -170,17 +160,25 @@ function getSuggestedReplies(data: CollectedData): string[] {
     if (!data.skills || data.skills.length === 0) {
       return [] // Empty - user should type their skills
     }
+    // No suggestions for experiences and education - user types
+    if (!data.experiences || data.experiences.length === 0) {
+      return []
+    }
+    if (!data.educations || data.educations.length === 0) {
+      return []
+    }
   }
 
-  // Both paths: ask about preferences
-  if (data.hourlyMin === null && data.hourlyMax === null) {
-    return ["$30-50", "$50-100", "$100-150", "$150+"]
+  // Both paths: ask about rates
+  if (data.currentRateMin === null && data.currentRateMax === null) {
+    return ["$30-50/hr", "$50-100/hr", "$100-150/hr", "$150+/hr"]
   }
+  if (data.dreamRateMin === null && data.dreamRateMax === null) {
+    return ["$50-100/hr", "$100-200/hr", "$200-300/hr", "$300+/hr"]
+  }
+  // Engagement types are optional
   if (data.engagementTypes === null) {
     return ["Full-time", "Part-time", "Both"]
-  }
-  if (data.remoteOnly === null) {
-    return ["Remote only", "Open to on-site", "Either works"]
   }
   return []
 }
@@ -194,8 +192,6 @@ function transformToOnboardingPayload(data: CollectedData) {
     path: data.profilePath,
     profileSetup: {
       linkedinUrl: data.linkedinUrl ?? "",
-      upworkUrl: data.upworkUrl ?? "",
-      portfolioUrl: data.portfolioUrl ?? "",
     },
     experienceLevel: data.experienceLevel,
     skills: data.skills?.map((s) => ({ name: s.name, level: 3, years: null })),
@@ -215,18 +211,10 @@ function transformToOnboardingPayload(data: CollectedData) {
     })),
     preferences: {
       currency: data.currency ?? "USD",
-      hourlyMin: data.hourlyMin,
-      hourlyMax: data.hourlyMax,
-      fixedBudgetMin: data.fixedBudgetMin,
-      timeZones: data.timeZones ?? [],
-      remoteOnly: data.remoteOnly ?? true,
-      preferredProjectLengthDays:
-        data.preferredProjectLengthMin && data.preferredProjectLengthMax
-          ? ([data.preferredProjectLengthMin, data.preferredProjectLengthMax] as [
-              number,
-              number
-            ])
-          : [7, 30],
+      hourlyMin: data.dreamRateMin,
+      hourlyMax: data.dreamRateMax,
+      currentHourlyMin: data.currentRateMin,
+      currentHourlyMax: data.currentRateMax,
       engagementTypes: data.engagementTypes ?? [],
       tightness: 3,
     },
@@ -754,17 +742,20 @@ export function OnboardingChatbot() {
     [messages, collectedData, isLoading, isStreaming, hasStarted, processStreamResponse, saveProgress]
   )
 
-  // Stop streaming/tool usage
+  // Stop streaming/tool usage/reasoning/analysis
   const stopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
-      // Immediately update UI
-      setIsLoading(false)
-      setIsStreaming(false)
-      setStreamingContent("")
-      setActiveToolCall(null)
     }
+    // Immediately reset all UI states regardless of controller existence
+    setIsLoading(false)
+    setIsStreaming(false)
+    setStreamingContent("")
+    setActiveToolCall(null)
+    setIsReasoning(false)
+    setReasoningContent("")
+    setReasoningDuration(undefined)
   }, [])
 
   // LinkedIn popup submit handler
