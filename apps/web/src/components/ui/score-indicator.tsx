@@ -85,9 +85,6 @@ export function ScoreIndicator({
           strokeDasharray={`${arcLength} ${circumference}`}
           strokeDashoffset={strokeDashoffset}
           className="transition-all duration-700 ease-out"
-          style={{
-            filter: `drop-shadow(0 0 6px ${color}40)`,
-          }}
         />
       </svg>
       {/* Score value in center */}

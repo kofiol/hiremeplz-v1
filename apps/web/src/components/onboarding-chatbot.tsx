@@ -1145,9 +1145,8 @@ export function OnboardingChatbot() {
                             score={message.profileAnalysis.score}
                             title={message.profileAnalysis.title}
                             summary={message.profileAnalysis.summary}
-                            className="max-w-md"
                           />
-                          <div className="prose prose-sm prose-invert max-w-none">
+                          <div className="prose prose-base prose-invert max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {message.profileAnalysis.analysis}
                             </ReactMarkdown>
