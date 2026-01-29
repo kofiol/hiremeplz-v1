@@ -28,7 +28,9 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm eslint:*)",
       "Bash(pnpm exec tsc:*)",
-      "Bash(pnpm turbo run check-types:*)"
+      "Bash(pnpm turbo run check-types:*)",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__apply_migration"
     ]
   },
   "enableAllProjectMcpServers": true,
