@@ -39,7 +39,7 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.967rem;
+  --radius: 0.99rem;
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -55,7 +55,7 @@
   --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   --tracking-normal: 0em;
-  --spacing: 0.25rem;
+  --spacing: 0.276rem;
 }
 
 .dark {
@@ -65,7 +65,7 @@
   --card-foreground: oklch(0.9818 0.0054 95.0986);
   --popover: oklch(0.3085 0.0035 106.6039);
   --popover-foreground: oklch(0.9211 0.0040 106.4781);
-  --primary: oklch(0.6724 0.1308 38.7559);
+  --primary: oklch(0.5889 0.1225 135.9564);
   --primary-foreground: oklch(1.0000 0 0);
   --secondary: oklch(0.9818 0.0054 95.0986);
   --secondary-foreground: oklch(0.3085 0.0035 106.6039);
@@ -94,7 +94,7 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.967rem;
+  --radius: 0.99rem;
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -546,5 +546,127 @@
   .prose-xs li {
     margin-top: 0.25em;
     margin-bottom: 0.25em;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     INTERVIEW PREP - Orb & Pulse Animations
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  .interview-prep-gradient {
+    background: linear-gradient(
+      135deg,
+      var(--primary),
+      oklch(70% 0.2 280),
+      var(--primary)
+    );
+    background-size: 200% 200%;
+    animation: interview-gradient 4s ease infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  @keyframes interview-gradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Orb container */
+  .interview-orb {
+    width: 200px;
+    height: 200px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border);
+    background: var(--card);
+    position: relative;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+
+  .interview-orb-connecting {
+    border-color: var(--primary);
+    box-shadow: 0 0 40px oklch(67% 0.13 39 / 0.15);
+    animation: orb-breathe 2s ease-in-out infinite;
+  }
+
+  .interview-orb-speaking {
+    border-color: var(--primary);
+    box-shadow: 0 0 60px oklch(67% 0.13 39 / 0.3),
+                0 0 120px oklch(67% 0.13 39 / 0.1);
+    animation: orb-speaking 1.5s ease-in-out infinite;
+  }
+
+  .interview-orb-listening {
+    border-color: oklch(72% 0.19 155);
+    box-shadow: 0 0 60px oklch(72% 0.19 155 / 0.3),
+                0 0 120px oklch(72% 0.19 155 / 0.1);
+    animation: orb-listening 0.8s ease-in-out infinite;
+  }
+
+  .interview-orb-analyzing {
+    border-color: var(--primary);
+    box-shadow: 0 0 40px oklch(67% 0.13 39 / 0.2);
+    animation: orb-breathe 2s ease-in-out infinite;
+  }
+
+  @keyframes orb-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  @keyframes orb-speaking {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.08); }
+    75% { transform: scale(0.97); }
+  }
+
+  @keyframes orb-listening {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+
+  /* Pulse rings around orb */
+  .interview-pulse-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200px;
+    height: 200px;
+    border-radius: 9999px;
+    border: 1px solid var(--primary);
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .interview-pulse-ring-1 {
+    animation: pulse-expand 2s ease-out infinite;
+  }
+  .interview-pulse-ring-2 {
+    animation: pulse-expand 2s ease-out 0.5s infinite;
+  }
+  .interview-pulse-ring-3 {
+    animation: pulse-expand 2s ease-out 1s infinite;
+  }
+
+  @keyframes pulse-expand {
+    0% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0.4;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(2);
+      opacity: 0;
+    }
+  }
+
+  /* Score fill animation for results page */
+  @keyframes score-fill {
+    from {
+      stroke-dashoffset: var(--circumference, 1000);
+    }
   }
 }

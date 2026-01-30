@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Command, Home, Settings, PanelLeft } from "lucide-react"
+import { Command, Home, Settings, PanelLeft, Mic } from "lucide-react"
 import Link from "next/link"
 
 import { NavMain } from "@/components/nav-main"
@@ -31,7 +31,10 @@ function getPlanLabel(plan: string | null) {
   return plan
 }
 
-const navMain = [{ title: "Overview", url: "/overview", icon: Home }]
+const navMain = [
+  { title: "Overview", url: "/overview", icon: Home },
+  { title: "Interview Prep", url: "/interview-prep", icon: Mic, badge: "BETA" },
+]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { session } = useSession()

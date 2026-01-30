@@ -79,6 +79,7 @@ type ChatMessage = {
 }
 
 type CollectedData = {
+  fullName: string | null
   teamMode: "solo" | "team" | null
   profilePath: "linkedin" | "manual" | null
   linkedinUrl: string | null
@@ -118,6 +119,7 @@ type CollectedData = {
 }
 
 const initialCollectedData: CollectedData = {
+  fullName: null,
   teamMode: null,
   profilePath: null,
   linkedinUrl: null,
@@ -141,7 +143,17 @@ function generateId() {
   return Math.random().toString(36).slice(2)
 }
 
-function getSuggestedReplies(data: CollectedData): string[] {
+function getSuggestedReplies(data: CollectedData, messages: ChatMessage[]): string[] {
+  // Post-analysis: show next action suggestions
+  const hasAnalysis = messages.some((m) => m.profileAnalysis)
+  if (hasAnalysis) {
+    return ["View opportunities", "Edit my profile", "Explore settings"]
+  }
+
+  // Step 0: Name — user types, no suggestions
+  if (data.fullName === null) {
+    return []
+  }
   // Step 1: Solo or team?
   if (data.teamMode === null) {
     return ["Solo", "Team"]
@@ -271,6 +283,19 @@ export function OnboardingChatbot() {
     status: string
     elapsed?: number
   } | null>(null)
+  const [toolCallElapsed, setToolCallElapsed] = useState(0)
+  const toolCallActive = activeToolCall !== null
+
+  // Tick the tool-call timer every second (visual only)
+  useEffect(() => {
+    if (!toolCallActive) {
+      setToolCallElapsed(0)
+      return
+    }
+    setToolCallElapsed(0)
+    const id = setInterval(() => setToolCallElapsed((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [toolCallActive])
 
   // Reasoning state
   const [reasoningContent, setReasoningContent] = useState("")
@@ -279,8 +304,8 @@ export function OnboardingChatbot() {
 
   // Quick reply suggestions
   const suggestedReplies = React.useMemo(
-    () => getSuggestedReplies(collectedData),
-    [collectedData]
+    () => getSuggestedReplies(collectedData, messages),
+    [collectedData, messages]
   )
 
   // Focus mode
@@ -471,14 +496,9 @@ export function OnboardingChatbot() {
                 finalCollectedData = parsed.collectedData
               }
             } else if (parsed.type === "analysis_started") {
-              // Profile analysis is starting - show loading state
-              setActiveToolCall({
-                name: "profile_analysis",
-                status: "running",
-              })
+              // Profile analysis uses the reasoning UI, not the tool call badge
             } else if (parsed.type === "profile_analysis") {
               // Profile analysis completed
-              setActiveToolCall(null)
               profileAnalysisResult = {
                 score: parsed.score,
                 title: parsed.title,
@@ -486,7 +506,7 @@ export function OnboardingChatbot() {
                 analysis: parsed.analysis,
               }
             } else if (parsed.type === "analysis_error") {
-              setActiveToolCall(null)
+              // Analysis uses reasoning UI, no tool call state to clear
             } else if (parsed.type === "reasoning_started") {
               setIsReasoning(true)
               setReasoningContent("")
@@ -814,6 +834,10 @@ export function OnboardingChatbot() {
     setIsLoading(true)
     setError(null)
 
+    // Reset collected data since we're replaying from the edit point
+    const resetData = initialCollectedData
+    setCollectedData(resetData)
+
     try {
       const response = await fetch("/api/v1/onboarding/chat", {
         method: "POST",
@@ -821,7 +845,7 @@ export function OnboardingChatbot() {
         body: JSON.stringify({
           message: trimmed,
           conversationHistory,
-          collectedData,
+          collectedData: resetData,
           stream: true,
         }),
       })
@@ -834,7 +858,7 @@ export function OnboardingChatbot() {
       const contentType = response.headers.get("content-type")
 
       if (contentType?.includes("text/event-stream")) {
-        await processStreamResponse(response, messagesWithEdit, collectedData, hasStarted)
+        await processStreamResponse(response, messagesWithEdit, resetData, hasStarted)
       } else {
         // Fallback for non-streaming response
         const data = await response.json()
@@ -848,7 +872,7 @@ export function OnboardingChatbot() {
         const nextMessages = [...messagesWithEdit, assistantMessage]
         setMessages(nextMessages)
 
-        const nextCollectedData: CollectedData = data.collectedData ?? collectedData
+        const nextCollectedData: CollectedData = data.collectedData ?? resetData
         setCollectedData(nextCollectedData)
 
 
@@ -1160,6 +1184,21 @@ export function OnboardingChatbot() {
                       <div className="max-w-none whitespace-pre-wrap text-base text-foreground">
                         {streamingContent}
                         <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-foreground/50" />
+                      </div>
+                    </MessageContent>
+                  </Message>
+                )}
+
+                {/* Live tool call badge (e.g. LinkedIn scrape in progress) */}
+                {activeToolCall && (
+                  <Message from="assistant" hideAvatar>
+                    <MessageContent>
+                      <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                        <LoaderIcon className="size-3.5 animate-spin" />
+                        <span>
+                          Fetching LinkedIn profile
+                          {toolCallElapsed > 0 ? ` (${toolCallElapsed}s)` : "..."}
+                        </span>
                       </div>
                     </MessageContent>
                   </Message>

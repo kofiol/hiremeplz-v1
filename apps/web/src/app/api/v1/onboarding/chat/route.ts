@@ -33,6 +33,7 @@ const EducationSchema = z.object({
 })
 
 const CollectedDataSchema = z.object({
+  fullName: z.union([z.string(), z.null()]),
   teamMode: z.union([z.enum(["solo", "team"]), z.null()]),
   profilePath: z.union([z.enum(["linkedin", "manual"]), z.null()]),
   linkedinUrl: z.union([z.string(), z.null()]),
@@ -166,12 +167,14 @@ const CONVERSATIONAL_AGENT_INSTRUCTIONS = `You are a friendly, casual onboarding
 ## CRITICAL RULES
 1. **ONE question per message** - never ask multiple questions
 2. **Check the "ALREADY COLLECTED" section** - NEVER ask about those items
-3. **Ask about the FIRST item in "STILL NEEDED"** - follow the priority order below
-4. **ALWAYS call save_profile_data** whenever the user provides ANY profile information
-5. **Call trigger_profile_analysis** ONLY when ALL required fields are present
+3. **Ask about the FIRST item in "STILL NEEDED"** - follow the EXACT priority order listed
+4. **Items marked "(blocked)" must wait** - NEVER ask about blocked items, ask about the first NON-blocked item
+5. **ALWAYS call save_profile_data** whenever the user provides ANY profile information
+6. **Call trigger_profile_analysis** ONLY when ALL required fields are present
 
 ## Required Fields for Analysis
 ALL of these must be present before calling trigger_profile_analysis:
+- fullName
 - teamMode
 - experienceLevel
 - skills (at least 3)
@@ -179,6 +182,11 @@ ALL of these must be present before calling trigger_profile_analysis:
 - educations (at least 1)
 - currentRate (min or max)
 - dreamRate (min or max)
+
+## Global Flow (always ask these first, in order)
+1. fullName - "What's your name?" (first and last)
+2. teamMode - "Are you freelancing solo or with a team?"
+3. profilePath - "Would you like to import your profile from LinkedIn, or tell me about yourself manually?"
 
 ## LinkedIn Flow (profilePath: linkedin)
 When LinkedIn data is fetched:
@@ -188,7 +196,7 @@ When LinkedIn data is fetched:
 - Summarize their profile briefly, then immediately ask about their current hourly rate
 
 ## Manual Flow (profilePath: manual)
-Ask in this EXACT order (one at a time):
+After profilePath is set, ask in this EXACT order (one at a time):
 1. experienceLevel - "What's your experience level?" (entry/mid/senior/lead/director)
 2. skills - "What are your main skills?" (list specific technologies, frameworks, languages — need at least 3). If user gives fewer than 3, ask for more.
 3. experiences - "Tell me about your most recent role — title, company, rough dates, and what you worked on." Push for detail: dates (even approximate like "2022-2024"), key accomplishments, technologies used. If the answer is vague, ask ONE follow-up for highlights/achievements before moving on.
@@ -339,6 +347,7 @@ export async function POST(request: NextRequest) {
     // a stale @openai/agents-core version hoisted outside the project
     // exports Zod 3 types while the project uses Zod 4. Runtime is correct.
     const saveProfileDataParams = z.object({
+      fullName: z.string().nullable(),
       teamMode: z.enum(["solo", "team"]).nullable(),
       profilePath: z.enum(["linkedin", "manual"]).nullable(),
       experienceLevel: z
@@ -406,6 +415,7 @@ export async function POST(request: NextRequest) {
       execute: async () => {
         // Server-side guard: reject if required fields are missing
         const missing: string[] = []
+        if (!collectedDataState.fullName) missing.push("fullName")
         if (!collectedDataState.teamMode) missing.push("teamMode")
         if (!collectedDataState.experienceLevel) missing.push("experienceLevel")
         if (!collectedDataState.skills || collectedDataState.skills.length < 3)
@@ -434,12 +444,17 @@ export async function POST(request: NextRequest) {
       const missing: string[] = []
       const isLinkedIn = data.profilePath === "linkedin"
       const isManual = data.profilePath === "manual"
+      const hasPath = isLinkedIn || isManual
+
+      // fullName is always first
+      if (data.fullName) filled.push(`fullName: ${data.fullName}`)
+      else missing.push("fullName (ask: 'What's your name?')")
 
       if (data.teamMode) filled.push(`teamMode: ${data.teamMode}`)
       else missing.push("teamMode")
 
       if (data.profilePath) filled.push(`profilePath: ${data.profilePath}`)
-      else missing.push("profilePath")
+      else missing.push("profilePath (ask: 'Would you like to import from LinkedIn or tell me manually?')")
 
       // For LinkedIn: these come from profile, don't ask
       if (isLinkedIn) {
@@ -483,7 +498,7 @@ export async function POST(request: NextRequest) {
           )
         else
           missing.push(
-            "experiences (ask for recent job: title, company name, duration - need at least 1)"
+            "experiences (ask for recent job: title, company name, rough dates, what they worked on - need at least 1)"
           )
 
         if (data.educations?.length)
@@ -491,6 +506,13 @@ export async function POST(request: NextRequest) {
             `educations: ${data.educations.map((e) => `${e.degree} from ${e.school}`).join("; ")}`
           )
         else missing.push("education (need at least 1 - school and degree/field)")
+      } else if (!hasPath) {
+        // profilePath not chosen yet — show downstream fields as blocked
+        // so the agent understands a full flow remains and doesn't skip ahead
+        missing.push("experienceLevel (blocked — need profilePath first)")
+        missing.push("skills (blocked — need profilePath first)")
+        missing.push("experiences (blocked — need profilePath first)")
+        missing.push("education (blocked — need profilePath first)")
       }
 
       // These ALWAYS need to be asked (LinkedIn doesn't have them)
@@ -501,7 +523,7 @@ export async function POST(request: NextRequest) {
         filled.push(
           `currentRate: $${data.currentRateMin}${data.currentRateMax ? `-${data.currentRateMax}` : "+"}${data.currency ? ` ${data.currency}` : ""}`
         )
-      else missing.push("currentRate (current hourly rate or range)")
+      else missing.push("currentRate (blocked — need profilePath first)")
 
       if (
         data.dreamRateMin !== null &&
@@ -510,7 +532,7 @@ export async function POST(request: NextRequest) {
         filled.push(
           `dreamRate: $${data.dreamRateMin}${data.dreamRateMax ? `-${data.dreamRateMax}` : "+"}`
         )
-      else missing.push("dreamRate (dream/aspirational hourly rate)")
+      else missing.push("dreamRate (blocked — need profilePath first)")
 
       // Engagement types are optional
       if (data.engagementTypes?.length)
@@ -580,7 +602,7 @@ REMEMBER: Call save_profile_data for any info the user provided. Call trigger_pr
                 name: "Conversational Assistant",
                 instructions:
                   CONVERSATIONAL_AGENT_INSTRUCTIONS +
-                  `\n\nIMPORTANT: The user just provided their LinkedIn profile URL. Acknowledge it briefly and let them know you're fetching their profile data now. Keep your response to 1-2 short sentences. Do NOT call any tools right now.`,
+                  `\n\nIMPORTANT: The user just provided their LinkedIn profile URL. Acknowledge it briefly and let them know you're fetching their profile data now. Keep your response to 1-2 short sentences. Do NOT call any tools. Do NOT ask any questions — just confirm you're fetching their profile.`,
                 model: "gpt-4.1-nano",
               })
               await streamAgent(fillerAgent, createPrompt(collectedDataState))
