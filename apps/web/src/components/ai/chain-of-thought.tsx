@@ -7,6 +7,23 @@ import { createContext, memo, useContext, useMemo } from "react"
 import { Badge } from "~/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible"
 import { cn } from "~/lib/utils"
+export type ImageProps = {
+  alt: string
+  base64?: string
+  mediaType?: string
+  uint8Array?: Uint8Array
+  className?: string
+}
+
+export const Image = ({ alt, base64, mediaType = "image/png", uint8Array, className }: ImageProps) => {
+  let src = ""
+  if (base64) {
+    src = `data:${mediaType};base64,${base64}`
+  } else if (uint8Array && uint8Array.length) {
+    src = URL.createObjectURL(new Blob([uint8Array.buffer as ArrayBuffer], { type: mediaType }))
+  }
+  return <img alt={alt} src={src} className={cn(className)} />
+}
 
 interface ChainOfThoughtContextValue {
   isOpen: boolean
@@ -197,7 +214,7 @@ ChainOfThoughtSearchResult.displayName = "ChainOfThoughtSearchResult"
 ChainOfThoughtContent.displayName = "ChainOfThoughtContent"
 ChainOfThoughtImage.displayName = "ChainOfThoughtImage"
 
-import { Image } from "~/packages/ai/image"
+ 
 
 const exampleImage = {
   base64:

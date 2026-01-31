@@ -553,17 +553,7 @@
      ═══════════════════════════════════════════════════════════════════════════ */
 
   .interview-prep-gradient {
-    background: linear-gradient(
-      135deg,
-      var(--primary),
-      oklch(70% 0.16 155),
-      var(--primary)
-    );
-    background-size: 200% 200%;
-    animation: interview-gradient 4s ease infinite;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--primary);
   }
 
   @keyframes interview-gradient {
