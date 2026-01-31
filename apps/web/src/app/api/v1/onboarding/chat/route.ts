@@ -7,6 +7,7 @@ import {
   triggerLinkedInScrape as triggerScrapeUtil,
   getLinkedInScrapeStatus as getScrapeStatusUtil,
 } from "@/lib/linkedin-scraper.server"
+import { getDataStatus } from "@/lib/onboarding-voice-config"
 
 // ============================================================================
 // Zod Schema for Collected Onboarding Data
@@ -191,6 +192,7 @@ const CONVERSATIONAL_AGENT_INSTRUCTIONS = `You are a friendly, casual onboarding
 - Concise but not robotic
 - No emojis
 - Never be annoying or repetitive
+- **ALWAYS use the user's first name frequently** — aim to include it in almost every response to make the conversation personal and engaging
 
 ## CRITICAL RULES
 1. **ONE question per message** — never ask multiple questions
@@ -203,7 +205,8 @@ const CONVERSATIONAL_AGENT_INSTRUCTIONS = `You are a friendly, casual onboarding
 
 ## Flow (STILL NEEDED list controls the order — trust it, do NOT reorder)
 The system generates a numbered STILL NEEDED list. ALWAYS ask about item #1 (marked <<<<). The order is:
-fullName → teamMode → experienceLevel → skills → experiences → education → currentRate → dreamRate → engagementTypes → linkedinUrl
+fullName → experienceLevel → skills → experiences → education → currentRate → dreamRate → engagementTypes → linkedinUrl
+(teamMode is auto-set to "solo" and not asked)
 
 ## LinkedIn Enhancement (final step)
 When the user provides a LinkedIn URL at the end:
@@ -227,10 +230,11 @@ When the user provides a LinkedIn URL at the end:
 - Call trigger_profile_analysis ONLY when STILL NEEDED says "ALL DONE"
 
 ## Response Format When Items Are STILL NEEDED
-- 1-2 sentences acknowledging their input
+- 1-2 sentences acknowledging their input, **using their first name**
 - Then ask the ONE question for the item marked <<<< ASK THIS ONE NEXT
 - Sound human, not like a form
 - Do NOT say "last thing" or "almost done" — just ask naturally
+- Examples: "Thanks, [Name]! Now let me ask...", "Got it, [Name]. Next question...", "Perfect, [Name]..."
 
 ## Profile Readiness (STILL NEEDED says "ALL DONE")
 When STILL NEEDED says "ALL DONE" and ONLY then:
@@ -447,81 +451,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Helper to show what's collected vs missing
-    const getDataStatus = (data: Partial<CollectedData>) => {
-      const filled: string[] = []
-      const missing: string[] = []
-
-      // fullName is always first
-      if (data.fullName) filled.push(`fullName: ${data.fullName}`)
-      else missing.push("fullName (ask: 'What's your name?')")
-
-      if (data.teamMode) filled.push(`teamMode: ${data.teamMode}`)
-      else missing.push("teamMode")
-
-      if (data.experienceLevel)
-        filled.push(`experienceLevel: ${data.experienceLevel}`)
-      else missing.push("experienceLevel")
-
-      if (data.skills?.length)
-        filled.push(`skills: ${data.skills.map((s) => s.name).join(", ")}`)
-      else
-        missing.push(
-          "skills (ask for specific technical skills, frameworks, languages - need at least 3)"
-        )
-
-      if (data.experiences?.length)
-        filled.push(
-          `experiences: ${data.experiences.map((e) => `${e.title} at ${e.company}`).join("; ")}`
-        )
-      else
-        missing.push(
-          "experiences (ask for recent job: title, company name, rough dates, what they worked on - need at least 1)"
-        )
-
-      if (data.educations?.length)
-        filled.push(
-          `educations: ${data.educations.map((e) => `${e.degree} from ${e.school}`).join("; ")}`
-        )
-      else missing.push("education (need at least 1 - school and degree/field)")
-
-      if (
-        data.currentRateMin !== null &&
-        data.currentRateMin !== undefined
-      )
-        filled.push(
-          `currentRate: $${data.currentRateMin}${data.currentRateMax ? `-${data.currentRateMax}` : "+"}${data.currency ? ` ${data.currency}` : ""}`
-        )
-      else missing.push("currentRate")
-
-      if (
-        data.dreamRateMin !== null &&
-        data.dreamRateMin !== undefined
-      )
-        filled.push(
-          `dreamRate: $${data.dreamRateMin}${data.dreamRateMax ? `-${data.dreamRateMax}` : "+"}`
-        )
-      else missing.push("dreamRate")
-
-      // Engagement types are optional but asked before LinkedIn
-      if (data.engagementTypes?.length)
-        filled.push(`engagementTypes: ${data.engagementTypes.join(", ")}`)
-      else missing.push("engagementTypes (ask: 'Full-time, part-time, or both?')")
-
-      // LinkedIn URL is the final optional step (not required for analysis)
-      if (data.linkedinUrl)
-        filled.push(`linkedinUrl: ${data.linkedinUrl}`)
-
-      // Track whether only optional items remain
-      const linkedinPending = !data.linkedinUrl
-      const allRequiredDone = missing.length === 0
-
-      if (allRequiredDone && linkedinPending) {
-        missing.push("linkedinUrl (OPTIONAL FINAL STEP — ask if they want to add their LinkedIn URL or skip. If the user says skip/no/decline/analyze in ANY form, immediately call trigger_profile_analysis with confirmation: true. Do NOT ask again. Do NOT re-prompt.)")
-      }
-
-      return { filled, missing }
-    }
+    // getDataStatus is imported from @/lib/onboarding-voice-config (shared between text + voice)
 
     // Create prompt dynamically with current data state
     const createPrompt = (

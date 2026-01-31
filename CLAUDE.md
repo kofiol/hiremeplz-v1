@@ -149,3 +149,5 @@ pnpm test
 ```
 
 Add or update tests for any code changes. PR title format: `[<project_name>] <Title>`
+
+FULL DOCS AVALIABLE AT APPS/DOCS - CONSULT CAREFULLY BEFORE CHANGES ALONGSIDE SKILLS/

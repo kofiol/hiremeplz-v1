@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Command, Home, Settings, PanelLeft, Mic } from "lucide-react"
+import { Command, FileText, Home, Settings, PanelLeft, Mic, PenLine } from "lucide-react"
 import Link from "next/link"
 
 import { NavMain } from "@/components/nav-main"
@@ -34,6 +34,8 @@ function getPlanLabel(plan: string | null) {
 const navMain = [
   { title: "Overview", url: "/overview", icon: Home },
   { title: "Interview Prep", url: "/interview-prep", icon: Mic, badge: "BETA" },
+  { title: "CV Builder", url: "/cv-builder", icon: FileText, badge: "BETA" },
+  { title: "Proposal Writer", url: "/proposal-writer", icon: PenLine, badge: "BETA" },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

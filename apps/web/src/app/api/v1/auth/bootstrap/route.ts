@@ -60,11 +60,21 @@ export async function POST(request: NextRequest) {
     const user = userData.user;
     const userId = user.id;
     const email = user.email ?? null;
+
+    // Try to get display name from various metadata fields
+    // Google OAuth provides: full_name, name, or email
+    // Prioritize: full_name > name (if not email-like) > email
     const fullName =
-      typeof user.user_metadata?.full_name === "string" &&
-      user.user_metadata.full_name.length > 0
+      (typeof user.user_metadata?.full_name === "string" &&
+       user.user_metadata.full_name.length > 0
         ? user.user_metadata.full_name
-        : null;
+        : null) ??
+      (typeof user.user_metadata?.name === "string" &&
+       user.user_metadata.name.length > 0 &&
+       !user.user_metadata.name.includes("@") // Skip if it's an email
+        ? user.user_metadata.name
+        : null);
+
     await ensureUserProfileAndTeam({
       userId,
       email,

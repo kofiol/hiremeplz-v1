@@ -57,3 +57,5 @@ If the task is unreasonable or infeasible, or if any of the tests are incorrect,
 - Title format: `[<project_name>] <Title>`
 - Always run `pnpm lint` and `pnpm test` before committing
 - Add or update tests for any code changes
+
+FULL DOCS AVALIABLE AT APPS/DOCS - CONSULT CAREFULLY BEFORE CHANGES ALONGSIDE SKILLS/

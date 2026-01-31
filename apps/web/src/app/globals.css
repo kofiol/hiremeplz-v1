@@ -681,4 +681,57 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 12px oklch(0 0 0 / 0.15);
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ONBOARDING VOICE MODE - Status dots & visualization bars
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Status dot */
+  .voice-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    background: oklch(from var(--muted-foreground) l c h / 0.5);
+  }
+
+  .voice-dot-connected {
+    background: oklch(72% 0.19 155);
+    box-shadow: 0 0 6px oklch(72% 0.19 155 / 0.4);
+  }
+
+  .voice-dot-listening {
+    background: oklch(72% 0.19 155);
+    box-shadow: 0 0 8px oklch(72% 0.19 155 / 0.5);
+    animation: voice-dot-pulse 1.5s ease-in-out infinite;
+  }
+
+  .voice-dot-speaking {
+    background: var(--primary);
+    box-shadow: 0 0 8px oklch(from var(--primary) l c h / 0.5);
+    animation: voice-dot-pulse 1.2s ease-in-out infinite;
+  }
+
+  .voice-dot-error {
+    background: oklch(63% 0.24 29);
+    box-shadow: none;
+    animation: none;
+  }
+
+  /* Visualization bars */
+  .voice-viz-bar {
+    width: 3px;
+    height: 8px;
+    border-radius: 9999px;
+    transform-origin: center;
+    transition: background-color 0.3s ease;
+    background: oklch(from var(--muted-foreground) l c h / 0.3);
+  }
+
+  /* Status dot pulse animation */
+  @keyframes voice-dot-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.7; }
+  }
 }

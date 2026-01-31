@@ -45,7 +45,9 @@ import { Reasoning } from "@/components/ui/reasoning"
 import { ProfileAnalysisResults, ProfileScoreCard } from "@/components/ui/score-indicator"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Check, CheckCircle, Linkedin, LoaderIcon, OctagonX, Pencil, Square, X, XCircle } from "lucide-react"
+import { Check, CheckCircle, Linkedin, LoaderIcon, Mic, OctagonX, Pencil, Square, X, XCircle } from "lucide-react"
+import { useVoiceRecording } from "@/hooks/use-voice-recording"
+import { OnboardingVoiceBar } from "@/components/onboarding-voice-bar"
 
 // ============================================================================
 // Types
@@ -87,6 +89,7 @@ type ChatMessage = {
   toolCall?: ToolCallInfo
   profileAnalysis?: ProfileAnalysis
   reasoning?: ReasoningInfo
+  voiceOrigin?: boolean
 }
 
 type CollectedData = {
@@ -131,7 +134,7 @@ type CollectedData = {
 
 const initialCollectedData: CollectedData = {
   fullName: null,
-  teamMode: null,
+  teamMode: "solo", // Auto-set to solo, no need to ask
   profilePath: "manual",
   linkedinUrl: null,
   experienceLevel: null,
@@ -168,9 +171,6 @@ function getSuggestedReplies(data: CollectedData, messages: ChatMessage[]): stri
   const lastText = lastAssistant?.content.toLowerCase() ?? ""
 
   // Match based on what the assistant just asked (keyword detection)
-  if (lastText.includes("solo") && lastText.includes("team")) {
-    return ["Solo", "Team"]
-  }
   if (lastText.includes("experience level")) {
     return ["Entry level", "Mid level", "Senior", "Lead"]
   }
@@ -189,7 +189,7 @@ function getSuggestedReplies(data: CollectedData, messages: ChatMessage[]): stri
 
   // Fallback: data-driven waterfall for cases where keyword detection misses
   if (data.fullName === null) return []
-  if (data.teamMode === null) return ["Solo", "Team"]
+  // teamMode is auto-set, skip
   if (data.experienceLevel === null) return ["Entry level", "Mid level", "Senior", "Lead"]
   if (!data.skills || data.skills.length === 0) return []
   if (!data.experiences || data.experiences.length === 0) return []
@@ -339,6 +339,13 @@ export function OnboardingChatbot() {
     [linkedinUrl]
   )
 
+  // Voice recording (BETA) — push-to-talk STT
+  const voiceRecording = useVoiceRecording({
+    accessToken: session?.access_token ?? null,
+    onTranscript: (text) => sendMessage(text),
+    onError: (err) => setError(err),
+  })
+
   // Load progress on mount
   useEffect(() => {
     async function loadProgress() {
@@ -356,8 +363,44 @@ export function OnboardingChatbot() {
           if (data.onboardingProgress) {
             const { messages: savedMessages, collectedData: savedData, hasStarted: savedHasStarted } = data.onboardingProgress
             if (savedMessages) setMessages(savedMessages)
-            if (savedData) setCollectedData(savedData)
+            if (savedData) {
+              // Pre-fill name from auth metadata if not already set
+              // Skip user_metadata.name if it looks like an email prefix (e.g. "kofiol.09")
+              const metaName = session?.user?.user_metadata?.name as string | undefined
+              const useMetaName = metaName && !metaName.includes("@") && !metaName.includes(".")
+                ? metaName
+                : null
+
+              const nameFromAuth = planDisplayName ??
+                (session?.user?.user_metadata?.full_name as string | undefined) ??
+                useMetaName ??
+                (session?.user?.user_metadata?.display_name as string | undefined) ??
+                null
+
+              setCollectedData({
+                ...savedData,
+                fullName: savedData.fullName || nameFromAuth,
+                teamMode: savedData.teamMode || "solo", // Auto-set to solo if not set
+              })
+            }
             if (savedHasStarted) setHasStarted(savedHasStarted)
+          } else {
+            // No saved progress — pre-fill name from auth metadata
+            // Skip user_metadata.name if it looks like an email prefix
+            const metaName = session?.user?.user_metadata?.name as string | undefined
+            const useMetaName = metaName && !metaName.includes("@") && !metaName.includes(".")
+              ? metaName
+              : null
+
+            const nameFromAuth = planDisplayName ??
+              (session?.user?.user_metadata?.full_name as string | undefined) ??
+              useMetaName ??
+              (session?.user?.user_metadata?.display_name as string | undefined) ??
+              null
+
+            if (nameFromAuth) {
+              setCollectedData((prev) => ({ ...prev, fullName: nameFromAuth }))
+            }
           }
         }
       } catch (err) {
@@ -627,13 +670,18 @@ export function OnboardingChatbot() {
     abortControllerRef.current = controller
 
     try {
+      // Include the user's name in the initial message if we have it
+      const initialMessage = collectedData.fullName
+        ? `Hi, I'm ${collectedData.fullName} and I'm ready to set up my profile!`
+        : "Hi, I'm ready to set up my profile!"
+
       const response = await fetch("/api/v1/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: "Hi, I'm ready to set up my profile!",
+          message: initialMessage,
           conversationHistory: [],
-          collectedData: initialCollectedData,
+          collectedData,
           stream: true,
         }),
         signal: controller.signal,
@@ -646,7 +694,7 @@ export function OnboardingChatbot() {
       const contentType = response.headers.get("content-type")
 
       if (contentType?.includes("text/event-stream")) {
-        await processStreamResponse(response, [], initialCollectedData, newHasStarted, controller.signal)
+        await processStreamResponse(response, [], collectedData, newHasStarted, controller.signal)
       } else {
         // Fallback for non-streaming response
         const data = await response.json()
@@ -794,7 +842,6 @@ export function OnboardingChatbot() {
     setLinkedinDialogOpen(false)
     setLinkedinUrl("")
     setShowFocus(false)
-    // Send the URL as a message to the chat
     sendMessage(`Here's my LinkedIn profile: ${normalizedUrl}`)
   }, [linkedinUrl, linkedinValidation.isValid, sendMessage])
 
@@ -1056,7 +1103,7 @@ export function OnboardingChatbot() {
               </p>
             </div>
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-3">
               <Button
                 size="lg"
                 className="gap-2 px-8 py-6 text-base shadow-[0_0_20px_oklch(from_var(--primary)_l_c_h_/_0.15)] transition-shadow hover:shadow-[0_0_30px_oklch(from_var(--primary)_l_c_h_/_0.25)]"
@@ -1065,6 +1112,7 @@ export function OnboardingChatbot() {
               >
                 Start onboarding
               </Button>
+
             </div>
           </motion.div>
         ) : (
@@ -1124,7 +1172,7 @@ export function OnboardingChatbot() {
                             </div>
                           ) : (
                             <div className="group relative flex items-center gap-2">
-                              {!isLoading && !isStreaming && (
+                              {!isLoading && !isStreaming && voiceRecording.status === "idle" && (
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -1278,8 +1326,8 @@ export function OnboardingChatbot() {
               className={`relative z-40 shrink-0 transition-all duration-150 ${showFocus ? "mx-auto w-[calc(100%-2rem)] max-w-3xl mb-4 rounded-2xl p-6" : ""}`}
             >
             <div className={showFocus ? "" : "bg-background px-4 pb-6 pt-4"}>
-              {/* Quick reply badges */}
-              {hasStarted && !isLoading && !isStreaming && suggestedReplies.length > 0 && editingMessageId === null && (
+              {/* Quick reply badges — hidden during voice mode */}
+              {hasStarted && voiceRecording.status === "idle" && !isLoading && !isStreaming && suggestedReplies.length > 0 && editingMessageId === null && (
                 <div className="mx-auto max-w-3xl pb-2">
                   <div className="flex flex-wrap gap-2">
                     {suggestedReplies.map((reply) => {
@@ -1306,41 +1354,82 @@ export function OnboardingChatbot() {
                   </div>
                 </div>
               )}
-              <PromptInput
-                onSubmit={handleSubmit}
-                className="mx-auto max-w-3xl [&_[data-slot=input-group]]:border-border/50 [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
-              >
-                <PromptInputBody>
-                  <PromptInputTextarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => {
-                      setInput(e.target.value)
-                      setShowFocus(false)
-                    }}
-                    onFocus={() => setShowFocus(false)}
-                    placeholder="Type your response..."
-                    disabled={editingMessageId !== null}
-                    className="min-h-10 text-base"
-                  />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  {isLoading || isStreaming ? (
-                    <PromptInputSubmit
-                      type="button"
-                      onClick={stopGeneration}
-                      className="bg-accent text-accent-foreground hover:bg-accent/90"
+
+              {/* Input area: swap between text input and voice bar */}
+              <div className="mx-auto max-w-3xl">
+                <AnimatePresence mode="wait">
+                  {voiceRecording.status !== "idle" ? (
+                    <motion.div
+                      key="voice-bar"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      <Square className="size-4 fill-current" />
-                    </PromptInputSubmit>
+                      <OnboardingVoiceBar
+                        status={voiceRecording.status}
+                        elapsed={voiceRecording.elapsed}
+                        audioLevel={voiceRecording.audioLevel}
+                        onStop={voiceRecording.stop}
+                      />
+                    </motion.div>
                   ) : (
-                    <PromptInputSubmit
-                      className="bg-accent text-accent-foreground hover:bg-accent/90"
-                      disabled={editingMessageId !== null || !input.trim()}
-                    />
+                    <motion.div
+                      key="text-input"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <PromptInput
+                        onSubmit={handleSubmit}
+                        className="[&_[data-slot=input-group]]:border-border/50 [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
+                      >
+                        <PromptInputBody>
+                          <PromptInputTextarea
+                            ref={textareaRef}
+                            value={input}
+                            onChange={(e) => {
+                              setInput(e.target.value)
+                              setShowFocus(false)
+                            }}
+                            onFocus={() => setShowFocus(false)}
+                            placeholder="Type your response..."
+                            disabled={editingMessageId !== null}
+                            className="min-h-10 text-base"
+                          />
+                        </PromptInputBody>
+                        <PromptInputFooter>
+                          {voiceRecording.isSupported && !isLoading && !isStreaming && (
+                            <button
+                              type="button"
+                              onClick={() => voiceRecording.start()}
+                              className="relative flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              aria-label="Record voice message"
+                            >
+                              <Mic className="size-4" />
+                            </button>
+                          )}
+                          {isLoading || isStreaming ? (
+                            <PromptInputSubmit
+                              type="button"
+                              onClick={stopGeneration}
+                              className="bg-accent text-accent-foreground hover:bg-accent/90"
+                            >
+                              <Square className="size-4 fill-current" />
+                            </PromptInputSubmit>
+                          ) : (
+                            <PromptInputSubmit
+                              className="bg-accent text-accent-foreground hover:bg-accent/90"
+                              disabled={editingMessageId !== null || !input.trim()}
+                            />
+                          )}
+                        </PromptInputFooter>
+                      </PromptInput>
+                    </motion.div>
                   )}
-                </PromptInputFooter>
-              </PromptInput>
+                </AnimatePresence>
+              </div>
             </div>
             </div>
           </motion.div>
