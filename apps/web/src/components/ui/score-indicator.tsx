@@ -3,6 +3,13 @@
 import * as React from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { Card, CardContent } from "@/components/ui/card"
+import {
+  Brain,
+  Briefcase,
+  DollarSign,
+  TrendingUp,
+} from "lucide-react"
 
 const DEFAULT_COLORS = [
   "#ef4444", // red-500
@@ -182,6 +189,176 @@ export function ProfileScoreCard({
           </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Shared Score Components (used by interview-prep and onboarding)
+// ============================================================================
+
+export function ScoreRing({
+  score,
+  size = 160,
+}: {
+  score: number
+  size?: number
+}) {
+  const strokeWidth = 8
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (score / 100) * circumference
+
+  const getColor = (s: number) => {
+    if (s >= 80) return "text-emerald-500"
+    if (s >= 60) return "text-amber-500"
+    return "text-red-500"
+  }
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-muted/30"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className={cn("transition-all duration-1000 ease-out", getColor(score))}
+          style={{
+            animation: "score-fill 1.5s ease-out forwards",
+          }}
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className={cn("text-4xl font-bold tabular-nums", getColor(score))}>
+          {score}
+        </span>
+        <span className="text-xs text-muted-foreground">out of 100</span>
+      </div>
+    </div>
+  )
+}
+
+export function CategoryBar({
+  label,
+  score,
+  icon: Icon,
+  colorClass,
+}: {
+  label: string
+  score: number
+  icon: React.ComponentType<{ className?: string }>
+  colorClass: string
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className="size-4 text-muted-foreground" />
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+        <span className="text-sm font-bold tabular-nums">{score}</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
+        <div
+          className={cn("h-full rounded-full bg-gradient-to-r transition-all duration-1000 ease-out", colorClass)}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Profile Analysis Results (rich structured UI for onboarding)
+// ============================================================================
+
+const profileCategoryConfig = {
+  skillsBreadth: {
+    label: "Skills & Expertise",
+    icon: Brain,
+    color: "from-blue-500 to-cyan-500",
+  },
+  experienceQuality: {
+    label: "Experience Quality",
+    icon: Briefcase,
+    color: "from-purple-500 to-pink-500",
+  },
+  ratePositioning: {
+    label: "Rate Positioning",
+    icon: DollarSign,
+    color: "from-amber-500 to-orange-500",
+  },
+  marketReadiness: {
+    label: "Market Readiness",
+    icon: TrendingUp,
+    color: "from-emerald-500 to-teal-500",
+  },
+}
+
+type ProfileAnalysis = {
+  overallScore: number
+  categories: {
+    skillsBreadth: number
+    experienceQuality: number
+    ratePositioning: number
+    marketReadiness: number
+  }
+  strengths: string[]
+  improvements: string[]
+  detailedFeedback: string
+}
+
+export function ProfileAnalysisResults({
+  analysis,
+}: {
+  analysis: ProfileAnalysis
+}) {
+  // Guard against old-format data missing structured fields
+  if (!analysis.categories) return null
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold tracking-tight">Profile Analysis</h2>
+      {/* Score card with ring + category bars */}
+      <Card className="overflow-hidden border-border/50">
+        <CardContent className="flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-start sm:gap-10">
+          <ScoreRing score={analysis.overallScore} />
+          <div className="flex-1 space-y-5">
+            {(
+              Object.entries(profileCategoryConfig) as [
+                keyof typeof profileCategoryConfig,
+                (typeof profileCategoryConfig)[keyof typeof profileCategoryConfig],
+              ][]
+            ).map(([key, config]) => (
+              <CategoryBar
+                key={key}
+                label={config.label}
+                score={analysis.categories[key]}
+                icon={config.icon}
+                colorClass={config.color}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

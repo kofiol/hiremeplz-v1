@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { useSession } from "@/app/auth/session-provider"
 import { useFocusMode } from "@/hooks/use-focus-mode"
@@ -240,11 +239,10 @@ export function SettingsPanel({
   return (
     <div className="space-y-6 p-4 lg:p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-medium">Settings</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
       </div>
-      <Separator />
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-[220px_1fr]">
-        <aside className="space-y-1">
+        <aside className="space-y-1 rounded-xl bg-muted/30 p-2">
           {sections.map((section) => {
             const Icon = section.icon
             const isActive = activeSection === section.key
@@ -253,11 +251,11 @@ export function SettingsPanel({
                 key={section.key}
                 type="button"
                 onClick={() => setActiveSection(section.key)}
-                className={
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all duration-200 ${
                   isActive
-                    ? "bg-accent text-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-base font-medium"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground flex w-full items-center gap-2 rounded-md px-3 py-2 text-base"
-                }
+                    ? "bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                }`}
               >
                 <Icon className="size-4" />
                 <span className="truncate">{section.label}</span>
@@ -268,295 +266,306 @@ export function SettingsPanel({
 
         <div className="space-y-6">
           {activeSection === "profile" && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="settings-display-name">Display name</Label>
-                <Input
-                  id="settings-display-name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Jane Doe"
-                  disabled={isLoading || !canLoad}
-                />
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-sm font-medium">Profile</h2>
+                <p className="text-xs text-muted-foreground">Manage your display name and currency</p>
               </div>
-              <Separator />
-              <div className="space-y-2">
-                <Label htmlFor="settings-currency">Currency</Label>
-                <Input
-                  id="settings-currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                  placeholder="USD"
-                  disabled={isLoading || !canLoad}
-                />
-                <p className="text-muted-foreground text-xs">
-                  Three-letter code (e.g. USD, EUR).
-                </p>
+              <div className="space-y-5 rounded-xl border border-border/50 bg-card p-5">
+                <div className="space-y-2">
+                  <Label htmlFor="settings-display-name">Display name</Label>
+                  <Input
+                    id="settings-display-name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Jane Doe"
+                    disabled={isLoading || !canLoad}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="settings-currency">Currency</Label>
+                  <Input
+                    id="settings-currency"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                    placeholder="USD"
+                    disabled={isLoading || !canLoad}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Three-letter code (e.g. USD, EUR).
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
           {activeSection === "job_search" && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label>Platforms</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(["upwork", "linkedin"] as const).map((platform) => (
-                    <div
-                      key={platform}
-                      role="button"
-                      tabIndex={isLoading || !canLoad ? -1 : 0}
-                      aria-disabled={isLoading || !canLoad}
-                      onClick={() => {
-                        if (isLoading || !canLoad) return
-                        const next = new Set(platforms)
-                        if (next.has(platform)) next.delete(platform)
-                        else next.add(platform)
-                        setPlatforms(next)
-                      }}
-                      onKeyDown={(e) => {
-                        if (isLoading || !canLoad) return
-                        if (e.key !== "Enter" && e.key !== " ") return
-                        e.preventDefault()
-                        const next = new Set(platforms)
-                        if (next.has(platform)) next.delete(platform)
-                        else next.add(platform)
-                        setPlatforms(next)
-                      }}
-                      className={`border-input hover:bg-accent/40 flex items-center justify-between rounded-md border px-3 py-2 text-sm ${isLoading || !canLoad ? "pointer-events-none opacity-50" : ""}`}
-                    >
-                      <span className="capitalize">{platform}</span>
-                      <Checkbox
-                        checked={platforms.has(platform)}
-                        disabled={isLoading || !canLoad}
-                        onCheckedChange={() => {
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-sm font-medium">Job Search</h2>
+                <p className="text-xs text-muted-foreground">Configure platforms, rates, and search preferences</p>
+              </div>
+              <div className="space-y-5 rounded-xl border border-border/50 bg-card p-5">
+                <div className="space-y-2">
+                  <Label>Platforms</Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(["upwork", "linkedin"] as const).map((platform) => (
+                      <div
+                        key={platform}
+                        role="button"
+                        tabIndex={isLoading || !canLoad ? -1 : 0}
+                        aria-disabled={isLoading || !canLoad}
+                        onClick={() => {
+                          if (isLoading || !canLoad) return
                           const next = new Set(platforms)
                           if (next.has(platform)) next.delete(platform)
                           else next.add(platform)
                           setPlatforms(next)
                         }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  ))}
+                        onKeyDown={(e) => {
+                          if (isLoading || !canLoad) return
+                          if (e.key !== "Enter" && e.key !== " ") return
+                          e.preventDefault()
+                          const next = new Set(platforms)
+                          if (next.has(platform)) next.delete(platform)
+                          else next.add(platform)
+                          setPlatforms(next)
+                        }}
+                        className={`flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm transition-colors duration-150 hover:border-primary/30 hover:bg-accent/40 ${isLoading || !canLoad ? "pointer-events-none opacity-50" : ""}`}
+                      >
+                        <span className="capitalize">{platform}</span>
+                        <Checkbox
+                          checked={platforms.has(platform)}
+                          disabled={isLoading || !canLoad}
+                          onCheckedChange={() => {
+                            const next = new Set(platforms)
+                            if (next.has(platform)) next.delete(platform)
+                            else next.add(platform)
+                            setPlatforms(next)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <Separator />
-
-              <div className="space-y-2">
-                <Label>Job search tightness</Label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setTightness(value)}
-                      className={
-                        value === tightness
-                          ? "bg-primary text-primary-foreground size-9 rounded-md text-sm font-medium"
-                          : "border-input hover:bg-accent/40 size-9 rounded-md border text-sm"
-                      }
-                      disabled={isLoading || !canLoad}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-muted-foreground text-xs">1 = broad, 5 = strict.</p>
-              </div>
-
-              <Separator />
-
-              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="settings-hourly-min">Hourly min</Label>
-                  <Input
-                    id="settings-hourly-min"
-                    type="number"
-                    min={0}
-                    value={hourlyMin}
-                    onChange={(e) => setHourlyMin(e.target.value)}
-                    placeholder="0"
-                    disabled={isLoading || !canLoad}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="settings-hourly-max">Hourly max</Label>
-                  <Input
-                    id="settings-hourly-max"
-                    type="number"
-                    min={0}
-                    value={hourlyMax}
-                    onChange={(e) => setHourlyMax(e.target.value)}
-                    placeholder="0"
-                    disabled={isLoading || !canLoad}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="settings-fixed-min">Fixed budget min</Label>
-                  <Input
-                    id="settings-fixed-min"
-                    type="number"
-                    min={0}
-                    value={fixedBudgetMin}
-                    onChange={(e) => setFixedBudgetMin(e.target.value)}
-                    placeholder="0"
-                    disabled={isLoading || !canLoad}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label>Project types</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(
-                    [
-                      { key: "short_gig", label: "Short gigs" },
-                      { key: "medium_project", label: "Medium projects" },
-                    ] as const
-                  ).map((item) => (
-                    <div
-                      key={item.key}
-                      role="button"
-                      tabIndex={isLoading || !canLoad ? -1 : 0}
-                      aria-disabled={isLoading || !canLoad}
-                      onClick={() => {
-                        if (isLoading || !canLoad) return
-                        const next = new Set(projectTypes)
-                        if (next.has(item.key)) next.delete(item.key)
-                        else next.add(item.key)
-                        setProjectTypes(next)
-                      }}
-                      onKeyDown={(e) => {
-                        if (isLoading || !canLoad) return
-                        if (e.key !== "Enter" && e.key !== " ") return
-                        e.preventDefault()
-                        const next = new Set(projectTypes)
-                        if (next.has(item.key)) next.delete(item.key)
-                        else next.add(item.key)
-                        setProjectTypes(next)
-                      }}
-                      className={`border-input hover:bg-accent/40 flex items-center justify-between rounded-md border px-3 py-2 text-sm ${isLoading || !canLoad ? "pointer-events-none opacity-50" : ""}`}
-                    >
-                      <span>{item.label}</span>
-                      <Checkbox
-                        checked={projectTypes.has(item.key)}
+                  <Label>Job search tightness</Label>
+                  <div className="flex gap-1.5 rounded-full bg-muted/50 p-1">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setTightness(value)}
+                        className={`size-9 rounded-full text-sm transition-all duration-200 ${
+                          value === tightness
+                            ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                        }`}
                         disabled={isLoading || !canLoad}
-                        onCheckedChange={() => {
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground text-xs">1 = broad, 5 = strict.</p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-hourly-min">Hourly min</Label>
+                    <Input
+                      id="settings-hourly-min"
+                      type="number"
+                      min={0}
+                      value={hourlyMin}
+                      onChange={(e) => setHourlyMin(e.target.value)}
+                      placeholder="0"
+                      disabled={isLoading || !canLoad}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-hourly-max">Hourly max</Label>
+                    <Input
+                      id="settings-hourly-max"
+                      type="number"
+                      min={0}
+                      value={hourlyMax}
+                      onChange={(e) => setHourlyMax(e.target.value)}
+                      placeholder="0"
+                      disabled={isLoading || !canLoad}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-fixed-min">Fixed budget min</Label>
+                    <Input
+                      id="settings-fixed-min"
+                      type="number"
+                      min={0}
+                      value={fixedBudgetMin}
+                      onChange={(e) => setFixedBudgetMin(e.target.value)}
+                      placeholder="0"
+                      disabled={isLoading || !canLoad}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Project types</Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(
+                      [
+                        { key: "short_gig", label: "Short gigs" },
+                        { key: "medium_project", label: "Medium projects" },
+                      ] as const
+                    ).map((item) => (
+                      <div
+                        key={item.key}
+                        role="button"
+                        tabIndex={isLoading || !canLoad ? -1 : 0}
+                        aria-disabled={isLoading || !canLoad}
+                        onClick={() => {
+                          if (isLoading || !canLoad) return
                           const next = new Set(projectTypes)
                           if (next.has(item.key)) next.delete(item.key)
                           else next.add(item.key)
                           setProjectTypes(next)
                         }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="settings-timezones">Time zones</Label>
-                  <Input
-                    id="settings-timezones"
-                    value={timeZonesText}
-                    onChange={(e) => setTimeZonesText(e.target.value)}
-                    placeholder="America/New_York, Europe/London"
-                    disabled={isLoading || !canLoad}
-                  />
-                  <p className="text-muted-foreground text-xs">Comma-separated.</p>
-                </div>
-
-                <div className="border-input flex items-center justify-between rounded-md border px-3 py-2">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-medium">Remote only</Label>
-                    <p className="text-muted-foreground text-xs">
-                      Only show fully remote roles.
-                    </p>
+                        onKeyDown={(e) => {
+                          if (isLoading || !canLoad) return
+                          if (e.key !== "Enter" && e.key !== " ") return
+                          e.preventDefault()
+                          const next = new Set(projectTypes)
+                          if (next.has(item.key)) next.delete(item.key)
+                          else next.add(item.key)
+                          setProjectTypes(next)
+                        }}
+                        className={`flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm transition-colors duration-150 hover:border-primary/30 hover:bg-accent/40 ${isLoading || !canLoad ? "pointer-events-none opacity-50" : ""}`}
+                      >
+                        <span>{item.label}</span>
+                        <Checkbox
+                          checked={projectTypes.has(item.key)}
+                          disabled={isLoading || !canLoad}
+                          onCheckedChange={() => {
+                            const next = new Set(projectTypes)
+                            if (next.has(item.key)) next.delete(item.key)
+                            else next.add(item.key)
+                            setProjectTypes(next)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    ))}
                   </div>
-                  <Checkbox
-                    checked={remoteOnly}
-                    onCheckedChange={(value) => setRemoteOnly(value === true)}
-                    disabled={isLoading || !canLoad}
-                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-timezones">Time zones</Label>
+                    <Input
+                      id="settings-timezones"
+                      value={timeZonesText}
+                      onChange={(e) => setTimeZonesText(e.target.value)}
+                      placeholder="America/New_York, Europe/London"
+                      disabled={isLoading || !canLoad}
+                    />
+                    <p className="text-muted-foreground text-xs">Comma-separated.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 transition-colors duration-150 hover:border-primary/30">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">Remote only</Label>
+                      <p className="text-muted-foreground text-xs">
+                        Only show fully remote roles.
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={remoteOnly}
+                      onCheckedChange={(value) => setRemoteOnly(value === true)}
+                      disabled={isLoading || !canLoad}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {activeSection === "beta" && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label>Focus Mode</Label>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    BETA
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-sm">
-                  After the AI responds, dim the rest of the page so you can focus on your reply.
-                </p>
-                <div className="border-input flex items-center justify-between rounded-md border px-3 py-2">
-                  <span className="text-sm">Enable Focus Mode</span>
-                  <Checkbox
-                    checked={focusModeEnabled}
-                    onCheckedChange={(value) => setFocusModeEnabled(value === true)}
-                  />
-                </div>
-                
-                {focusModeEnabled && (
-                  <div className="space-y-3 rounded-md border border-input p-3 bg-accent/20">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">Opacity</Label>
-                      <span className="text-sm text-muted-foreground">{focusOpacity}%</span>
-                    </div>
-                    <Slider
-                      value={[focusOpacity]}
-                      min={0}
-                      max={100}
-                      step={5}
-                      onValueChange={(vals) => setFocusOpacity(vals[0])}
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-sm font-medium">Beta Features</h2>
+                <p className="text-xs text-muted-foreground">Experimental features in active development</p>
+              </div>
+              <div className="space-y-4 rounded-xl border border-border/50 bg-card p-5">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Label>Focus Mode</Label>
+                    <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
+                      BETA
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    After the AI responds, dim the rest of the page so you can focus on your reply.
+                  </p>
+                  <div className="flex items-center justify-between rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors duration-150 hover:border-primary/30">
+                    <span className="text-sm">Enable Focus Mode</span>
+                    <Checkbox
+                      checked={focusModeEnabled}
+                      onCheckedChange={(value) => setFocusModeEnabled(value === true)}
                     />
                   </div>
-                )}
-              </div>
 
-              <Separator />
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label>LinkedIn Import Popup</Label>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    BETA
-                  </span>
+                  {focusModeEnabled && (
+                    <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm">Opacity</Label>
+                        <span className="text-sm text-muted-foreground">{focusOpacity}%</span>
+                      </div>
+                      <Slider
+                        value={[focusOpacity]}
+                        min={0}
+                        max={100}
+                        step={5}
+                        onValueChange={(vals) => setFocusOpacity(vals[0])}
+                      />
+                    </div>
+                  )}
                 </div>
-                <p className="text-muted-foreground text-sm">
-                  Open a dedicated popup for entering your LinkedIn URL with real-time validation.
-                </p>
-                <div className="border-input flex items-center justify-between rounded-md border px-3 py-2">
-                  <span className="text-sm">Enable LinkedIn Popup</span>
-                  <Checkbox
-                    checked={linkedinPopupEnabled}
-                    onCheckedChange={(value) => setLinkedinPopupEnabled(value === true)}
-                  />
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Label>LinkedIn Import Popup</Label>
+                    <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
+                      BETA
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    Open a dedicated popup for entering your LinkedIn URL with real-time validation.
+                  </p>
+                  <div className="flex items-center justify-between rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors duration-150 hover:border-primary/30">
+                    <span className="text-sm">Enable LinkedIn Popup</span>
+                    <Checkbox
+                      checked={linkedinPopupEnabled}
+                      onCheckedChange={(value) => setLinkedinPopupEnabled(value === true)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-4">
             {showCancel ? (
               <Button variant="outline" onClick={onCancel} disabled={isSaving}>
                 Cancel
               </Button>
             ) : null}
-            <Button onClick={handleSave} disabled={!canLoad || isLoading || isSaving}>
+            <Button
+              onClick={handleSave}
+              disabled={!canLoad || isLoading || isSaving}
+              className="w-full shadow-sm sm:w-auto"
+            >
               {isSaving ? "Saving..." : "Save changes"}
             </Button>
           </div>

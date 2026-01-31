@@ -46,7 +46,7 @@ export function SettingsDialog({
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-[calc(100%-2rem)] overflow-hidden p-0 sm:max-w-[780px]">
+      <DialogContent className="max-w-[calc(100%-2rem)] overflow-hidden border-border/50 p-0 backdrop-blur-sm sm:max-w-[780px]">
         <div className="max-h-[80vh] overflow-y-auto">
           <SettingsPanel
             enabled={open}

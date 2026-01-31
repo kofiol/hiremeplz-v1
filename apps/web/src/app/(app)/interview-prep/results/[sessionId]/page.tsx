@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ScoreRing, CategoryBar } from "@/components/ui/score-indicator"
 import {
   Sparkles,
   ArrowLeft,
@@ -21,7 +22,6 @@ import {
   Clock,
   Target,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import type { InterviewAnalysis } from "@/lib/agents/analysis-agent"
 import {
   type InterviewType,
@@ -71,101 +71,6 @@ const categoryConfig = {
     color: "from-emerald-500 to-teal-500",
     bg: "bg-emerald-500",
   },
-}
-
-function ScoreRing({
-  score,
-  size = 160,
-}: {
-  score: number
-  size?: number
-}) {
-  const strokeWidth = 8
-  const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (score / 100) * circumference
-
-  const getColor = (s: number) => {
-    if (s >= 80) return "text-emerald-500"
-    if (s >= 60) return "text-amber-500"
-    return "text-red-500"
-  }
-
-  const getGlow = (s: number) => {
-    if (s >= 80) return "drop-shadow(0 0 20px rgb(16 185 129 / 0.4))"
-    if (s >= 60) return "drop-shadow(0 0 20px rgb(245 158 11 / 0.4))"
-    return "drop-shadow(0 0 20px rgb(239 68 68 / 0.4))"
-  }
-
-  return (
-    <div
-      className="relative flex items-center justify-center"
-      style={{ width: size, height: size, filter: getGlow(score) }}
-    >
-      <svg width={size} height={size} className="-rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          className="text-muted/30"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className={cn("transition-all duration-1000 ease-out", getColor(score))}
-          style={{
-            animation: "score-fill 1.5s ease-out forwards",
-          }}
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className={cn("text-4xl font-bold tabular-nums", getColor(score))}>
-          {score}
-        </span>
-        <span className="text-xs text-muted-foreground">out of 100</span>
-      </div>
-    </div>
-  )
-}
-
-function CategoryBar({
-  label,
-  score,
-  icon: Icon,
-  colorClass,
-}: {
-  label: string
-  score: number
-  icon: typeof MessageSquare
-  colorClass: string
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className="size-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{label}</span>
-        </div>
-        <span className="text-sm font-bold tabular-nums">{score}</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
-        <div
-          className={cn("h-full rounded-full bg-gradient-to-r transition-all duration-1000 ease-out", colorClass)}
-          style={{ width: `${score}%` }}
-        />
-      </div>
-    </div>
-  )
 }
 
 export default function InterviewResultsPage() {

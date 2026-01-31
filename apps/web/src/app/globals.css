@@ -556,7 +556,7 @@
     background: linear-gradient(
       135deg,
       var(--primary),
-      oklch(70% 0.2 280),
+      oklch(70% 0.16 155),
       var(--primary)
     );
     background-size: 200% 200%;
@@ -668,5 +668,27 @@
     from {
       stroke-dashoffset: var(--circumference, 1000);
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     UI POLISH - Reusable utility classes
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  .glass-card {
+    background: oklch(from var(--card) l c h / 0.8);
+    backdrop-filter: blur(4px);
+    border: 1px solid oklch(from var(--border) l c h / 0.5);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px oklch(from var(--primary) l c h / 0.1);
+  }
+
+  .hover-lift {
+    transition: all 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.15);
   }
 }

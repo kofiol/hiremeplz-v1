@@ -14,8 +14,6 @@ import {
   Sparkles,
   ArrowRight,
   User,
-  Briefcase,
-  Zap,
   ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -56,51 +54,7 @@ export default function InterviewPrepPage() {
   const { session, isLoading: sessionLoading } = useSession()
   const router = useRouter()
   const [selectedType, setSelectedType] = useState<InterviewType>("client_discovery")
-  const [profile, setProfile] = useState<{
-    display_name: string | null
-    headline: string | null
-    skills: string[]
-  } | null>(null)
   const [isStarting, setIsStarting] = useState(false)
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
-
-  useEffect(() => {
-    async function loadProfile() {
-      if (!session) return
-      try {
-        const [meRes, skillsRes] = await Promise.all([
-          fetch("/api/v1/me", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          fetch("/api/v1/onboarding/progress", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-        ])
-
-        const meData = await meRes.json()
-        let skills: string[] = []
-
-        if (skillsRes.ok) {
-          const progressData = await skillsRes.json()
-          skills =
-            progressData?.settings_json?.collectedData?.skills?.map(
-              (s: { name: string }) => s.name
-            ) ?? []
-        }
-
-        setProfile({
-          display_name: meData.display_name,
-          headline: null,
-          skills,
-        })
-      } catch {
-        // non-blocking
-      } finally {
-        setIsLoadingProfile(false)
-      }
-    }
-    loadProfile()
-  }, [session])
 
   async function handleStart() {
     if (!session || isStarting) return
@@ -159,35 +113,6 @@ export default function InterviewPrepPage() {
             Get scored on communication, confidence, and content quality.
           </p>
         </div>
-
-        {/* Profile card */}
-        {!isLoadingProfile && profile && (
-          <div className="mb-8 flex items-center gap-4 rounded-xl border border-border/50 bg-card/50 p-4 backdrop-blur-sm">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Briefcase className="size-5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">
-                {profile.display_name ?? "Freelancer"}
-              </p>
-              {profile.skills.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {profile.skills.slice(0, 5).map((skill) => (
-                    <Badge key={skill} variant="secondary" className="text-xs">
-                      {skill}
-                    </Badge>
-                  ))}
-                  {profile.skills.length > 5 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{profile.skills.length - 5}
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </div>
-            <Zap className="size-5 text-primary/50" />
-          </div>
-        )}
 
         {/* Interview type selector */}
         <div className="mb-8">

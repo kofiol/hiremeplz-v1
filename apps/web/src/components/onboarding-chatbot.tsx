@@ -42,7 +42,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Reasoning } from "@/components/ui/reasoning"
-import { ProfileScoreCard } from "@/components/ui/score-indicator"
+import { ProfileAnalysisResults, ProfileScoreCard } from "@/components/ui/score-indicator"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Check, CheckCircle, Linkedin, LoaderIcon, OctagonX, Pencil, Square, X, XCircle } from "lucide-react"
@@ -58,10 +58,21 @@ type ToolCallInfo = {
 }
 
 type ProfileAnalysis = {
-  score: number
-  title: string
-  summary: string
-  analysis: string
+  overallScore: number
+  categories: {
+    skillsBreadth: number
+    experienceQuality: number
+    ratePositioning: number
+    marketReadiness: number
+  }
+  strengths: string[]
+  improvements: string[]
+  detailedFeedback: string
+  // Legacy fields from old saved progress (pre-structured analysis)
+  score?: number
+  title?: string
+  summary?: string
+  analysis?: string
 }
 
 type ReasoningInfo = {
@@ -121,7 +132,7 @@ type CollectedData = {
 const initialCollectedData: CollectedData = {
   fullName: null,
   teamMode: null,
-  profilePath: null,
+  profilePath: "manual",
   linkedinUrl: null,
   experienceLevel: null,
   skills: null,
@@ -150,48 +161,45 @@ function getSuggestedReplies(data: CollectedData, messages: ChatMessage[]): stri
     return ["View opportunities", "Edit my profile", "Explore settings"]
   }
 
-  // Step 0: Name — user types, no suggestions
-  if (data.fullName === null) {
-    return []
-  }
-  // Step 1: Solo or team?
-  if (data.teamMode === null) {
+  // Detect what the last assistant message is asking about
+  const lastAssistant = [...messages].reverse().find(
+    (m) => m.role === "assistant" && m.content && !m.toolCall && !m.profileAnalysis
+  )
+  const lastText = lastAssistant?.content.toLowerCase() ?? ""
+
+  // Match based on what the assistant just asked (keyword detection)
+  if (lastText.includes("solo") && lastText.includes("team")) {
     return ["Solo", "Team"]
   }
-  // Step 2: Profile setup method (only LinkedIn or Manual)
-  if (data.profilePath === null) {
-    return ["Import from LinkedIn", "Tell you manually"]
+  if (lastText.includes("experience level")) {
+    return ["Entry level", "Mid level", "Senior", "Lead"]
   }
-
-  // For LinkedIn: skip experience level and skills (they come from LinkedIn)
-  // For Manual: ask about experience and skills
-  if (data.profilePath === "manual") {
-    if (data.experienceLevel === null) {
-      return ["Entry level", "Mid level", "Senior", "Lead"]
-    }
-    if (!data.skills || data.skills.length === 0) {
-      return [] // Empty - user should type their skills
-    }
-    // No suggestions for experiences and education - user types
-    if (!data.experiences || data.experiences.length === 0) {
-      return []
-    }
-    if (!data.educations || data.educations.length === 0) {
-      return []
-    }
-  }
-
-  // Both paths: ask about rates
-  if (data.currentRateMin === null && data.currentRateMax === null) {
-    return ["$30-50/hr", "$50-100/hr", "$100-150/hr", "$150+/hr"]
-  }
-  if (data.dreamRateMin === null && data.dreamRateMax === null) {
-    return ["$50-100/hr", "$100-200/hr", "$200-300/hr", "$300+/hr"]
-  }
-  // Engagement types are optional
-  if (data.engagementTypes === null) {
+  if (lastText.includes("full-time") && lastText.includes("part-time")) {
     return ["Full-time", "Part-time", "Both"]
   }
+  if (lastText.includes("dream") && lastText.includes("rate")) {
+    return ["$50-100/hr", "$100-200/hr", "$200-300/hr", "$300+/hr"]
+  }
+  if (lastText.includes("current") && lastText.includes("rate")) {
+    return ["$30-50/hr", "$50-100/hr", "$100-150/hr", "$150+/hr"]
+  }
+  if (lastText.includes("linkedin")) {
+    return ["Add my LinkedIn", "Skip, analyze my profile"]
+  }
+
+  // Fallback: data-driven waterfall for cases where keyword detection misses
+  if (data.fullName === null) return []
+  if (data.teamMode === null) return ["Solo", "Team"]
+  if (data.experienceLevel === null) return ["Entry level", "Mid level", "Senior", "Lead"]
+  if (!data.skills || data.skills.length === 0) return []
+  if (!data.experiences || data.experiences.length === 0) return []
+  if (!data.educations || data.educations.length === 0) return []
+  if (data.currentRateMin === null && data.currentRateMax === null)
+    return ["$30-50/hr", "$50-100/hr", "$100-150/hr", "$150+/hr"]
+  if (data.dreamRateMin === null && data.dreamRateMax === null)
+    return ["$50-100/hr", "$100-200/hr", "$200-300/hr", "$300+/hr"]
+  if (data.engagementTypes === null) return ["Full-time", "Part-time", "Both"]
+  if (!data.linkedinUrl) return ["Add my LinkedIn", "Skip, analyze my profile"]
   return []
 }
 
@@ -500,10 +508,11 @@ export function OnboardingChatbot() {
             } else if (parsed.type === "profile_analysis") {
               // Profile analysis completed
               profileAnalysisResult = {
-                score: parsed.score,
-                title: parsed.title,
-                summary: parsed.summary,
-                analysis: parsed.analysis,
+                overallScore: parsed.overallScore,
+                categories: parsed.categories,
+                strengths: parsed.strengths,
+                improvements: parsed.improvements,
+                detailedFeedback: parsed.detailedFeedback,
               }
             } else if (parsed.type === "analysis_error") {
               // Analysis uses reasoning UI, no tool call state to clear
@@ -587,7 +596,7 @@ export function OnboardingChatbot() {
       newMessages.push({
         id: generateId(),
         role: "assistant",
-        content: profileAnalysisResult.analysis,
+        content: "",
         profileAnalysis: profileAnalysisResult,
         reasoning: reasoningText
           ? { content: reasoningText, duration: reasoningDur }
@@ -1027,7 +1036,7 @@ export function OnboardingChatbot() {
             className="flex flex-1 flex-col items-center justify-center gap-8 p-6 min-h-0"
           >
             <div className="text-center">
-              <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary/10 p-4">
+              <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary/5 p-4 ring-1 ring-primary/20">
                 <Image
                   src="/favicon.svg"
                   alt="HireMePlz"
@@ -1037,7 +1046,7 @@ export function OnboardingChatbot() {
                 />
               </div>
               <h1
-                className="mb-2 text-2xl tracking-tight"
+                className="mb-2 text-2xl font-semibold tracking-tight"
                 suppressHydrationWarning
               >
                 {greeting}, {userName}
@@ -1050,7 +1059,7 @@ export function OnboardingChatbot() {
             <div className="flex flex-col items-center gap-4">
               <Button
                 size="lg"
-                className="gap-2 px-8 py-6 text-base shadow-sm"
+                className="gap-2 px-8 py-6 text-base shadow-[0_0_20px_oklch(from_var(--primary)_l_c_h_/_0.15)] transition-shadow hover:shadow-[0_0_30px_oklch(from_var(--primary)_l_c_h_/_0.25)]"
                 onClick={startConversation}
                 disabled={isLoading}
               >
@@ -1133,7 +1142,7 @@ export function OnboardingChatbot() {
                           )}
                         </div>
                       ) : message.toolCall ? (
-                        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/80 px-3 py-2 text-sm text-muted-foreground backdrop-blur-sm">
                           {message.toolCall.status === "completed" ? (
                             <CheckCircle className="size-3.5 text-green-500" />
                           ) : message.toolCall.status === "aborted" ? (
@@ -1157,16 +1166,33 @@ export function OnboardingChatbot() {
                               duration={message.reasoning.duration}
                             />
                           )}
-                          <ProfileScoreCard
-                            score={message.profileAnalysis.score}
-                            title={message.profileAnalysis.title}
-                            summary={message.profileAnalysis.summary}
-                          />
-                          <div className="prose prose-base prose-invert max-w-none text-foreground prose-headings:text-white prose-strong:text-white">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {message.profileAnalysis.analysis}
-                            </ReactMarkdown>
-                          </div>
+                          {message.profileAnalysis.categories ? (
+                            <>
+                              <ProfileAnalysisResults
+                                analysis={message.profileAnalysis}
+                              />
+                              <div className="prose prose-base prose-invert max-w-none text-foreground prose-headings:text-white prose-strong:text-white">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {message.profileAnalysis.detailedFeedback}
+                                </ReactMarkdown>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {message.profileAnalysis.score != null && (
+                                <ProfileScoreCard
+                                  score={message.profileAnalysis.score}
+                                  title={message.profileAnalysis.title ?? "Profile Analysis"}
+                                  summary={message.profileAnalysis.summary ?? ""}
+                                />
+                              )}
+                              <div className="prose prose-base prose-invert max-w-none text-foreground prose-headings:text-white prose-strong:text-white">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {message.content || message.profileAnalysis.analysis || ""}
+                                </ReactMarkdown>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <div className="max-w-none whitespace-pre-wrap text-base text-foreground">
@@ -1193,7 +1219,7 @@ export function OnboardingChatbot() {
                 {activeToolCall && (
                   <Message from="assistant" hideAvatar>
                     <MessageContent>
-                      <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/80 px-3 py-2 text-sm text-muted-foreground backdrop-blur-sm">
                         <LoaderIcon className="size-3.5 animate-spin" />
                         <span>
                           Fetching LinkedIn profile
@@ -1257,7 +1283,7 @@ export function OnboardingChatbot() {
                 <div className="mx-auto max-w-3xl pb-2">
                   <div className="flex flex-wrap gap-2">
                     {suggestedReplies.map((reply) => {
-                      const isLinkedinBadge = reply === "Import from LinkedIn"
+                      const isLinkedinBadge = reply === "Add my LinkedIn"
                       return (
                         <button
                           key={reply}
@@ -1270,7 +1296,7 @@ export function OnboardingChatbot() {
                               sendMessage(reply)
                             }
                           }}
-                          className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-4 py-1.5 text-sm font-medium text-foreground transition-all duration-150 hover:border-primary/30 hover:bg-accent hover:text-accent-foreground hover:shadow-sm"
                         >
                           {isLinkedinBadge && <Linkedin className="size-3.5" />}
                           {reply}
@@ -1282,7 +1308,7 @@ export function OnboardingChatbot() {
               )}
               <PromptInput
                 onSubmit={handleSubmit}
-                className="mx-auto max-w-3xl [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
+                className="mx-auto max-w-3xl [&_[data-slot=input-group]]:border-border/50 [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
               >
                 <PromptInputBody>
                   <PromptInputTextarea

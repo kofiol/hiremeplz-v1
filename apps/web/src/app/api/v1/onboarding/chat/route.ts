@@ -59,10 +59,16 @@ type CollectedData = z.infer<typeof CollectedDataSchema>
 
 // Profile Analysis Response Schema
 const ProfileAnalysisResponseSchema = z.object({
-  score: z.number().min(0).max(100),
-  title: z.string(),
-  summary: z.string(),
-  analysis: z.string(),
+  overallScore: z.number().min(0).max(100),
+  categories: z.object({
+    skillsBreadth: z.number().min(0).max(100),
+    experienceQuality: z.number().min(0).max(100),
+    ratePositioning: z.number().min(0).max(100),
+    marketReadiness: z.number().min(0).max(100),
+  }),
+  strengths: z.array(z.string()).min(1).max(3),
+  improvements: z.array(z.string()).min(1).max(3),
+  detailedFeedback: z.string(),
 })
 
 type ProfileAnalysisResponse = z.infer<typeof ProfileAnalysisResponseSchema>
@@ -74,12 +80,34 @@ const ProfileAnalysisJsonSchema = {
   schema: {
     type: "object" as const,
     additionalProperties: false,
-    required: ["score", "title", "summary", "analysis"],
+    required: [
+      "overallScore",
+      "categories",
+      "strengths",
+      "improvements",
+      "detailedFeedback",
+    ],
     properties: {
-      score: { type: "number" },
-      title: { type: "string" },
-      summary: { type: "string" },
-      analysis: { type: "string" },
+      overallScore: { type: "number" },
+      categories: {
+        type: "object" as const,
+        additionalProperties: false,
+        required: [
+          "skillsBreadth",
+          "experienceQuality",
+          "ratePositioning",
+          "marketReadiness",
+        ],
+        properties: {
+          skillsBreadth: { type: "number" },
+          experienceQuality: { type: "number" },
+          ratePositioning: { type: "number" },
+          marketReadiness: { type: "number" },
+        },
+      },
+      strengths: { type: "array", items: { type: "string" } },
+      improvements: { type: "array", items: { type: "string" } },
+      detailedFeedback: { type: "string" },
     },
   },
 }
@@ -165,69 +193,54 @@ const CONVERSATIONAL_AGENT_INSTRUCTIONS = `You are a friendly, casual onboarding
 - Never be annoying or repetitive
 
 ## CRITICAL RULES
-1. **ONE question per message** - never ask multiple questions
-2. **Check the "ALREADY COLLECTED" section** - NEVER ask about those items
-3. **Ask about the FIRST item in "STILL NEEDED"** - follow the EXACT priority order listed
-4. **Items marked "(blocked)" must wait** - NEVER ask about blocked items, ask about the first NON-blocked item
-5. **ALWAYS call save_profile_data** whenever the user provides ANY profile information
-6. **Call trigger_profile_analysis** ONLY when ALL required fields are present
+1. **ONE question per message** — never ask multiple questions
+2. **Check the "ALREADY COLLECTED" section** — NEVER ask about those items
+3. **ONLY ask the question marked "<<<< ASK THIS ONE NEXT"** in the STILL NEEDED list — do NOT skip ahead, do NOT pick a different item
+4. **ALWAYS call save_profile_data** whenever the user provides ANY profile information
+5. **NEVER call trigger_profile_analysis AND ask a question in the same turn.** If there are STILL NEEDED items, ask the next question and do NOT trigger analysis.
+6. **NEVER call trigger_profile_analysis if ANY items remain in STILL NEEDED** — even optional ones. Ask about them first.
+7. **NEVER say "last thing", "final question", or similar** unless the item marked NEXT is linkedinUrl. You do not know how many items remain — just ask the next one naturally.
 
-## Required Fields for Analysis
-ALL of these must be present before calling trigger_profile_analysis:
-- fullName
-- teamMode
-- experienceLevel
-- skills (at least 3)
-- experiences (at least 1)
-- educations (at least 1)
-- currentRate (min or max)
-- dreamRate (min or max)
+## Flow (STILL NEEDED list controls the order — trust it, do NOT reorder)
+The system generates a numbered STILL NEEDED list. ALWAYS ask about item #1 (marked <<<<). The order is:
+fullName → teamMode → experienceLevel → skills → experiences → education → currentRate → dreamRate → engagementTypes → linkedinUrl
 
-## Global Flow (always ask these first, in order)
-1. fullName - "What's your name?" (first and last)
-2. teamMode - "Are you freelancing solo or with a team?"
-3. profilePath - "Would you like to import your profile from LinkedIn, or tell me about yourself manually?"
+## LinkedIn Enhancement (final step)
+When the user provides a LinkedIn URL at the end:
+- The system will automatically scrape their profile and merge data with what was manually collected
+- After LinkedIn data is merged, if all required fields are present, call trigger_profile_analysis
+- If the user says "skip" or similar, call trigger_profile_analysis with the manually collected data
 
-## LinkedIn Flow (profilePath: linkedin)
-When LinkedIn data is fetched:
-- Skills, experience, and education come FROM LinkedIn - DO NOT ask about them
-- ONLY ask about: currentRate → dreamRate
-- Engagement types are OPTIONAL - do not block analysis for them
-- Summarize their profile briefly, then immediately ask about their current hourly rate
-
-## Manual Flow (profilePath: manual)
-After profilePath is set, ask in this EXACT order (one at a time):
-1. experienceLevel - "What's your experience level?" (entry/mid/senior/lead/director)
-2. skills - "What are your main skills?" (list specific technologies, frameworks, languages — need at least 3). If user gives fewer than 3, ask for more.
-3. experiences - "Tell me about your most recent role — title, company, rough dates, and what you worked on." Push for detail: dates (even approximate like "2022-2024"), key accomplishments, technologies used. If the answer is vague, ask ONE follow-up for highlights/achievements before moving on.
-4. education - "What's your highest education? School, degree, and field?"
-5. currentRate - "What's your current hourly rate or range?"
-6. dreamRate - "What would your dream hourly rate be — what you'd love to earn?"
-7. engagementTypes - "Are you looking for full-time, part-time, or both?"
-
-## Probing for Detail
-- When the user gives a bare-bones answer for experiences (e.g. "dev at Google"), ask a SINGLE follow-up: "Nice! Roughly when was that, and what did you work on?"
+## Probing for Detail — ALWAYS prefer asking for more over accepting thin answers
+- It is MUCH better to ask a follow-up than to accept a vague answer and later penalize the user in the analysis.
+- When the user gives a bare-bones answer for experiences (e.g. "dev at Google"), ask a follow-up: "Nice! Roughly when was that, and what did you work on?"
 - When the user gives fewer than 3 skills, say something like: "Got it — any other tools or frameworks you use regularly?"
-- Do NOT ask more than ONE follow-up per topic. If they give a vague second answer, accept it and move on.
+- When experience descriptions lack detail (no dates, no highlights, no metrics), ask ONE follow-up: "Could you share rough dates and a key accomplishment from that role?"
+- For education, if they just say a school name, ask: "What did you study there?"
+- You may ask UP TO TWO follow-ups per topic if the answers are very thin. After two follow-ups, accept what you have and move on.
+- The goal is to collect RICH data so the profile analysis is accurate and fair. Thin data = harsh analysis. Help the user by drawing out details.
 
 ## Tool Usage
 - Call save_profile_data EVERY TIME the user provides information, even partial
 - When extracting rates, parse ranges like "$50-100" into min/max values
 - For currency, detect from symbols ($=USD, €=EUR, £=GBP) or default to USD
-- Call trigger_profile_analysis ONLY when all required fields are confirmed present
+- Call trigger_profile_analysis ONLY when STILL NEEDED says "ALL DONE"
 
 ## Response Format When Items Are STILL NEEDED
 - 1-2 sentences acknowledging their input
-- Then ask the ONE question for the first missing item
+- Then ask the ONE question for the item marked <<<< ASK THIS ONE NEXT
 - Sound human, not like a form
+- Do NOT say "last thing" or "almost done" — just ask naturally
 
 ## Profile Readiness (STILL NEEDED says "ALL DONE")
-When all required data has been collected:
+When STILL NEEDED says "ALL DONE" and ONLY then:
 - Call trigger_profile_analysis with confirmation: true
 - Give a warm, brief wrap-up (1-2 sentences confirming you have everything)
 - Do NOT ask any further questions
 - Do NOT end your message with a question mark
-- Example: "That's everything I need! Let me analyze your profile now."`
+- Example: "That's everything I need! Let me analyze your profile now."
+
+**IF STILL NEEDED HAS ANY ITEMS — even one — do NOT trigger analysis. Ask the next question instead.**`
 
 const PROFILE_ANALYSIS_INSTRUCTIONS = `You are a professional career advisor. Analyze the user's freelancer profile and provide comprehensive feedback.
 
@@ -242,44 +255,37 @@ You are analyzing data collected during a structured onboarding chat. ONLY evalu
 ## Response Format
 Return valid JSON with this exact structure:
 {
-  "score": <number 0-100>,
-  "title": "Profile Analysis",
-  "summary": "<3-5 word summary like 'Strong Senior Developer Profile'>",
-  "analysis": "<Full markdown analysis with proper ### headings>"
+  "overallScore": <number 0-100>,
+  "categories": {
+    "skillsBreadth": <number 0-100>,
+    "experienceQuality": <number 0-100>,
+    "ratePositioning": <number 0-100>,
+    "marketReadiness": <number 0-100>
+  },
+  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "detailedFeedback": "<2-3 paragraphs of prose feedback>"
 }
 
-## Analysis Markdown Format - USE EXACT SYNTAX
-The "analysis" field MUST use proper markdown heading syntax with ### prefix:
+## Category Scoring Guidelines
+- **skillsBreadth** (0-100): Variety and depth of skills. Are they specialized enough? Do they have complementary skills?
+- **experienceQuality** (0-100): Relevance, detail, and track record of their experience. Are highlights specific and impactful?
+- **ratePositioning** (0-100): How well their current and dream rates align with their experience level and market. Is the gap realistic?
+- **marketReadiness** (0-100): Overall readiness to win freelance work based on the full picture.
 
-\`\`\`markdown
-### Overview
-Brief 2-3 sentence overview of the profile.
-
-### Strengths
-- First strength point
-- Second strength point
-- Third strength point
-
-### Areas for Improvement
-- Focus on gaps in the PROVIDED data: vague experience descriptions, missing dates, limited skill variety, etc.
-- Suggest concrete ways to strengthen what was shared.
-
-### Rate Analysis
-- Current rate assessment relative to experience level and skill set
-- Dream rate feasibility and market comparison for their specialization
-- Concrete steps to bridge the gap between current and dream rate
-
-### Market Insights
-- How their skills and experience position them in the current market
-- Complementary skills that would increase their rate
-
-### Next Steps
-1. First actionable item based on their profile data
-2. Second actionable item
-3. Third actionable item
-\`\`\`
-
-IMPORTANT: You MUST include the "### " prefix (hash-hash-hash-space) before each heading. Without it, headings won't render correctly.
+## Field Guidelines
+- **strengths**: 1-3 concise bullet points about what's strong in their profile. Each should be a single sentence.
+- **improvements**: 1-3 concise, actionable suggestions for improving what was shared (NOT for adding external links/portfolio). Each should be a single sentence.
+- **detailedFeedback**: A rich, detailed markdown analysis. This is the main body of the report — make it long and thorough.
+  - Start with a "## Strengths" section listing the same strengths from the strengths array as bullet points, with extra detail/context for each.
+  - Follow with a "## Areas for Improvement" section listing the improvements with expanded advice.
+  - Then include sections like "## Rate Analysis", "## Market Insights", "## Next Steps".
+  - Use heading hierarchy: ## for main sections, ### for subsections, #### for sub-subsections. Vary the depth.
+  - Use bullet points, numbered lists, bold text, and other markdown formatting freely.
+  - CRITICAL: Each list item and each heading MUST be on its own line. Use real newlines (\n), never put multiple list items or headings on the same line. Example:
+    "## Next Steps\n\n1. First action item\n2. Second action item\n3. Third action item"
+    NOT: "1. First 2. Second 3. Third"
+  - Write like a career coach — actionable, specific, grounded in their data.
 
 Be encouraging but honest. Ground every observation in the data that was actually provided.`
 
@@ -350,6 +356,7 @@ export async function POST(request: NextRequest) {
       fullName: z.string().nullable(),
       teamMode: z.enum(["solo", "team"]).nullable(),
       profilePath: z.enum(["linkedin", "manual"]).nullable(),
+      linkedinUrl: z.string().nullable(),
       experienceLevel: z
         .enum(["intern_new_grad", "entry", "mid", "senior", "lead", "director"])
         .nullable(),
@@ -409,7 +416,7 @@ export async function POST(request: NextRequest) {
     const triggerProfileAnalysis = tool({
       name: "trigger_profile_analysis",
       description:
-        "Trigger profile analysis. ONLY call when ALL required fields are present: teamMode, experienceLevel, skills (3+), experiences (1+), educations (1+), currentRate, dreamRate.",
+        "Trigger profile analysis. ONLY call when STILL NEEDED says 'ALL DONE'. You must have asked about LinkedIn (user provided URL or explicitly skipped) before calling this.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       parameters: z.object({ confirmation: z.literal(true) }) as any,
       execute: async () => {
@@ -428,9 +435,11 @@ export async function POST(request: NextRequest) {
           missing.push("currentRate")
         if (collectedDataState.dreamRateMin == null && collectedDataState.dreamRateMax == null)
           missing.push("dreamRate")
+        if (!collectedDataState.engagementTypes || collectedDataState.engagementTypes.length < 1)
+          missing.push("engagementTypes")
 
         if (missing.length > 0) {
-          return `CANNOT trigger analysis yet. Still missing: ${missing.join(", ")}. Ask the user about these first.`
+          return `CANNOT trigger analysis yet. Still missing: ${missing.join(", ")}. Ask the user about these first. Do NOT call trigger_profile_analysis again until all items are resolved.`
         }
 
         analysisRequested = true
@@ -442,9 +451,6 @@ export async function POST(request: NextRequest) {
     const getDataStatus = (data: Partial<CollectedData>) => {
       const filled: string[] = []
       const missing: string[] = []
-      const isLinkedIn = data.profilePath === "linkedin"
-      const isManual = data.profilePath === "manual"
-      const hasPath = isLinkedIn || isManual
 
       // fullName is always first
       if (data.fullName) filled.push(`fullName: ${data.fullName}`)
@@ -453,69 +459,32 @@ export async function POST(request: NextRequest) {
       if (data.teamMode) filled.push(`teamMode: ${data.teamMode}`)
       else missing.push("teamMode")
 
-      if (data.profilePath) filled.push(`profilePath: ${data.profilePath}`)
-      else missing.push("profilePath (ask: 'Would you like to import from LinkedIn or tell me manually?')")
+      if (data.experienceLevel)
+        filled.push(`experienceLevel: ${data.experienceLevel}`)
+      else missing.push("experienceLevel")
 
-      // For LinkedIn: these come from profile, don't ask
-      if (isLinkedIn) {
-        if (data.experienceLevel)
-          filled.push(`experienceLevel: ${data.experienceLevel} (from LinkedIn)`)
-        else filled.push("experienceLevel: inferred from LinkedIn")
+      if (data.skills?.length)
+        filled.push(`skills: ${data.skills.map((s) => s.name).join(", ")}`)
+      else
+        missing.push(
+          "skills (ask for specific technical skills, frameworks, languages - need at least 3)"
+        )
 
-        if (data.skills?.length)
-          filled.push(
-            `skills: ${data.skills.map((s) => s.name).join(", ")} (from LinkedIn)`
-          )
-        else filled.push("skills: from LinkedIn profile")
+      if (data.experiences?.length)
+        filled.push(
+          `experiences: ${data.experiences.map((e) => `${e.title} at ${e.company}`).join("; ")}`
+        )
+      else
+        missing.push(
+          "experiences (ask for recent job: title, company name, rough dates, what they worked on - need at least 1)"
+        )
 
-        if (data.experiences?.length)
-          filled.push(
-            `experiences: ${data.experiences.length} positions (from LinkedIn)`
-          )
-        else filled.push("experiences: from LinkedIn profile")
+      if (data.educations?.length)
+        filled.push(
+          `educations: ${data.educations.map((e) => `${e.degree} from ${e.school}`).join("; ")}`
+        )
+      else missing.push("education (need at least 1 - school and degree/field)")
 
-        if (data.educations?.length)
-          filled.push(
-            `educations: ${data.educations.length} entries (from LinkedIn)`
-          )
-        else filled.push("educations: from LinkedIn profile")
-      } else if (isManual) {
-        // Manual path: need to ask all of these
-        if (data.experienceLevel)
-          filled.push(`experienceLevel: ${data.experienceLevel}`)
-        else missing.push("experienceLevel")
-
-        if (data.skills?.length)
-          filled.push(`skills: ${data.skills.map((s) => s.name).join(", ")}`)
-        else
-          missing.push(
-            "skills (ask for specific technical skills, frameworks, languages - need at least 3)"
-          )
-
-        if (data.experiences?.length)
-          filled.push(
-            `experiences: ${data.experiences.map((e) => `${e.title} at ${e.company}`).join("; ")}`
-          )
-        else
-          missing.push(
-            "experiences (ask for recent job: title, company name, rough dates, what they worked on - need at least 1)"
-          )
-
-        if (data.educations?.length)
-          filled.push(
-            `educations: ${data.educations.map((e) => `${e.degree} from ${e.school}`).join("; ")}`
-          )
-        else missing.push("education (need at least 1 - school and degree/field)")
-      } else if (!hasPath) {
-        // profilePath not chosen yet — show downstream fields as blocked
-        // so the agent understands a full flow remains and doesn't skip ahead
-        missing.push("experienceLevel (blocked — need profilePath first)")
-        missing.push("skills (blocked — need profilePath first)")
-        missing.push("experiences (blocked — need profilePath first)")
-        missing.push("education (blocked — need profilePath first)")
-      }
-
-      // These ALWAYS need to be asked (LinkedIn doesn't have them)
       if (
         data.currentRateMin !== null &&
         data.currentRateMin !== undefined
@@ -523,7 +492,7 @@ export async function POST(request: NextRequest) {
         filled.push(
           `currentRate: $${data.currentRateMin}${data.currentRateMax ? `-${data.currentRateMax}` : "+"}${data.currency ? ` ${data.currency}` : ""}`
         )
-      else missing.push("currentRate (blocked — need profilePath first)")
+      else missing.push("currentRate")
 
       if (
         data.dreamRateMin !== null &&
@@ -532,11 +501,24 @@ export async function POST(request: NextRequest) {
         filled.push(
           `dreamRate: $${data.dreamRateMin}${data.dreamRateMax ? `-${data.dreamRateMax}` : "+"}`
         )
-      else missing.push("dreamRate (blocked — need profilePath first)")
+      else missing.push("dreamRate")
 
-      // Engagement types are optional
+      // Engagement types are optional but asked before LinkedIn
       if (data.engagementTypes?.length)
-        filled.push(`engagementTypes: ${data.engagementTypes.join(", ")} (optional)`)
+        filled.push(`engagementTypes: ${data.engagementTypes.join(", ")}`)
+      else missing.push("engagementTypes (ask: 'Full-time, part-time, or both?')")
+
+      // LinkedIn URL is the final optional step (not required for analysis)
+      if (data.linkedinUrl)
+        filled.push(`linkedinUrl: ${data.linkedinUrl}`)
+
+      // Track whether only optional items remain
+      const linkedinPending = !data.linkedinUrl
+      const allRequiredDone = missing.length === 0
+
+      if (allRequiredDone && linkedinPending) {
+        missing.push("linkedinUrl (OPTIONAL FINAL STEP — ask if they want to add their LinkedIn URL or skip. If the user says skip/no/decline/analyze in ANY form, immediately call trigger_profile_analysis with confirmation: true. Do NOT ask again. Do NOT re-prompt.)")
+      }
 
       return { filled, missing }
     }
@@ -546,13 +528,37 @@ export async function POST(request: NextRequest) {
       currentData: Partial<CollectedData>,
       extraContext?: string
     ) => {
-      const { filled, missing } = getDataStatus(currentData)
+      const status = getDataStatus(currentData)
+      const filled = status.filled
+      let missing = status.missing
+
+      // If user is skipping LinkedIn and that's the only remaining item, treat as ALL DONE
+      // Only detect skip if the previous assistant message actually asked about LinkedIn
+      const lastAssistantMsg = conversationHistory
+        .filter((m) => m.role === "assistant")
+        .at(-1)?.content?.toLowerCase() ?? ""
+      const linkedinWasAsked = lastAssistantMsg.includes("linkedin")
+      const isLinkedinSkip =
+        missing.length === 1 &&
+        missing[0].startsWith("linkedinUrl") &&
+        linkedinWasAsked &&
+        /skip|no|don'?t|analyze|pass|nah/i.test(message)
+      if (isLinkedinSkip) {
+        missing = []
+      }
+
+      const stillNeeded =
+        missing.length > 0
+          ? missing
+              .map((item, i) => `${i + 1}. ${item}${i === 0 ? " <<<< ASK THIS ONE NEXT" : ""}`)
+              .join("\n")
+          : "ALL DONE - profile is complete! Call trigger_profile_analysis now."
       return `
 ## ALREADY COLLECTED (DO NOT ask about these again):
 ${filled.length > 0 ? filled.join("\n") : "Nothing yet"}
 
-## STILL NEEDED (ask about the FIRST one only):
-${missing.length > 0 ? missing.join(", ") : "ALL DONE - profile is complete! Call trigger_profile_analysis now."}
+## STILL NEEDED (ask ONLY item #1 — ignore the rest until #1 is done):
+${stillNeeded}
 
 ## Conversation so far:
 ${conversationContext}
@@ -652,40 +658,45 @@ REMEMBER: Call save_profile_data for any info the user provided. Call trigger_pr
 
                 const profile = scrapeResult.profile
 
-                // Populate data from LinkedIn directly
+                // Merge LinkedIn data with existing manual data (manual data takes priority, LinkedIn fills gaps)
                 collectedDataState = {
                   ...collectedDataState,
-                  profilePath: "linkedin",
                   linkedinUrl: profile.linkedinUrl || linkedInUrl,
                   experienceLevel:
-                    profile.experienceLevel ||
-                    collectedDataState.experienceLevel,
-                  skills: profile.skills?.length
-                    ? profile.skills.map((s) => ({ name: s.name }))
-                    : collectedDataState.skills,
-                  experiences: profile.experiences?.length
-                    ? profile.experiences.map((e) => ({
-                        title: e.title,
-                        company: e.company,
-                        startDate: e.startDate,
-                        endDate: e.endDate,
-                        highlights: e.highlights,
-                      }))
-                    : collectedDataState.experiences,
-                  educations: profile.educations?.length
-                    ? profile.educations.map((e) => ({
-                        school: e.school,
-                        degree: e.degree,
-                        field: e.field,
-                        startYear: e.startYear,
-                        endYear: e.endYear,
-                      }))
-                    : collectedDataState.educations,
+                    collectedDataState.experienceLevel ||
+                    profile.experienceLevel,
+                  skills: collectedDataState.skills?.length
+                    ? collectedDataState.skills
+                    : profile.skills?.length
+                      ? profile.skills.map((s) => ({ name: s.name }))
+                      : collectedDataState.skills,
+                  experiences: collectedDataState.experiences?.length
+                    ? collectedDataState.experiences
+                    : profile.experiences?.length
+                      ? profile.experiences.map((e) => ({
+                          title: e.title,
+                          company: e.company,
+                          startDate: e.startDate,
+                          endDate: e.endDate,
+                          highlights: e.highlights,
+                        }))
+                      : collectedDataState.experiences,
+                  educations: collectedDataState.educations?.length
+                    ? collectedDataState.educations
+                    : profile.educations?.length
+                      ? profile.educations.map((e) => ({
+                          school: e.school,
+                          degree: e.degree,
+                          field: e.field,
+                          startYear: e.startYear,
+                          endYear: e.endYear,
+                        }))
+                      : collectedDataState.educations,
                 }
 
                 const profileJson = JSON.stringify(profile, null, 2)
 
-                // Run tool-equipped agent so it can ask about rates
+                // Run tool-equipped agent — it should see all data is complete and trigger analysis
                 const summaryAgent = new Agent({
                   name: "Conversational Assistant",
                   instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
@@ -695,7 +706,7 @@ REMEMBER: Call save_profile_data for any info the user provided. Call trigger_pr
 
                 const summaryPrompt = createPrompt(
                   collectedDataState,
-                  `LinkedIn profile fetched successfully:\n${profileJson}\n\nIMPORTANT: LinkedIn provides skills and experience - DO NOT ask about those. Summarize their profile in 1-2 sentences (name, headline, notable skills/experience), then ask: "What's your current hourly rate or range?"`
+                  `LinkedIn profile fetched successfully and merged with manually collected data:\n${profileJson}\n\nSummarize what LinkedIn added to their profile in 1-2 sentences. If all required fields are now present, call trigger_profile_analysis. If anything is still missing, ask about the first missing item.`
                 )
 
                 sseEmit({ type: "text", content: "\n\n" })
@@ -752,8 +763,8 @@ Analyze this freelancer profile and provide comprehensive feedback:
 Profile Data:
 ${JSON.stringify(collectedDataState, null, 2)}
 
-Provide a score (0-100), brief summary, and detailed markdown analysis.
-Include a "Rate Analysis" section comparing their current rate vs dream rate.`
+Provide an overall score (0-100), category scores, strengths, improvements, and detailed feedback.
+Include rate analysis comparing their current rate vs dream rate.`
 
               const profileAnalysisAgent = new Agent({
                 name: "Profile Analyst",
@@ -801,10 +812,11 @@ Include a "Rate Analysis" section comparing their current rate vs dream rate.`
 
                     sseEmit({
                       type: "profile_analysis",
-                      score: analysis.score,
-                      title: analysis.title,
-                      summary: analysis.summary,
-                      analysis: analysis.analysis,
+                      overallScore: analysis.overallScore,
+                      categories: analysis.categories,
+                      strengths: analysis.strengths,
+                      improvements: analysis.improvements,
+                      detailedFeedback: analysis.detailedFeedback,
                     })
                   }
                 }
@@ -865,26 +877,31 @@ Include a "Rate Analysis" section comparing their current rate vs dream rate.`
         const profile = scrapeResult.profile
         collectedDataState = {
           ...collectedDataState,
-          profilePath: "linkedin",
           linkedinUrl: profile.linkedinUrl || linkedInUrl,
-          experienceLevel: profile.experienceLevel,
-          skills: profile.skills?.map((s) => ({ name: s.name })),
-          experiences: profile.experiences?.map((e) => ({
-            title: e.title,
-            company: e.company,
-            startDate: e.startDate,
-            endDate: e.endDate,
-            highlights: e.highlights,
-          })),
-          educations: profile.educations?.map((e) => ({
-            school: e.school,
-            degree: e.degree,
-            field: e.field,
-            startYear: e.startYear,
-            endYear: e.endYear,
-          })),
+          experienceLevel: collectedDataState.experienceLevel || profile.experienceLevel,
+          skills: collectedDataState.skills?.length
+            ? collectedDataState.skills
+            : profile.skills?.map((s) => ({ name: s.name })),
+          experiences: collectedDataState.experiences?.length
+            ? collectedDataState.experiences
+            : profile.experiences?.map((e) => ({
+                title: e.title,
+                company: e.company,
+                startDate: e.startDate,
+                endDate: e.endDate,
+                highlights: e.highlights,
+              })),
+          educations: collectedDataState.educations?.length
+            ? collectedDataState.educations
+            : profile.educations?.map((e) => ({
+                school: e.school,
+                degree: e.degree,
+                field: e.field,
+                startYear: e.startYear,
+                endYear: e.endYear,
+              })),
         }
-        messageText += `\n\nI found your profile! What's your current hourly rate or range?`
+        messageText += `\n\nI found your profile and merged the data! Let me analyze your profile now.`
       } else {
         messageText += `\n\nSorry, I couldn't fetch your profile. Would you like to try again or set up manually?`
       }
