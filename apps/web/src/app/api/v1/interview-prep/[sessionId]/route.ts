@@ -52,7 +52,6 @@ export async function PATCH(
     if (body.started_at !== undefined) allowedFields.started_at = body.started_at
     if (body.finished_at !== undefined) allowedFields.finished_at = body.finished_at
 
-    // @ts-expect-error - Supabase types not generated, allowedFields is dynamically built
     const { error } = await supabaseAdmin
       .from("interview_sessions")
       .update(allowedFields)
