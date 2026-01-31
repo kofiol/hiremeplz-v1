@@ -54,7 +54,7 @@ export async function PATCH(
 
     const { error } = await supabaseAdmin
       .from("interview_sessions")
-      .update(allowedFields)
+      .update(allowedFields as never)
       .eq("id", sessionId)
       .eq("user_id", userId)
 

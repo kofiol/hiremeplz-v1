@@ -105,6 +105,30 @@ Tools that modify state (database writes, external API calls) must log their exe
 
 Agents can trigger other agents. The primary chains:
 
+```mermaid
+flowchart TD
+  subgraph Onboarding Chain
+    OA[Onboarding Agent] -->|LinkedIn URL| PP[Profile Parser<br>trigger.dev + BrightData]
+    PP -->|Profile data| OA
+    OA -->|Profile complete| RA1[Ranking Agent<br>initial scoring]
+  end
+
+  subgraph Discovery Chain
+    JSA[Job Search Agent<br>scheduled] -->|New jobs ingested| RA2[Ranking Agent<br>batch scoring]
+    RA2 -->|Scored jobs| OC[Overview Copilot<br>surface top matches]
+    OC -->|User approves| CLA[Cover Letter Agent<br>draft proposal]
+  end
+
+  subgraph Practice Chain
+    OC2[Overview Copilot] -->|Interview upcoming| IPA[Interview Prep Agent<br>voice practice]
+    IPA -->|Session complete| ANA[Analysis Agent<br>post-session scoring]
+  end
+
+  RA1 -.->|Profile feeds into| RA2
+  OC -.->|Nudges| OC2
+```
+
+**Text representation:**
 ```
 job-search-agent
   -> ranking-agent (score new jobs)

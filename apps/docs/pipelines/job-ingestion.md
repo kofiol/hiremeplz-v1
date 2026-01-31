@@ -17,16 +17,43 @@ Converts raw job listings from heterogeneous sources into normalized, deduplicat
 
 ## Flow
 
+```mermaid
+flowchart TD
+  subgraph Fetch ["1. FETCH"]
+    UP_API[Upwork<br>BrightData] --> RAW[Raw JSON responses]
+    LI_API[LinkedIn<br>BrightData] --> RAW
+    RSS_API[RSS Feeds<br>future] -.-> RAW
+  end
+
+  subgraph Process ["2-5. PROCESS"]
+    RAW --> PARSE[PARSE<br>Extract platform-specific fields]
+    PARSE --> NORM[NORMALIZE<br>Map to NormalizedJob schema]
+    NORM --> HASH[HASH<br>canonical_hash = SHA256<br>platform + job_id + team_id]
+    HASH --> VAL{VALIDATE<br>title + job_id + apply_url?}
+    VAL -- Invalid --> LOG[Log rejection<br>in agent_run_steps]
+    VAL -- Valid --> BATCH[Valid job batch]
+  end
+
+  subgraph Store ["6-8. STORE & NOTIFY"]
+    BATCH --> UPSERT[upsert_jobs_and_rankings<br>atomic batch write]
+    UPSERT --> JOBS[(jobs table)]
+    UPSERT --> SOURCES[(job_sources table)]
+    JOBS --> EVENT[Emit: new_jobs_ingested]
+    EVENT --> RANKING[Trigger Ranking Agent]
+    JOBS -.-> EMBED[Generate embeddings<br>future]
+    EMBED -.-> EMB_TABLE[(embeddings table)]
+  end
 ```
-1. FETCH    - Hit external API (BrightData, Apify, RSS)
-2. PARSE    - Extract fields from platform-specific JSON
-3. NORMALIZE - Map to unified NormalizedJob schema
-4. HASH     - Generate canonical_hash for dedup
-5. VALIDATE - Check required fields, reject malformed records
-6. STORE    - Batch upsert via upsert_jobs_and_rankings()
-7. INDEX    - [Future] Generate embeddings for semantic search
-8. NOTIFY   - Emit new_jobs_ingested event -> triggers ranking
-```
+
+**Steps (text):**
+1. **FETCH** - Hit external API (BrightData, Apify, RSS)
+2. **PARSE** - Extract fields from platform-specific JSON
+3. **NORMALIZE** - Map to unified NormalizedJob schema
+4. **HASH** - Generate canonical_hash for dedup
+5. **VALIDATE** - Check required fields, reject malformed records
+6. **STORE** - Batch upsert via `upsert_jobs_and_rankings()`
+7. **INDEX** - [Future] Generate embeddings for semantic search
+8. **NOTIFY** - Emit `new_jobs_ingested` event -> triggers ranking
 
 ## Step Details
 

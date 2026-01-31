@@ -16,7 +16,46 @@ tags: [data-model, database, technical]
 
 All tables live in the `public` schema on Supabase PostgreSQL. RLS is enabled on every table. Every user-facing table is scoped by `team_id`.
 
-## Entity Relationship Overview
+## Entity Relationship Diagram
+
+```mermaid
+erDiagram
+  teams ||--o{ team_members : "has members"
+  teams ||--o{ profiles : "has profiles"
+  teams ||--o{ jobs : "owns jobs"
+  teams ||--o{ agent_runs : "runs agents"
+  teams ||--o{ interview_sessions : "has sessions"
+  teams ||--o{ events : "logs events"
+  teams ||--o{ notifications : "sends notifications"
+  teams ||--o{ usage_counters : "tracks usage"
+  teams ||--|| team_settings : "has settings"
+
+  profiles ||--o{ user_skills : "has skills"
+  profiles ||--o{ user_experiences : "has experiences"
+  profiles ||--o{ user_educations : "has education"
+  profiles ||--o{ user_cv_files : "has CVs"
+  profiles ||--|| user_preferences : "has preferences"
+  profiles ||--o{ user_profile_snapshots : "has snapshots"
+  profiles ||--o{ user_agent_settings : "has agent config"
+
+  jobs ||--o{ job_sources : "raw data"
+  jobs ||--o{ job_rankings : "AI scores"
+  jobs ||--o{ applications : "applied to"
+  jobs ||--o{ cover_letters : "proposals for"
+  jobs ||--o{ apply_sessions : "apply flows"
+
+  applications ||--o{ feedback : "client responses"
+  messages ||--o{ feedback : "linked messages"
+
+  agent_runs ||--o{ agent_run_steps : "has steps"
+  agent_runs ||--o{ job_rankings : "produced by"
+
+  teams ||--o{ earnings : "revenue"
+  teams ||--o{ messages : "communications"
+  teams ||--o{ embeddings : "vectors"
+```
+
+## Entity Tree (text)
 
 ```
 teams
@@ -50,6 +89,26 @@ teams
   |-- usage_counters (day, metric, count)
   |-- team_settings (settings_json)
 ```
+
+## Table Count (current production data)
+
+| Table | Rows | Notes |
+|-------|------|-------|
+| teams | 8 | |
+| team_members | 13 | |
+| profiles | 8 | |
+| jobs | 3,161 | From early scraping experiments |
+| job_rankings | 3 | Only test rankings |
+| agent_runs | 25 | Onboarding + interview runs |
+| agent_run_steps | 140 | |
+| interview_sessions | 8 | |
+| user_skills | 7 | |
+| user_experiences | 1 | |
+| user_preferences | 9 | |
+| user_agent_settings | 8 | |
+| applications | 0 | Not yet active |
+| cover_letters | 0 | Not yet active |
+| embeddings | 0 | Extension ready, not populated |
 
 ## Core Tables
 
@@ -161,10 +220,21 @@ The freelancer's pipeline. Status-driven workflow.
 | next_follow_up_at | timestamptz | Agent-managed reminder |
 
 **Application status pipeline:**
-```
-shortlisted -> ready_to_apply -> applied -> in_conversation -> interviewing -> won
-                                                                             -> lost
-                                                            -> archived
+
+```mermaid
+stateDiagram-v2
+  [*] --> shortlisted: Ranking agent scores above threshold
+  shortlisted --> ready_to_apply: User approves + drafts proposal
+  ready_to_apply --> applied: User submits proposal
+  applied --> in_conversation: Client responds
+  applied --> archived: No response / withdrawn
+  in_conversation --> interviewing: Call scheduled
+  in_conversation --> archived: Conversation dies
+  interviewing --> won: Project secured
+  interviewing --> lost: Rejected
+  won --> [*]
+  lost --> [*]
+  archived --> [*]
 ```
 
 ### agent_runs / agent_run_steps

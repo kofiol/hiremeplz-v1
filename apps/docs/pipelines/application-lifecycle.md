@@ -19,45 +19,33 @@ Tracks freelance opportunities from first discovery through to project completio
 
 ## Status Flow
 
+```mermaid
+flowchart TD
+  RANK[Ranking Agent<br>scores above threshold] --> SHORT[SHORTLISTED<br>Looks promising]
+  SHORT --> |User reviews + approves| READY[READY_TO_APPLY<br>Proposal in progress]
+  READY --> |Cover Letter Agent drafts<br>User reviews + submits| APPLIED[APPLIED<br>Waiting for response]
+  APPLIED --> |Client responds| CONV[IN_CONVERSATION<br>Active dialogue]
+  APPLIED --> |No response / withdrawn| ARCH[ARCHIVED]
+  CONV --> |Call scheduled| INTER[INTERVIEWING<br>Call scheduled]
+  CONV --> |Conversation dies| ARCH
+  INTER --> |Project secured| WON[WON<br>Project secured]
+  INTER --> |Rejected| LOST[LOST<br>Didn't get the gig]
+  WON --> EARN[Earnings tracked]
+
+  style SHORT fill:#fef3c7,stroke:#f59e0b
+  style READY fill:#dbeafe,stroke:#3b82f6
+  style APPLIED fill:#e0e7ff,stroke:#6366f1
+  style CONV fill:#fce7f3,stroke:#ec4899
+  style INTER fill:#fae8ff,stroke:#a855f7
+  style WON fill:#dcfce7,stroke:#22c55e
+  style LOST fill:#fee2e2,stroke:#ef4444
+  style ARCH fill:#f3f4f6,stroke:#9ca3af
 ```
-  [Ranking Agent scores job above threshold]
-                    |
-                    v
-             SHORTLISTED
-           "Looks promising"
-                    |
-         [User reviews + approves]
-                    |
-                    v
-           READY_TO_APPLY
-         "Proposal in progress"
-                    |
-     [Cover Letter Agent drafts]
-     [User reviews + submits]
-                    |
-                    v
-              APPLIED
-         "Waiting for response"
-                    |
-          [Client responds]
-                    |
-            ┌───────┴───────┐
-            v               v
-     IN_CONVERSATION    ARCHIVED
-     "Active dialogue"  "No response / withdrawn"
-            |
-            v
-       INTERVIEWING
-      "Call scheduled"
-            |
-      ┌─────┴─────┐
-      v           v
-     WON         LOST
-  "Project    "Didn't get
-   secured"     the gig"
-      |
-      v
-   [Earnings tracked]
+
+**Text representation:**
+```
+shortlisted -> ready_to_apply -> applied -> in_conversation -> interviewing -> won / lost
+                                         -> archived
 ```
 
 ## Stage Details
