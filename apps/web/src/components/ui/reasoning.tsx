@@ -1,42 +1,49 @@
 "use client"
 
 import * as React from "react"
-import { Brain } from "lucide-react"
+import { Brain, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type ReasoningProps = {
   isStreaming: boolean
   content: string
   duration?: number
+  phase?: "thinking" | "evaluating"
   className?: string
 }
 
 /**
- * Minimal reasoning display - only shows elapsed time, no content details.
- * Shows "Thinking..." while streaming, "Thought for Xs" after completion.
+ * Reasoning display with two phases:
+ * - "Thinking..." (brain icon, pulsing) while the model reasons
+ * - "Evaluating..." (sparkles icon, pulsing) while it generates structured output
+ * - "Evaluated in Xs" after completion
  */
-function Reasoning({ isStreaming, duration, className }: ReasoningProps) {
+function Reasoning({ isStreaming, duration, phase = "thinking", className }: ReasoningProps) {
   if (!isStreaming && !duration) {
     return null
   }
 
+  const isEvaluating = phase === "evaluating"
+  const Icon = isEvaluating ? Sparkles : Brain
+
   return (
     <div className={cn("w-full", className)}>
-      {/* Header - larger and cleaner */}
       <div className="flex items-center gap-2.5 px-2 py-2 text-sm">
         <div className="relative flex items-center justify-center">
-          <Brain className="size-4 text-muted-foreground" />
+          <Icon className="size-4 text-muted-foreground" />
           {isStreaming && (
             <span className="absolute inset-0 animate-ping">
-              <Brain className="size-4 text-primary/50" />
+              <Icon className="size-4 text-primary/50" />
             </span>
           )}
         </div>
         <span className="text-muted-foreground">
           {isStreaming ? (
-            <span className="shimmer-text">Thinking...</span>
+            <span className="shimmer-text">
+              {isEvaluating ? "Evaluating..." : "Thinking..."}
+            </span>
           ) : duration ? (
-            `Thought for ${duration}s`
+            `Evaluated in ${duration}s`
           ) : (
             "Reasoning"
           )}

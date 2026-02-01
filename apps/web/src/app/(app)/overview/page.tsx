@@ -10,6 +10,7 @@ export default function OverviewPage() {
   const [isGuardChecked, setIsGuardChecked] = useState(false);
   const [profileCompleteness, setProfileCompleteness] = useState<number>(0);
   const [isCheckingCompleteness, setIsCheckingCompleteness] = useState(true);
+  const [onboardingFinished, setOnboardingFinished] = useState(false);
 
   useEffect(() => {
     async function guardOverview() {
@@ -52,18 +53,19 @@ export default function OverviewPage() {
 
   if (!isGuardChecked || isCheckingCompleteness) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span>Loading...</span>
-        </div>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <span className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
-  // If profile is incomplete (< 80%), show the onboarding chatbot
-  if (profileCompleteness < 0.8) {
-    return <OnboardingChatbot />;
+  // If profile is incomplete (< 80%), show fullscreen onboarding (no sidebar)
+  if (profileCompleteness < 0.8 && !onboardingFinished) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background">
+        <OnboardingChatbot onComplete={() => setOnboardingFinished(true)} />
+      </div>
+    );
   }
 
   return <OverviewCopilot />;

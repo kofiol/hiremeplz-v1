@@ -870,7 +870,8 @@ Include rate analysis comparing their current rate vs dream rate.`
               const profileAnalysisAgent = new Agent({
                 name: "Profile Analyst",
                 instructions: PROFILE_ANALYSIS_INSTRUCTIONS,
-                model: "gpt-5-mini",
+                model: "gpt-5.2",
+                modelSettings: { reasoningEffort: "high" },
                 outputType: ProfileAnalysisJsonSchema,
               })
 
@@ -896,6 +897,9 @@ Include rate analysis comparing their current rate vs dream rate.`
                 }
 
                 if (!request.signal.aborted) {
+                  // Signal transition from thinking to evaluating
+                  sseEmit({ type: "reasoning_evaluating" })
+
                   await analysisResult.completed
 
                   const reasoningDuration = Math.round(

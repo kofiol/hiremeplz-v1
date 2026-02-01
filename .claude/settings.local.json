@@ -34,7 +34,11 @@
       "mcp__supabase__execute_sql",
       "WebFetch(domain:cookbook.openai.com)",
       "mcp__supabase__get_advisors",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(git log:*)",
+      "Bash(npx eslint src/components/onboarding-chatbot.tsx \"src/app/\\(app\\)/overview/page.tsx\")",
+      "Bash(curl:*)",
+      "WebFetch(domain:ui.shadcn.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

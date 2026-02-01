@@ -6,7 +6,6 @@ updated: 2026-01-31
 status: living-document
 audience: [agent, developer]
 ---
-
 # hireMePlz - Project Spec
 
 > A personal AI agent system that finds, evaluates, and acts on freelance opportunities so the freelancer can focus on delivery.

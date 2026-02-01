@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useCallback, useState, useRef, useEffect } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import { useSession } from "@/app/auth/session-provider"
 import { useFocusMode } from "@/hooks/use-focus-mode"
@@ -245,9 +246,10 @@ function transformToOnboardingPayload(data: CollectedData) {
 // Main Component
 // ============================================================================
 
-export function OnboardingChatbot() {
+export function OnboardingChatbot({ onComplete }: { onComplete?: () => void } = {}) {
   const { session } = useSession()
   const { displayName: planDisplayName } = useUserPlan()
+  const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -262,14 +264,11 @@ export function OnboardingChatbot() {
     return planDisplayName ?? metaName ?? session?.user?.email ?? "there"
   }, [planDisplayName, session?.user])
 
-  // Get greeting
-  const greeting = React.useMemo(() => {
-    const hour = new Date().getHours()
-    if (hour >= 5 && hour < 12) return "Good morning"
-    if (hour >= 12 && hour < 17) return "Good day"
-    if (hour >= 17 && hour < 21) return "Good evening"
-    return "Good night"
-  }, [])
+  // Get first name only
+  const firstName = React.useMemo(() => {
+    if (userName === "there") return "there"
+    return userName.split(" ")[0]
+  }, [userName])
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -309,6 +308,7 @@ export function OnboardingChatbot() {
   const [reasoningContent, setReasoningContent] = useState("")
   const [reasoningDuration, setReasoningDuration] = useState<number | undefined>()
   const [isReasoning, setIsReasoning] = useState(false)
+  const [reasoningPhase, setReasoningPhase] = useState<"thinking" | "evaluating">("thinking")
 
   // Quick reply suggestions
   const suggestedReplies = React.useMemo(
@@ -345,6 +345,61 @@ export function OnboardingChatbot() {
     onTranscript: (text) => sendMessage(text),
     onError: (err) => setError(err),
   })
+
+  // ── Typewriter effect (char-by-char streaming) ─────────────────────────
+  const typewriterTargetRef = useRef("")
+  const typewriterIndexRef = useRef(0)
+  const typewriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function startTypewriter() {
+    if (typewriterIntervalRef.current) return
+    typewriterIntervalRef.current = setInterval(() => {
+      const target = typewriterTargetRef.current
+      const idx = typewriterIndexRef.current
+      if (idx < target.length) {
+        const behind = target.length - idx
+        const step = behind > 80 ? 4 : behind > 40 ? 3 : behind > 15 ? 2 : 1
+        typewriterIndexRef.current = Math.min(idx + step, target.length)
+        setStreamingContent(target.slice(0, typewriterIndexRef.current))
+      }
+    }, 18)
+  }
+
+  function stopTypewriter() {
+    if (typewriterIntervalRef.current) {
+      clearInterval(typewriterIntervalRef.current)
+      typewriterIntervalRef.current = null
+    }
+  }
+
+  function flushTypewriter() {
+    typewriterIndexRef.current = typewriterTargetRef.current.length
+    setStreamingContent(typewriterTargetRef.current)
+  }
+
+  function resetTypewriter() {
+    stopTypewriter()
+    typewriterTargetRef.current = ""
+    typewriterIndexRef.current = 0
+  }
+
+  function waitForTypewriter(): Promise<void> {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (typewriterIndexRef.current >= typewriterTargetRef.current.length) {
+          resolve()
+        } else {
+          setTimeout(check, 20)
+        }
+      }
+      check()
+    })
+  }
+
+  // Cleanup typewriter on unmount
+  useEffect(() => {
+    return () => stopTypewriter()
+  }, [])
 
   // Load progress on mount
   useEffect(() => {
@@ -476,6 +531,8 @@ export function OnboardingChatbot() {
 
     setIsStreaming(true)
     setStreamingContent("")
+    resetTypewriter()
+    startTypewriter()
 
     // Set up abort handler to cancel the reader
     const abortHandler = () => {
@@ -510,10 +567,10 @@ export function OnboardingChatbot() {
             if (parsed.type === "text") {
               if (!toolCallSeen || !toolCallFinished) {
                 fillerContent += parsed.content
-                setStreamingContent(fillerContent)
+                typewriterTargetRef.current = fillerContent
               } else {
                 summaryContent += parsed.content
-                setStreamingContent(summaryContent)
+                typewriterTargetRef.current = summaryContent
               }
             } else if (parsed.type === "tool_call") {
               if (parsed.status === "started") {
@@ -533,6 +590,9 @@ export function OnboardingChatbot() {
                   elapsed: lastElapsed,
                 }
                 setActiveToolCall(null)
+                flushTypewriter()
+                typewriterTargetRef.current = ""
+                typewriterIndexRef.current = 0
                 setStreamingContent("")
               }
             } else if (parsed.type === "tool_status") {
@@ -560,12 +620,17 @@ export function OnboardingChatbot() {
             } else if (parsed.type === "analysis_error") {
               // Analysis uses reasoning UI, no tool call state to clear
             } else if (parsed.type === "reasoning_started") {
+              // Flush typewriter so text finishes before reasoning badge appears
+              flushTypewriter()
               setIsReasoning(true)
+              setReasoningPhase("thinking")
               setReasoningContent("")
               reasoningText = ""
             } else if (parsed.type === "reasoning_chunk") {
               reasoningText += parsed.content
               setReasoningContent(reasoningText)
+            } else if (parsed.type === "reasoning_evaluating") {
+              setReasoningPhase("evaluating")
             } else if (parsed.type === "reasoning_completed") {
               setIsReasoning(false)
               setReasoningDuration(parsed.duration)
@@ -576,6 +641,9 @@ export function OnboardingChatbot() {
           }
         }
       }
+
+      // Wait for typewriter to finish displaying remaining characters
+      await waitForTypewriter()
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         wasAborted = true
@@ -584,10 +652,12 @@ export function OnboardingChatbot() {
       }
     } finally {
       signal?.removeEventListener("abort", abortHandler)
+      resetTypewriter()
       setIsStreaming(false)
       setStreamingContent("")
       setActiveToolCall(null)
       setIsReasoning(false)
+      setReasoningPhase("thinking")
     }
 
     // If aborted during a tool call, mark it as aborted
@@ -826,11 +896,13 @@ export function OnboardingChatbot() {
       abortControllerRef.current = null
     }
     // Immediately reset all UI states regardless of controller existence
+    resetTypewriter()
     setIsLoading(false)
     setIsStreaming(false)
     setStreamingContent("")
     setActiveToolCall(null)
     setIsReasoning(false)
+    setReasoningPhase("thinking")
     setReasoningContent("")
     setReasoningDuration(undefined)
   }, [])
@@ -1073,47 +1145,75 @@ export function OnboardingChatbot() {
 
       <AnimatePresence mode="wait">
         {!hasStarted ? (
-          // Welcome state - centered input
+          // Welcome state — full-screen centered with staggered entrance
           <motion.div
             key="welcome"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -100 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-1 flex-col items-center justify-center gap-8 p-6 min-h-0"
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.35 }}
+            className="flex flex-1 flex-col items-center justify-center p-6 min-h-0"
           >
-            <div className="text-center">
-              <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary/5 p-4 ring-1 ring-primary/20">
+            {/* Logo */}
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="mb-6"
+            >
+              <div className="inline-flex items-center justify-center rounded-2xl bg-primary/5 p-5 ring-1 ring-primary/10">
                 <Image
                   src="/favicon.svg"
                   alt="HireMePlz"
-                  width={48}
-                  height={48}
-                  className="h-8 w-8"
+                  width={56}
+                  height={56}
+                  className="h-10 w-10"
                 />
               </div>
-              <h1
-                className="mb-2 text-2xl font-semibold tracking-tight"
-                suppressHydrationWarning
-              >
-                {greeting}, {userName}
-              </h1>
-              <p className="max-w-md text-muted-foreground">
-                Begin by answering our AI agent&apos;s questions to get started
-              </p>
-            </div>
+            </motion.div>
 
-            <div className="flex flex-col items-center gap-3">
+            {/* Title */}
+            <motion.h1
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="text-center text-3xl font-semibold tracking-tight sm:text-4xl"
+              suppressHydrationWarning
+            >
+              Welcome, {firstName}
+            </motion.h1>
+
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-3 max-w-sm text-center text-base text-muted-foreground"
+            >
+              Our AI agent will build your freelance profile in just a few minutes.
+            </motion.p>
+
+            {/* Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-8"
+            >
               <Button
                 size="lg"
-                className="gap-2 px-8 py-6 text-base shadow-[0_0_20px_oklch(from_var(--primary)_l_c_h_/_0.15)] transition-shadow hover:shadow-[0_0_30px_oklch(from_var(--primary)_l_c_h_/_0.25)]"
+                className="gap-2 px-10 py-6 text-base shadow-[0_0_20px_oklch(from_var(--primary)_l_c_h_/_0.15)] transition-shadow hover:shadow-[0_0_30px_oklch(from_var(--primary)_l_c_h_/_0.25)]"
                 onClick={startConversation}
                 disabled={isLoading}
               >
-                Start onboarding
+                {isLoading ? (
+                  <>
+                    <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Starting...
+                  </>
+                ) : (
+                  "Get Started"
+                )}
               </Button>
-
-            </div>
+            </motion.div>
           </motion.div>
         ) : (
           // Chat state - messages + input at bottom
@@ -1286,6 +1386,7 @@ export function OnboardingChatbot() {
                         isStreaming={true}
                         content={reasoningContent}
                         duration={reasoningDuration}
+                        phase={reasoningPhase}
                       />
                     </MessageContent>
                   </Message>
@@ -1315,6 +1416,28 @@ export function OnboardingChatbot() {
                       }
                     }}
                   />
+                )}
+
+                {/* Finish onboarding — shown after profile analysis */}
+                {messages.some((m) => m.profileAnalysis) && !isLoading && !isStreaming && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex flex-col items-center gap-3 pt-4 pb-8"
+                  >
+                    <Button
+                      size="lg"
+                      onClick={() => onComplete ? onComplete() : router.push("/overview")}
+                      className="gap-2 px-8 py-5 text-base"
+                    >
+                      <CheckCircle className="size-5" />
+                      Finish Onboarding
+                    </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                      You can find your analysis and insights in the Profile tab
+                    </p>
+                  </motion.div>
                 )}
 
               </ConversationContent>
