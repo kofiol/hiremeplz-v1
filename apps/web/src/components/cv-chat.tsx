@@ -1,19 +1,13 @@
 "use client"
 
-import * as React from "react"
 import { useCallback, useState, useRef, useEffect } from "react"
-import { AnimatePresence, motion } from "framer-motion"
 import { useSession } from "@/app/auth/session-provider"
-import { useUserPlan } from "@/hooks/use-user-plan"
-import {
-  Conversation,
-  ConversationContent,
-} from "@/components/ai-elements/conversation"
 import {
   Message,
   MessageContent,
   MessageError,
 } from "@/components/ai-elements/message"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   PromptInput,
   PromptInputBody,
@@ -24,10 +18,29 @@ import {
 } from "@/components/ai-elements/prompt-input"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { FileText, Mic, PenLine, Square, User } from "lucide-react"
-import Link from "next/link"
-import type { Components } from "react-markdown"
-import { useChatHistory, type ChatMessage } from "@/lib/chat-history-context"
+import { Square } from "lucide-react"
+import type { CVData } from "@/components/cv-preview"
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type ChatMessage = {
+  id: string
+  role: "user" | "assistant"
+  content: string
+}
+
+type ToolCallEvent = {
+  name: string
+  args: Record<string, unknown>
+}
+
+type CVChatProps = {
+  cvData: CVData
+  onCVUpdate: (toolCalls: ToolCallEvent[]) => void
+  className?: string
+}
 
 // ============================================================================
 // Helpers
@@ -37,80 +50,22 @@ function generateId() {
   return Math.random().toString(36).slice(2)
 }
 
-const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  "/proposal-writer": PenLine,
-  "/interview-prep": Mic,
-  "/cv-builder": FileText,
-  "/profile": User,
-}
-
-const markdownComponents: Components = {
-  a: ({ href, children }) => {
-    if (href && href.startsWith("/")) {
-      const Icon = TOOL_ICONS[href]
-      return (
-        <Link
-          href={href}
-          className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-sm font-medium text-primary no-underline transition-colors hover:bg-primary/20"
-        >
-          {Icon && <Icon className="size-3.5" />}
-          {children}
-        </Link>
-      )
-    }
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer">
-        {children}
-      </a>
-    )
-  },
-}
+const SUGGESTED_PROMPTS = [
+  "Improve my headline",
+  "Write a professional summary",
+  "Make my experience more impactful",
+]
 
 // ============================================================================
-// Main Component
+// Component
 // ============================================================================
 
-export function OverviewCopilot() {
+export function CVChat({ cvData, onCVUpdate, className }: CVChatProps) {
   const { session } = useSession()
-  const { displayName: planDisplayName } = useUserPlan()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Chat history integration
-  const {
-    activeSessionId,
-    loadSession,
-    saveSession,
-    createSession,
-  } = useChatHistory()
-  const sessionIdRef = useRef<string | null>(null)
-
-  // Resolve user name
-  const userName = React.useMemo(() => {
-    const metaName =
-      (session?.user?.user_metadata?.full_name as string | undefined) ??
-      (session?.user?.user_metadata?.name as string | undefined) ??
-      (session?.user?.user_metadata?.display_name as string | undefined)
-
-    return planDisplayName ?? metaName ?? "there"
-  }, [planDisplayName, session?.user])
-
-  // Get first name only
-  const firstName = React.useMemo(() => {
-    const name = userName === "there" ? "there" : userName.split(" ")[0]
-    return name
-  }, [userName])
-
-  // Get greeting
-  const greeting = React.useMemo(() => {
-    const hour = new Date().getHours()
-    if (hour >= 5 && hour < 12) return "Good morning"
-    if (hour >= 12 && hour < 17) return "Good afternoon"
-    if (hour >= 17 && hour < 21) return "Good evening"
-    return "Good night"
-  }, [])
-
-  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -120,41 +75,11 @@ export function OverviewCopilot() {
 
   const hasMessages = messages.length > 0
 
-  // Sync messages when activeSessionId changes (sidebar-driven switch)
-  useEffect(() => {
-    if (activeSessionId !== sessionIdRef.current) {
-      // Abort any in-progress stream
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-      setIsLoading(false)
-      setIsStreaming(false)
-      setStreamingContent("")
-      setError(null)
-      setInput("")
-
-      if (activeSessionId) {
-        setMessages(loadSession(activeSessionId))
-      } else {
-        setMessages([])
-      }
-      sessionIdRef.current = activeSessionId
-    }
-  }, [activeSessionId, loadSession])
-
   // Send a message
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading || isStreaming) return
       if (!session?.access_token) return
-
-      // Create or reuse session
-      let currentSessionId = sessionIdRef.current
-      if (!currentSessionId) {
-        currentSessionId = createSession(text.trim())
-        sessionIdRef.current = currentSessionId
-      }
 
       const userMessage: ChatMessage = {
         id: generateId(),
@@ -177,7 +102,7 @@ export function OverviewCopilot() {
           content: m.content,
         }))
 
-        const response = await fetch("/api/v1/overview/chat", {
+        const response = await fetch("/api/v1/cv-builder/chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -185,6 +110,7 @@ export function OverviewCopilot() {
           },
           body: JSON.stringify({
             message: text.trim(),
+            cvData,
             conversationHistory,
           }),
           signal: controller.signal,
@@ -197,12 +123,12 @@ export function OverviewCopilot() {
           )
         }
 
-        // Parse SSE stream
         const reader = response.body?.getReader()
         if (!reader) throw new Error("No response body")
 
         const decoder = new TextDecoder()
         let accumulated = ""
+        const pendingToolCalls: ToolCallEvent[] = []
 
         setIsStreaming(true)
         setStreamingContent("")
@@ -229,6 +155,11 @@ export function OverviewCopilot() {
                 if (parsed.type === "text") {
                   accumulated += parsed.content
                   setStreamingContent(accumulated)
+                } else if (parsed.type === "tool_call") {
+                  pendingToolCalls.push({
+                    name: parsed.name,
+                    args: parsed.args,
+                  })
                 } else if (parsed.type === "error") {
                   throw new Error(parsed.message || "Streaming failed")
                 }
@@ -243,36 +174,31 @@ export function OverviewCopilot() {
           setStreamingContent("")
         }
 
-        // Add the completed assistant message and persist
+        // Add the completed assistant message
         if (accumulated.trim()) {
           const assistantMessage: ChatMessage = {
             id: generateId(),
             role: "assistant",
             content: accumulated.trim(),
           }
-          const allMessages = [...updatedMessages, assistantMessage]
-          setMessages(allMessages)
-          saveSession(currentSessionId, allMessages)
-        } else {
-          // Save user message even without assistant response
-          saveSession(currentSessionId, updatedMessages)
+          setMessages((prev) => [...prev, assistantMessage])
+        }
+
+        // Apply tool calls to update CV
+        if (pendingToolCalls.length > 0) {
+          onCVUpdate(pendingToolCalls)
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return
         setError(err instanceof Error ? err.message : "Failed to send message")
-        // Still save the user message on error
-        if (currentSessionId) {
-          saveSession(currentSessionId, updatedMessages)
-        }
       } finally {
         setIsLoading(false)
         abortControllerRef.current = null
       }
     },
-    [messages, isLoading, isStreaming, session?.access_token, createSession, saveSession]
+    [messages, isLoading, isStreaming, session?.access_token, cvData, onCVUpdate]
   )
 
-  // Stop streaming
   const stopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -283,7 +209,6 @@ export function OverviewCopilot() {
     setStreamingContent("")
   }, [])
 
-  // Handle form submission
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
       if (message.text) {
@@ -293,43 +218,46 @@ export function OverviewCopilot() {
     [sendMessage]
   )
 
-  // Focus textarea after sending
   useEffect(() => {
     if (!isLoading && !isStreaming && textareaRef.current) {
       textareaRef.current.focus()
     }
   }, [isLoading, isStreaming])
 
-  // ============================================================================
-  // Render
-  // ============================================================================
+  // Auto-scroll to bottom on new messages / streaming
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, streamingContent])
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <AnimatePresence mode="wait">
+    <div className={className}>
+      <div className="flex h-full flex-col">
         {!hasMessages ? (
-          // Empty state — centered greeting + input
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-1 flex-col items-center justify-center gap-8 p-6 min-h-0"
-          >
+          // Empty state with suggested prompts
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
             <div className="text-center">
-              <h1
-                className="mb-2 text-3xl font-semibold tracking-tight"
-                suppressHydrationWarning
-              >
-                {greeting}, {firstName}
-              </h1>
-              <p className="text-muted-foreground">
-                How can I help you today?
+              <h2 className="mb-1 text-xl font-semibold tracking-tight">
+                CV Assistant
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Ask me to improve your CV
               </p>
             </div>
 
-            <div className="w-full max-w-2xl">
+            <div className="flex flex-wrap justify-center gap-2">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => sendMessage(prompt)}
+                  className="rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-full max-w-md">
               <PromptInput
                 onSubmit={handleSubmit}
                 className="[&_[data-slot=input-group]]:border-border/50 [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_2px_8px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
@@ -339,8 +267,8 @@ export function OverviewCopilot() {
                     ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask about proposals, job strategy, rate advice..."
-                    className="min-h-12 text-base"
+                    placeholder="Describe what to improve..."
+                    className="min-h-10 text-sm"
                   />
                 </PromptInputBody>
                 <PromptInputFooter>
@@ -351,18 +279,12 @@ export function OverviewCopilot() {
                 </PromptInputFooter>
               </PromptInput>
             </div>
-          </motion.div>
+          </div>
         ) : (
-          // Chat state — messages + input pinned at bottom
-          <motion.div
-            key="chat"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-1 flex-col min-h-0 overflow-hidden"
-          >
-            <Conversation className="flex-1 min-h-0">
-              <ConversationContent className="mx-auto w-full max-w-3xl pt-8 pb-4">
+          // Chat state
+          <>
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-4 pb-4">
                 {messages.map((message) => (
                   <Message
                     key={message.id}
@@ -372,13 +294,13 @@ export function OverviewCopilot() {
                     <MessageContent>
                       {message.role === "user" ? (
                         <div className="flex justify-end">
-                          <div className="rounded-2xl bg-accent px-4 py-2.5 text-base text-accent-foreground">
+                          <div className="rounded-2xl bg-accent px-4 py-2.5 text-sm text-accent-foreground">
                             {message.content}
                           </div>
                         </div>
                       ) : (
-                        <div className="prose prose-base prose-invert max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        <div className="prose prose-sm prose-invert max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {message.content}
                           </ReactMarkdown>
                         </div>
@@ -387,12 +309,11 @@ export function OverviewCopilot() {
                   </Message>
                 ))}
 
-                {/* Streaming message */}
                 {isStreaming && streamingContent && (
                   <Message from="assistant" hideAvatar>
                     <MessageContent>
-                      <div className="prose prose-base prose-invert max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                      <div className="prose prose-sm prose-invert max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {streamingContent}
                         </ReactMarkdown>
                       </div>
@@ -400,7 +321,6 @@ export function OverviewCopilot() {
                   </Message>
                 )}
 
-                {/* Loading dots */}
                 {isLoading && !isStreaming && (
                   <Message from="assistant" hideAvatar>
                     <MessageContent>
@@ -418,17 +338,16 @@ export function OverviewCopilot() {
                 {error && (
                   <MessageError
                     error={error}
-                    onRetry={() => {
-                      setError(null)
-                    }}
+                    onRetry={() => setError(null)}
                   />
                 )}
-              </ConversationContent>
-            </Conversation>
 
-            {/* Input area */}
-            <div className="shrink-0 bg-background px-4 pb-6 pt-4">
-              <div className="mx-auto max-w-3xl">
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            <div className="shrink-0 border-t bg-background px-4 pb-4 pt-3">
+              <div className="mx-auto max-w-2xl">
                 <PromptInput
                   onSubmit={handleSubmit}
                   className="[&_[data-slot=input-group]]:border-border/50 [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:border-border"
@@ -438,8 +357,8 @@ export function OverviewCopilot() {
                       ref={textareaRef}
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder="Ask anything..."
-                      className="min-h-10 text-base"
+                      placeholder="Ask anything about your CV..."
+                      className="min-h-10 text-sm"
                     />
                   </PromptInputBody>
                   <PromptInputFooter>
@@ -461,9 +380,9 @@ export function OverviewCopilot() {
                 </PromptInput>
               </div>
             </div>
-          </motion.div>
+          </>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   )
 }

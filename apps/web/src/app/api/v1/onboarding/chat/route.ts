@@ -9,7 +9,7 @@ import {
 } from "@/lib/linkedin-scraper.server"
 import { getDataStatus } from "@/lib/onboarding-voice-config"
 import { verifyAuth, getSupabaseAdmin } from "@/lib/auth.server"
-import { computeAndUpdateProfileCompleteness } from "@/lib/profile-completeness.server"
+// Profile completeness is now binary — set to 1 after onboarding
 
 // ============================================================================
 // Zod Schema for Collected Onboarding Data
@@ -148,6 +148,70 @@ type ProfileAnalysisData = {
   detailedFeedback: string
 }
 
+const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
+  intern_new_grad: "Junior",
+  entry: "Entry-Level",
+  mid: "Mid-Level",
+  senior: "Senior",
+  lead: "Lead",
+  director: "Director-Level",
+}
+
+function generateHeadline(data: Partial<CollectedData>): string {
+  const level = data.experienceLevel
+    ? EXPERIENCE_LEVEL_LABELS[data.experienceLevel] ?? ""
+    : ""
+  const topSkills = (data.skills ?? []).slice(0, 4).map((s) => s.name)
+  const primaryTitle = data.experiences?.[0]?.title ?? "Freelancer"
+
+  if (topSkills.length > 0) {
+    return `${level} ${primaryTitle} — ${topSkills.join(" | ")}`.trim()
+  }
+  return `${level} ${primaryTitle}`.trim()
+}
+
+function generateAbout(data: Partial<CollectedData>): string {
+  const name = data.fullName ?? "Freelancer"
+  const level = data.experienceLevel
+    ? EXPERIENCE_LEVEL_LABELS[data.experienceLevel]?.toLowerCase() ?? ""
+    : ""
+  const skills = (data.skills ?? []).map((s) => s.name)
+  const latestExp = data.experiences?.[0]
+  const engagementLabel =
+    data.engagementTypes?.includes("full_time") &&
+    data.engagementTypes?.includes("part_time")
+      ? "full-time and part-time"
+      : data.engagementTypes?.includes("full_time")
+        ? "full-time"
+        : "part-time"
+
+  const parts: string[] = []
+
+  if (latestExp) {
+    const companyPart = latestExp.company ? ` at ${latestExp.company}` : ""
+    parts.push(
+      `${name} is a ${level} ${latestExp.title}${companyPart}.`.replace(
+        /\s+/g,
+        " "
+      )
+    )
+  } else {
+    parts.push(`${name} is a ${level} freelance professional.`.replace(/\s+/g, " "))
+  }
+
+  if (skills.length > 0) {
+    const skillList =
+      skills.length <= 3
+        ? skills.join(", ")
+        : `${skills.slice(0, 3).join(", ")} and ${skills.length - 3} more`
+    parts.push(`Specializing in ${skillList}.`)
+  }
+
+  parts.push(`Available for ${engagementLabel} engagements.`)
+
+  return parts.join(" ")
+}
+
 async function persistOnboardingComplete(
   authContext: { userId: string; teamId: string },
   collectedData: Partial<CollectedData>,
@@ -157,27 +221,25 @@ async function persistOnboardingComplete(
   const { userId, teamId } = authContext
   const now = new Date().toISOString()
 
-  // Save display name to profile
-  if (collectedData.fullName) {
-    await supabase
-      .from("profiles")
-      .update({
-        display_name: collectedData.fullName,
-        onboarding_completed_at: now,
-        updated_at: now,
-      })
-      .eq("user_id", userId)
-      .eq("team_id", teamId)
-  } else {
-    await supabase
-      .from("profiles")
-      .update({
-        onboarding_completed_at: now,
-        updated_at: now,
-      })
-      .eq("user_id", userId)
-      .eq("team_id", teamId)
-  }
+  // Generate headline and about from collected data
+  const headline = generateHeadline(collectedData)
+  const about = generateAbout(collectedData)
+
+  // Save profile with generated fields and mark onboarding complete (score = 1)
+  await supabase
+    .from("profiles")
+    .update({
+      display_name: collectedData.fullName ?? undefined,
+      headline,
+      about,
+      team_mode: collectedData.teamMode ?? "solo",
+      linkedin_url: collectedData.linkedinUrl ?? undefined,
+      profile_completeness_score: 1,
+      onboarding_completed_at: now,
+      updated_at: now,
+    } as never)
+    .eq("user_id", userId)
+    .eq("team_id", teamId)
 
   // Save skills (delete + insert)
   if (collectedData.skills && collectedData.skills.length > 0) {
@@ -265,15 +327,6 @@ async function persistOnboardingComplete(
     )
   }
 
-  // Save LinkedIn URL
-  if (collectedData.linkedinUrl) {
-    await supabase
-      .from("profiles")
-      .update({ linkedin_url: collectedData.linkedinUrl })
-      .eq("user_id", userId)
-      .eq("team_id", teamId)
-  }
-
   // Save profile analysis
   await supabase.from("profile_analyses").insert({
     team_id: teamId,
@@ -284,9 +337,6 @@ async function persistOnboardingComplete(
     improvements: analysis.improvements,
     detailed_feedback: analysis.detailedFeedback,
   })
-
-  // Update completeness score
-  await computeAndUpdateProfileCompleteness({ userId, teamId, role: "leader" })
 }
 
 function readEnvLocalValue(key: string) {

@@ -39,7 +39,7 @@ export function OnboardingCompletenessReminder() {
 
         if (!isMounted) return
 
-        if (score < 0.8) {
+        if (score < 1) {
           toast.info("Finish onboarding for a better experience.", {
             id: "onboarding-reminder",
             duration: Infinity,

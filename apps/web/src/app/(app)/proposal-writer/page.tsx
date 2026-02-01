@@ -327,7 +327,7 @@ export default function ProposalWriterPage() {
           <div className="mb-4 flex items-center justify-center gap-2">
             <Badge variant="outline">BETA</Badge>
           </div>
-          <h1 className="mb-3 text-3xl font-medium tracking-tight lg:text-3xl">
+          <h1 className="mb-3 text-3xl font-semibold tracking-tight lg:text-3xl">
             Proposal Writer
           </h1>
           <p className="mx-auto max-w-xl text-muted-foreground">

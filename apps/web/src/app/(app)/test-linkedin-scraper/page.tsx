@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2 } from "lucide-react"
 
 interface DistilledProfile {
@@ -331,9 +332,11 @@ export default function TestLinkedInScraperPage() {
                   <CardDescription>Copy this to test with AI agents</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <pre className="max-h-96 overflow-auto rounded-lg bg-muted p-4 text-xs">
-                    {JSON.stringify(result.profile, null, 2)}
-                  </pre>
+                  <ScrollArea className="max-h-96 rounded-lg bg-muted">
+                    <pre className="p-4 text-xs">
+                      {JSON.stringify(result.profile, null, 2)}
+                    </pre>
+                  </ScrollArea>
                 </CardContent>
               </Card>
 

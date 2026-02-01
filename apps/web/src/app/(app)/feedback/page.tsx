@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Bug, Lightbulb, Star, Send, CheckCircle } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 type FeedbackType = "bug" | "feature" | "review"
@@ -96,10 +97,11 @@ export default function FeedbackPage() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-auto px-4 py-6 sm:px-6">
+      <ScrollArea className="flex-1 overflow-hidden">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 sm:px-6">
         {/* Header */}
         <div className="shrink-0 text-center">
-          <h1 className="mb-3 text-3xl font-medium tracking-tight lg:text-4xl">
+          <h1 className="mb-3 text-3xl font-semibold tracking-tight lg:text-4xl">
             Feedback
           </h1>
           <p className="mx-auto max-w-xl text-muted-foreground">
@@ -193,6 +195,7 @@ export default function FeedbackPage() {
           </Button>
         </form>
       </div>
+      </ScrollArea>
     </div>
   )
 }

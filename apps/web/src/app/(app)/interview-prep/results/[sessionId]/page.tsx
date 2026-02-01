@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { ScoreRing, CategoryBar } from "@/components/ui/score-indicator"
 import {
   Sparkles,
@@ -202,7 +203,7 @@ export default function InterviewResultsPage() {
     : null
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    <ScrollArea className="h-full overflow-hidden">
       <div className="mx-auto w-full max-w-4xl px-4 py-8 lg:px-6 lg:py-12">
         {/* Header */}
         <div className="mb-2 flex items-center gap-2">
@@ -411,6 +412,6 @@ export default function InterviewResultsPage() {
           </Button>
         </div>
       </div>
-    </div>
+    </ScrollArea>
   )
 }

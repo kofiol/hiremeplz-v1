@@ -198,79 +198,61 @@ export async function verifyAuth(authHeader: string | null): Promise<AuthContext
         ? user.user_metadata.full_name
         : null;
 
-    // 2. Fetch user profile using Service Role (Bypasses RLS)
-    // We trust the userId from the valid token, so we can use admin privileges to look up their data.
-    const { data: profiles, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("team_id")
-      .eq("user_id", userId)
-      .returns<{ team_id: string }[]>();
-
-    if (profileError) {
-      console.error("Profile lookup error:", profileError);
-      throw new Error("User profile lookup failed");
-    }
-
-    let teamId = profiles?.[0]?.team_id ?? null;
-
-    if (!teamId) {
-      const bootstrapped = await ensureUserProfileAndTeam({
-        userId,
-        email,
-        displayName: fullName ?? email,
-      });
-      teamId = bootstrapped.teamId;
-    }
-
-    // 3. Fetch team membership using Service Role (Bypasses RLS)
-    const { data: members, error: memberError } = await supabaseAdmin
-      .from("team_members")
-      .select("team_id, role")
-      .eq("team_id", teamId)
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .returns<{ team_id: string; role: "leader" | "member" }[]>();
-
-    if (memberError) {
-      console.error("Auth verification failed: User has no active team", memberError);
-      throw new Error("User is not part of an active team");
-    }
-
-    if (!members || members.length === 0) {
-      await ensureUserProfileAndTeam({
-        userId,
-        email,
-        displayName: fullName ?? email,
-      });
-
-      const { data: membersAfter, error: memberAfterError } = await supabaseAdmin
+    // Run profile and team_members queries in parallel instead of sequentially
+    const [profileResult, membersResult] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("team_id")
+        .eq("user_id", userId)
+        .returns<{ team_id: string }[]>(),
+      supabaseAdmin
         .from("team_members")
         .select("team_id, role")
-        .eq("team_id", teamId)
         .eq("user_id", userId)
         .eq("status", "active")
-        .returns<{ team_id: string; role: "leader" | "member" }[]>();
+        .returns<{ team_id: string; role: "leader" | "member" }[]>(),
+    ])
 
-      if (memberAfterError || !membersAfter || membersAfter.length === 0) {
-        console.error("Auth verification failed: User has no active team");
-        throw new Error("User is not part of an active team");
-      }
-
-      const memberData = membersAfter[0];
-      return {
-        userId,
-        teamId: memberData.team_id,
-        role: memberData.role as "leader" | "member",
-      };
+    if (profileResult.error) {
+      console.error("Profile lookup error:", profileResult.error)
+      throw new Error("User profile lookup failed")
     }
 
-    const memberData = members[0];
+    const teamId = profileResult.data?.[0]?.team_id ?? null
+    const member = teamId
+      ? membersResult.data?.find(m => m.team_id === teamId) ?? null
+      : membersResult.data?.[0] ?? null
+
+    // Happy path: profile and team membership both exist
+    if (teamId && member) {
+      return { userId, teamId: member.team_id, role: member.role }
+    }
+
+    // Bootstrap profile + team only once if missing
+    const bootstrapped = await ensureUserProfileAndTeam({
+      userId,
+      email,
+      displayName: fullName ?? email,
+    })
+
+    const { data: membersAfter, error: memberAfterError } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id, role")
+      .eq("team_id", bootstrapped.teamId)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .returns<{ team_id: string; role: "leader" | "member" }[]>()
+
+    if (memberAfterError || !membersAfter || membersAfter.length === 0) {
+      console.error("Auth verification failed: User has no active team")
+      throw new Error("User is not part of an active team")
+    }
 
     return {
       userId,
-      teamId: memberData.team_id,
-      role: memberData.role as "leader" | "member",
-    };
+      teamId: membersAfter[0].team_id,
+      role: membersAfter[0].role,
+    }
   } catch (err) {
     console.error("Auth verification failed:", err);
     if (err instanceof Error) {

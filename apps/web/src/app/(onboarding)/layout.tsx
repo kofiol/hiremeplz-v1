@@ -43,7 +43,7 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
             ? payload.profile_completeness_score
             : 0
 
-        if (completeness >= 0.8) {
+        if (completeness >= 1) {
           router.replace("/overview")
           return
         }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
@@ -85,14 +86,14 @@ export default function InterviewPrepPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    <ScrollArea className="h-full overflow-hidden">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-4 py-8 lg:px-6 lg:py-12">
         {/* Header */}
         <div className="mb-5 shrink-0 text-center">
           <div className="mb-2 flex items-center justify-center">
             <Badge variant="outline">BETA</Badge>
           </div>
-          <h1 className="mb-1 text-2xl font-medium tracking-tight lg:text-3xl">
+          <h1 className="mb-1 text-2xl font-semibold tracking-tight lg:text-3xl">
             Interview Practice
           </h1>
           <p className="mx-auto max-w-lg text-sm text-muted-foreground">
@@ -208,6 +209,6 @@ export default function InterviewPrepPage() {
           </Button>
         </div>
       </div>
-    </div>
+    </ScrollArea>
   )
 }

@@ -3,14 +3,12 @@
 
 import * as React from 'react';
 import {
-  CompassIcon,
   FeatherIcon,
   HouseIcon,
-  PlusIcon,
-  SearchIcon,
+  MicIcon,
+  SettingsIcon,
+  UserIcon,
 } from 'lucide-react';
-import NotificationMenu from './NotificationMenu';
-import TeamSwitcher from './TeamSwitcher';
 import UserMenu from './UserMenu';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,50 +63,33 @@ export interface Navbar12NavItem {
 
 export interface Navbar12Props extends React.HTMLAttributes<HTMLElement> {
   navigationLinks?: Navbar12NavItem[];
-  teams?: string[];
-  defaultTeam?: string;
   userName?: string;
   userEmail?: string;
   userAvatar?: string;
-  notifications?: Array<{
-    id: string;
-    title: string;
-    message: string;
-    time: string;
-    unread?: boolean;
-  }>;
   onNavItemClick?: (href: string) => void;
-  onTeamChange?: (team: string) => void;
   onUserItemClick?: (item: string) => void;
-  onNotificationClick?: (notificationId: string) => void;
 }
 
 // Default navigation links
 const defaultNavigationLinks: Navbar12NavItem[] = [
-  { href: '#', label: 'Dashboard', icon: HouseIcon },
-  { href: '#', label: 'Explore', icon: CompassIcon },
-  { href: '#', label: 'Write', icon: FeatherIcon },
-  { href: '#', label: 'Search', icon: SearchIcon },
+  { href: '/overview', label: 'Overview', icon: HouseIcon },
+  { href: '/profile', label: 'Profile', icon: UserIcon },
+  { href: '/interview-prep', label: 'Interview Prep', icon: MicIcon },
+  { href: '/proposal-writer', label: 'Proposal Writer', icon: FeatherIcon },
+  { href: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-// Default teams
-const defaultTeams = ['Personal', 'Origin UI'];
 
 export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
   (
     {
       className,
       navigationLinks = defaultNavigationLinks,
-      teams = defaultTeams,
-      defaultTeam = teams[0],
       userName = 'John Doe',
       userEmail = 'john@example.com',
       userAvatar,
-      notifications,
       onNavItemClick,
-      onTeamChange,
       onUserItemClick,
-      onNotificationClick,
       ...props
     },
     ref
@@ -164,11 +145,6 @@ export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
                 </NavigationMenu>
               </PopoverContent>
             </Popover>
-            <TeamSwitcher 
-              teams={teams} 
-              defaultTeam={defaultTeam} 
-              onTeamChange={onTeamChange}
-            />
           </div>
 
           {/* Middle area */}
@@ -198,11 +174,7 @@ export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
 
           {/* Right side */}
           <div className="flex flex-1 items-center justify-end gap-4">
-            <NotificationMenu 
-              notifications={notifications}
-              onNotificationClick={onNotificationClick}
-            />
-            <UserMenu 
+            <UserMenu
               userName={userName}
               userEmail={userEmail}
               userAvatar={userAvatar}
@@ -218,4 +190,4 @@ export const Navbar12 = React.forwardRef<HTMLElement, Navbar12Props>(
 
 Navbar12.displayName = 'Navbar12';
 
-export { HamburgerIcon, NotificationMenu, TeamSwitcher, UserMenu };
+export { HamburgerIcon, UserMenu };

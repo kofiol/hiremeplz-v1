@@ -14,6 +14,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
   Message,
@@ -709,7 +710,7 @@ export default function InterviewSessionPage() {
             </div>
 
             {/* Transcript (scrollable) */}
-            <div className="w-full max-w-2xl flex-1 overflow-y-auto rounded-xl border border-border/30 bg-card/30 p-4 backdrop-blur-sm">
+            <ScrollArea className="w-full max-w-2xl flex-1 overflow-hidden rounded-xl border border-border/30 bg-card/30 p-4 backdrop-blur-sm">
               {transcript.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground">
                   Transcript will appear here...
@@ -740,7 +741,7 @@ export default function InterviewSessionPage() {
                   <div ref={transcriptEndRef} />
                 </div>
               )}
-            </div>
+            </ScrollArea>
           </>
         )}
 

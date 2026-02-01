@@ -6,6 +6,7 @@ import { useSession } from "@/app/auth/session-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   ArrowLeft,
   History,
@@ -94,7 +95,7 @@ export default function InterviewHistoryPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    <ScrollArea className="h-full overflow-hidden">
       <div className="mx-auto w-full max-w-4xl px-4 py-8 lg:px-6 lg:py-12">
         {/* Header */}
         <div className="mb-2">
@@ -112,7 +113,7 @@ export default function InterviewHistoryPage() {
           <div className="mb-4 flex items-center justify-center gap-2">
             <History className="size-5 text-muted-foreground" />
           </div>
-          <h1 className="mb-3 text-3xl font-medium tracking-tight lg:text-4xl">
+          <h1 className="mb-3 text-3xl font-semibold tracking-tight lg:text-4xl">
             Past Interviews
           </h1>
           <p className="mx-auto max-w-xl text-muted-foreground">
@@ -187,6 +188,6 @@ export default function InterviewHistoryPage() {
           </div>
         )}
       </div>
-    </div>
+    </ScrollArea>
   )
 }

@@ -8,6 +8,10 @@ const patchSchema = z.object({
   profile: z
     .object({
       displayName: z.string().trim().min(1).nullable().optional(),
+      headline: z.string().trim().nullable().optional(),
+      about: z.string().trim().nullable().optional(),
+      location: z.string().trim().nullable().optional(),
+      linkedinUrl: z.string().trim().url().nullable().optional(),
     })
     .optional(),
   preferences: z
@@ -38,10 +42,17 @@ export async function GET(request: NextRequest) {
     const [profileResult, preferencesResult, agentResult] = await Promise.all([
       supabaseAdmin
         .from("profiles")
-        .select("display_name, timezone")
+        .select("display_name, timezone, headline, about, location, linkedin_url")
         .eq("user_id", authContext.userId)
         .eq("team_id", authContext.teamId)
-        .maybeSingle<{ display_name: string | null; timezone: string | null }>(),
+        .maybeSingle<{
+          display_name: string | null
+          timezone: string | null
+          headline: string | null
+          about: string | null
+          location: string | null
+          linkedin_url: string | null
+        }>(),
       supabaseAdmin
         .from("user_preferences")
         .select(
@@ -102,6 +113,10 @@ export async function GET(request: NextRequest) {
         profile: {
           display_name: profileResult.data?.display_name ?? null,
           timezone: profileResult.data?.timezone ?? null,
+          headline: profileResult.data?.headline ?? null,
+          about: profileResult.data?.about ?? null,
+          location: profileResult.data?.location ?? null,
+          linkedin_url: profileResult.data?.linkedin_url ?? null,
         },
         preferences: {
           currency: preferencesResult.data?.currency ?? null,
@@ -149,13 +164,30 @@ export async function PATCH(request: NextRequest) {
 
     const { profile, preferences, agent } = parsed.data
 
-    if (profile && typeof profile.displayName !== "undefined") {
+    if (profile) {
+      const profileUpdate: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      }
+
+      if (typeof profile.displayName !== "undefined") {
+        profileUpdate.display_name = profile.displayName
+      }
+      if (typeof profile.headline !== "undefined") {
+        profileUpdate.headline = profile.headline
+      }
+      if (typeof profile.about !== "undefined") {
+        profileUpdate.about = profile.about
+      }
+      if (typeof profile.location !== "undefined") {
+        profileUpdate.location = profile.location
+      }
+      if (typeof profile.linkedinUrl !== "undefined") {
+        profileUpdate.linkedin_url = profile.linkedinUrl
+      }
+
       const { error: profileUpdateError } = await supabaseAdmin
         .from("profiles")
-        .update({
-          display_name: profile.displayName,
-          updated_at: new Date().toISOString(),
-        })
+        .update(profileUpdate)
         .eq("user_id", authContext.userId)
         .eq("team_id", authContext.teamId)
 
