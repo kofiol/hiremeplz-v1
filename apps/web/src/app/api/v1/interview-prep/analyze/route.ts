@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
     // Run analysis
     const analysis = await analyzeInterview({
       interviewType: session.interview_type,
-      transcript: session.transcript ?? [],
-      metrics: session.metrics ?? {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transcript: (session.transcript ?? []) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      metrics: (session.metrics ?? {}) as any,
       freelancerProfile: freelancerContext,
       context: session.context ?? null,
     })

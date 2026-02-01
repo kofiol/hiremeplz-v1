@@ -1,5 +1,6 @@
 import "server-only"
 import { createClient } from "@supabase/supabase-js"
+import type { Database } from "./database.types"
 
 type SupabaseEnv = {
   url: string
@@ -7,7 +8,7 @@ type SupabaseEnv = {
   serviceRoleKey: string
 }
 
-let cachedSupabaseAdmin: ReturnType<typeof createClient> | null = null
+let cachedSupabaseAdmin: ReturnType<typeof createClient<Database>> | null = null
 
 const getSupabaseEnv = (): SupabaseEnv => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -32,7 +33,7 @@ export const getSupabaseAdmin = () => {
 
   const { url, serviceRoleKey } = getSupabaseEnv()
 
-  cachedSupabaseAdmin = createClient(url, serviceRoleKey, {
+  cachedSupabaseAdmin = createClient<Database>(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -45,7 +46,7 @@ export const getSupabaseAdmin = () => {
 export function createUserSupabaseClient(accessToken: string) {
   const { url, anonKey } = getSupabaseEnv()
 
-  return createClient(url, anonKey, {
+  return createClient<Database>(url, anonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${accessToken}`,

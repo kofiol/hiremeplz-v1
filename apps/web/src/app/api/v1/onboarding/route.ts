@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin, verifyAuth } from "@/lib/auth.server";
 import { computeAndUpdateProfileCompleteness } from "@/lib/profile-completeness.server";
+import type { Json } from "@/lib/database.types";
 
 const onboardingSchema = z.object({
   team: z
@@ -426,7 +427,7 @@ export async function POST(request: NextRequest) {
           team_id: authContext.teamId,
           user_id: authContext.userId,
           agent_type: "job_search",
-          settings_json: nextSettings,
+          settings_json: nextSettings as unknown as Json,
           updated_at: new Date().toISOString(),
         },
         {

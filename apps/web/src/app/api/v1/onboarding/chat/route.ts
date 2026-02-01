@@ -928,7 +928,7 @@ Include rate analysis comparing their current rate vs dream rate.`
                 name: "Profile Analyst",
                 instructions: PROFILE_ANALYSIS_INSTRUCTIONS,
                 model: "gpt-5.2",
-                modelSettings: { reasoningEffort: "high" },
+                modelSettings: { reasoning_effort: "high" } as Record<string, unknown>,
                 outputType: ProfileAnalysisJsonSchema,
               })
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, verifyAuth } from "@/lib/auth.server";
+import type { Json } from "@/lib/database.types";
 
 export async function GET(request: NextRequest) {
   try {
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
           team_id: authContext.teamId,
           user_id: authContext.userId,
           agent_type: "job_search",
-          settings_json: nextSettings,
+          settings_json: nextSettings as unknown as Json,
           updated_at: new Date().toISOString(),
         },
         {

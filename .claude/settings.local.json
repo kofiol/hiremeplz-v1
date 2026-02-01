@@ -42,7 +42,8 @@
       "mcp__supabase__generate_typescript_types",
       "Bash(pnpm tsc:*)",
       "Bash(npx eslint:*)",
-      "Bash(pnpm dlx:*)"
+      "Bash(pnpm dlx:*)",
+      "Bash(pnpm turbo run build:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

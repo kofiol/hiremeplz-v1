@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { getSupabaseAdmin, verifyAuth } from "@/lib/auth.server"
 import { computeAndUpdateProfileCompleteness } from "@/lib/profile-completeness.server"
+import type { Json } from "@/lib/database.types"
 
 const patchSchema = z.object({
   profile: z
@@ -270,7 +271,7 @@ export async function PATCH(request: NextRequest) {
             team_id: authContext.teamId,
             user_id: authContext.userId,
             agent_type: "cover_letter",
-            settings_json: settingsJson,
+            settings_json: settingsJson as unknown as Json,
             updated_at: new Date().toISOString(),
           },
           {
@@ -338,7 +339,7 @@ export async function PATCH(request: NextRequest) {
             team_id: authContext.teamId,
             user_id: authContext.userId,
             agent_type: "interview_prep",
-            settings_json: settingsJson,
+            settings_json: settingsJson as unknown as Json,
             updated_at: new Date().toISOString(),
           },
           {
