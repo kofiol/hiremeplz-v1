@@ -71,7 +71,7 @@ export default function InterviewSessionPage() {
 
   // Metrics
   const metricsRef = useRef({
-    reactionTimes: [] as number[],
+    thinkingPauses: [] as number[],
     responseDurations: [] as number[],
     fillerWordCount: 0,
     questionCount: 0,
@@ -171,9 +171,9 @@ export default function InterviewSessionPage() {
             userStartedSpeakingAt.current = Date.now()
             // Track reaction time
             if (agentFinishedSpeakingAt.current > 0) {
-              const reactionTime =
+              const thinkingPause =
                 Date.now() - agentFinishedSpeakingAt.current
-              metricsRef.current.reactionTimes.push(reactionTime)
+              metricsRef.current.thinkingPauses.push(thinkingPause)
               agentFinishedSpeakingAt.current = 0
             }
             // Insert placeholder to preserve chronological order
@@ -279,7 +279,7 @@ export default function InterviewSessionPage() {
               msg.transcript &&
               msg.transcript
                 .toLowerCase()
-                .includes("this concludes our practice session")
+                .includes("thanks for your time")
             ) {
               handleEndRef.current()
             }
@@ -356,7 +356,8 @@ export default function InterviewSessionPage() {
             headline: "",
             skills: [],
             experiences: [],
-          }
+          },
+          sessionData.context
         )
 
         // 4. Get mic
@@ -434,7 +435,7 @@ export default function InterviewSessionPage() {
                 content: [
                   {
                     type: "input_text",
-                    text: "Hello, I'm ready for the interview.",
+                    text: "Hi, nice to meet you.",
                   },
                 ],
               },
@@ -540,7 +541,7 @@ export default function InterviewSessionPage() {
 
     // Save transcript + metrics
     const metrics = {
-      reactionTimes: metricsRef.current.reactionTimes,
+      thinkingPauses: metricsRef.current.thinkingPauses,
       responseDurations: metricsRef.current.responseDurations,
       fillerWordCount: metricsRef.current.fillerWordCount,
       totalDuration: Date.now() - metricsRef.current.startTime,
@@ -741,6 +742,27 @@ export default function InterviewSessionPage() {
               )}
             </div>
           </>
+        )}
+
+        {status === "disconnected" && isEnding && (
+          <div className="flex flex-col items-center gap-6 text-center">
+            <div className="interview-orb interview-orb-analyzing">
+              <Sparkles className="size-8 text-primary" />
+            </div>
+            <div>
+              <p className="text-lg font-medium">Analyzing your interview...</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Our AI is reviewing your transcript, scoring your performance,
+                and writing personalized feedback.
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                Processing {transcript.filter((t) => t.isFinal).length} messages
+              </div>
+            </div>
+          </div>
         )}
 
         {status === "error" && (

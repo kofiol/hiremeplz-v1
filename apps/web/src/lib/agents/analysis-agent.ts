@@ -27,7 +27,7 @@ interface AnalyzeInput {
   interviewType: string
   transcript: TranscriptEntry[]
   metrics: {
-    reactionTimes?: number[]
+    thinkingPauses?: number[]
     responseDurations?: number[]
     fillerWordCount?: number
     totalDuration?: number
@@ -40,19 +40,20 @@ interface AnalyzeInput {
     skills: string[]
     experiences: { title: string; company: string | null; highlights: string | null }[]
   }
+  context?: string | null
 }
 
 export async function analyzeInterview(input: AnalyzeInput): Promise<InterviewAnalysis> {
-  const { interviewType, transcript, metrics, freelancerProfile } = input
+  const { interviewType, transcript, metrics, freelancerProfile, context } = input
 
   const transcriptText = transcript
     .map((t) => `[${t.role === "user" ? "Candidate" : "Interviewer"}]: ${t.text}`)
     .join("\n\n")
 
-  const avgReactionTime = metrics.reactionTimes?.length
+  const avgThinkingPause = metrics.thinkingPauses?.length
     ? Math.round(
-        metrics.reactionTimes.reduce((a, b) => a + b, 0) /
-          metrics.reactionTimes.length
+        metrics.thinkingPauses.reduce((a, b) => a + b, 0) /
+          metrics.thinkingPauses.length
       )
     : null
 
@@ -64,7 +65,9 @@ export async function analyzeInterview(input: AnalyzeInput): Promise<InterviewAn
     : null
 
   const metricsContext = [
-    avgReactionTime !== null ? `Average reaction time: ${avgReactionTime}ms` : null,
+    avgThinkingPause !== null
+      ? `Average thinking pause before answering: ${avgThinkingPause}ms (2-5s pauses are normal and expected)`
+      : null,
     avgResponseDuration !== null
       ? `Average response duration: ${avgResponseDuration}ms`
       : null,
@@ -78,7 +81,11 @@ export async function analyzeInterview(input: AnalyzeInput): Promise<InterviewAn
     .filter(Boolean)
     .join("\n")
 
-  const prompt = `Analyze this mock ${interviewType.replace(/_/g, " ")} interview for a freelancer.
+  const contextBlock = context
+    ? `\n## Interview Context\n${context}\n`
+    : ""
+
+  const prompt = `Analyze this ${interviewType.replace(/_/g, " ")} interview for a freelancer.
 
 ## Freelancer Profile
 - Name: ${freelancerProfile.name}
@@ -87,26 +94,41 @@ export async function analyzeInterview(input: AnalyzeInput): Promise<InterviewAn
 - Location: ${freelancerProfile.location}
 - Skills: ${freelancerProfile.skills.join(", ")}
 - Recent experiences: ${freelancerProfile.experiences.map((e) => `${e.title} at ${e.company}`).join("; ")}
-
+${contextBlock}
 ## Performance Metrics
 ${metricsContext || "No metrics available"}
 
 ## Full Transcript
 ${transcriptText}
 
-## Scoring Guide
-- Communication (0-100): Clarity, articulation, conciseness, storytelling ability
-- Confidence (0-100): Assertiveness, composure, conviction in answers, handling of pushback
-- Content Quality (0-100): Relevance, depth, specificity of examples, technical accuracy
-- Responsiveness (0-100): Speed of response, ability to think on feet, handling of follow-ups
+## Scoring Guide (be harsh — most first-timers land 40-65)
+- Communication (0-100): Clarity, articulation, conciseness, storytelling. Penalize rambling, filler words, vague language.
+- Confidence (0-100): Assertiveness, composure, conviction. Penalize hedging ("I guess", "maybe", "kind of"), backtracking, and nervous qualifiers.
+- Content Quality (0-100): Relevance, depth, specificity of examples, concrete outcomes. Penalize generic answers that lack numbers, results, or real stories.
+- Responsiveness (0-100): Quality of engagement — how well the candidate listened, addressed the actual question asked, and handled follow-ups. Thinking pauses of 2-5 seconds are normal and should NOT be penalized. Only penalize pauses of 8+ seconds or if the candidate seemed lost/confused.
 
-Provide an overall score (weighted average favoring content quality and communication), exactly 3 strengths, exactly 3 areas for improvement, and a 2-3 paragraph detailed feedback summary. Be specific and reference actual moments from the transcript.`
+Provide an overall score (weighted average favoring content quality and communication), exactly 3 strengths (only genuinely impressive moments), exactly 3 areas for improvement (specific and actionable), and a 2-3 paragraph brutally honest detailed feedback summary. Quote the candidate's actual words when pointing out issues.`
 
   const analysisAgent = new Agent({
     name: "Interview Analyst",
     model: "gpt-4.1",
-    instructions:
-      "You are an expert interview coach who analyzes mock interview transcripts for freelancers. Be constructive, specific, and actionable. Reference exact moments from the transcript in your feedback. Output valid JSON matching the schema.",
+    instructions: `You are a brutally honest senior interview coach who analyzes interview transcripts for freelancers. You do NOT sugarcoat. Your job is to make the candidate better, not to make them feel good.
+
+Scoring principles:
+- A score of 70+ means genuinely strong performance. Most candidates should score 40-65 on their first attempts.
+- Do NOT inflate scores. If the candidate gave vague, generic answers, score them low regardless of how "nice" they sounded.
+- A perfect 100 is essentially impossible in a practice session.
+- Short, shallow answers = low content quality. Filler words and hesitation = low confidence.
+- Responsiveness measures engagement quality: did they actually answer the question asked? Did they pick up on cues? Did they handle follow-ups well? Thinking pauses of 2-5 seconds are completely normal. Only penalize pauses of 8+ seconds or if the candidate seemed genuinely lost.
+- If the candidate failed to give specific examples, numbers, or concrete outcomes, call it out explicitly.
+
+Feedback principles:
+- Name specific weak moments: quote the candidate's actual words when they fumbled.
+- Improvements should be concrete and actionable, not vague ("be more confident" is useless; "when asked about rates, state your number first without hedging" is useful).
+- Strengths should only highlight genuinely impressive moments, not participation trophies.
+- The detailed feedback should read like honest coaching from someone who wants the candidate to win their next real interview.
+
+Output valid JSON matching the schema.`,
     outputType: AnalysisSchema,
   })
 

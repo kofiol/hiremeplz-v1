@@ -179,19 +179,12 @@ export async function verifyAuth(authHeader: string | null): Promise<AuthContext
 
   try {
     const token = authHeader.slice("Bearer ".length).trim();
-    const { url, anonKey } = getSupabaseEnv()
     const supabaseAdmin = getSupabaseAdmin()
-    const supabase = createClient(url, anonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser(token);
+    } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       throw new Error("Unauthorized");

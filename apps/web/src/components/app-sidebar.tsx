@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Command, FileText, Home, Settings, PanelLeft, Mic, PenLine, User, MessageSquare } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -43,6 +44,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { session } = useSession()
   const { plan, displayName, email, isLoading } = useUserPlan()
   const { state, toggleSidebar } = useSidebar()
+  const pathname = usePathname()
   const isCollapsed = state === "collapsed"
   const planLabel = isLoading ? "Loading plan" : getPlanLabel(plan)
   const emailFromSession = session?.user?.email ?? null
@@ -133,7 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 />
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Feedback">
+                <SidebarMenuButton asChild tooltip="Feedback" isActive={pathname === "/feedback"}>
                   <Link href="/feedback">
                     <MessageSquare className="size-4" />
                     <span>Feedback</span>

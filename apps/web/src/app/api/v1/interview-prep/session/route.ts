@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const interviewType = body.interviewType as string
+    const context = typeof body.context === "string" ? body.context.slice(0, 2000) : null
 
     if (
       !interviewType ||
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         interview_type: interviewType,
         status: "pending",
+        context,
       })
       .select("id")
       .single<{ id: string }>()

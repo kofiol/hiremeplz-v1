@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       transcript: session.transcript ?? [],
       metrics: session.metrics ?? {},
       freelancerProfile: freelancerContext,
+      context: session.context ?? null,
     })
 
     // Save analysis to session

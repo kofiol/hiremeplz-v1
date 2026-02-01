@@ -7,16 +7,14 @@ export default function CVBuilderPage() {
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 overflow-auto px-4 py-6 sm:px-6">
         {/* Header */}
-        <div className="shrink-0">
-          <div className="mb-1 flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              CV Builder
-            </h1>
-            <Badge variant="secondary" className="text-xs font-semibold uppercase">
-              BETA
-            </Badge>
+        <div className="shrink-0 text-center">
+          <div className="mb-4 flex items-center justify-center gap-2">
+            <Badge variant="outline">BETA</Badge>
           </div>
-          <p className="text-muted-foreground">
+          <h1 className="mb-3 text-3xl font-medium tracking-tight lg:text-4xl">
+            CV Builder
+          </h1>
+          <p className="mx-auto max-w-xl text-muted-foreground">
             Generate a professional CV from your profile data.
           </p>
         </div>

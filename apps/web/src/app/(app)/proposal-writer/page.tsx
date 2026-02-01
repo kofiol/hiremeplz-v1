@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { useSession } from "@/app/auth/session-provider"
 import { supabase } from "@/lib/supabaseClient"
 import { Badge } from "@/components/ui/badge"
@@ -15,11 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
@@ -27,7 +22,6 @@ import {
   Copy,
   Check,
   RefreshCw,
-  ChevronDown,
 } from "lucide-react"
 
 // ============================================================================
@@ -90,8 +84,6 @@ export default function ProposalWriterPage() {
   // Profile state
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [useProfile, setUseProfile] = useState(true)
 
   // Auto-scroll ref
   const outputRef = useRef<HTMLDivElement>(null)
@@ -179,26 +171,6 @@ export default function ProposalWriterPage() {
     fetchProfile()
   }, [session?.user?.id])
 
-  // Profile summary for display
-  const profileSummary = useMemo(() => {
-    if (!profileData) return null
-    const parts: string[] = []
-    if (profileData.skills.length > 0) {
-      parts.push(`${profileData.skills.length} skills`)
-    }
-    if (profileData.experiences.length > 0) {
-      parts.push(
-        `${profileData.experiences.length} experience${profileData.experiences.length > 1 ? "s" : ""}`
-      )
-    }
-    if (profileData.educations.length > 0) {
-      parts.push(
-        `${profileData.educations.length} education${profileData.educations.length > 1 ? "s" : ""}`
-      )
-    }
-    return parts.join(", ")
-  }, [profileData])
-
   // Auto-scroll during streaming
   useEffect(() => {
     if (isStreaming && outputRef.current) {
@@ -239,7 +211,7 @@ export default function ProposalWriterPage() {
             customPlatform: platform === "other" ? customPlatform : undefined,
             tone,
             length,
-            skipProfile: !useProfile,
+            skipProfile: false,
             conversationHistory: history,
           }),
           signal: controller.signal,
@@ -300,7 +272,7 @@ export default function ProposalWriterPage() {
         abortRef.current = null
       }
     },
-    [session?.access_token, jobPosting, platform, customPlatform, tone, length, useProfile]
+    [session?.access_token, jobPosting, platform, customPlatform, tone, length]
   )
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -349,148 +321,28 @@ export default function ProposalWriterPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-hidden px-4 py-6 sm:px-6">
+      <div className={`mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-hidden px-4 py-6 sm:px-6 ${!hasGenerated && !isStreaming ? "justify-center" : ""}`}>
         {/* Header */}
-        <div className="shrink-0">
-          <div className="mb-1 flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Proposal Writer
-            </h1>
-            <Badge
-              variant="secondary"
-              className="text-xs font-semibold uppercase"
-            >
-              BETA
-            </Badge>
+        <div className="shrink-0 text-center">
+          <div className="mb-4 flex items-center justify-center gap-2">
+            <Badge variant="outline">BETA</Badge>
           </div>
-          <p className="text-muted-foreground">
+          <h1 className="mb-3 text-3xl font-medium tracking-tight lg:text-3xl">
+            Proposal Writer
+          </h1>
+          <p className="mx-auto max-w-xl text-muted-foreground">
             Paste a job posting and get a winning freelance proposal powered by
             your profile.
           </p>
         </div>
 
-        {/* Profile Context Card */}
-        {!profileLoading && (
-          <div className="shrink-0">
-            {profileData ? (
-              <Collapsible open={profileOpen} onOpenChange={setProfileOpen}>
-                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-2.5 text-sm text-muted-foreground">
-                  {/* Toggle profile on/off */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setUseProfile((v) => !v)
-                    }}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${useProfile ? "bg-green-500" : "bg-muted-foreground/30"}`}
-                    role="switch"
-                    aria-checked={useProfile}
-                    aria-label="Use profile data"
-                  >
-                    <span
-                      className={`pointer-events-none inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform ${useProfile ? "translate-x-[18px]" : "translate-x-[3px]"}`}
-                    />
-                  </button>
-
-                  <CollapsibleTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex flex-1 items-center gap-2 text-left transition-colors hover:text-foreground"
-                    >
-                      <span className="flex-1">
-                        {useProfile
-                          ? `Using your profile: ${profileSummary}`
-                          : "Profile data disabled"}
-                      </span>
-                      <ChevronDown
-                        className={`size-4 shrink-0 transition-transform ${profileOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                  </CollapsibleTrigger>
-                </div>
-                <CollapsibleContent>
-                  <div className="mt-2 rounded-lg border border-border/50 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-                    {profileData.displayName && (
-                      <p className="mb-1">
-                        <span className="font-medium text-foreground">
-                          {profileData.displayName}
-                        </span>
-                        {profileData.headline && (
-                          <span> — {profileData.headline}</span>
-                        )}
-                      </p>
-                    )}
-                    {profileData.skills.length > 0 && (
-                      <p className="mb-1">
-                        <span className="font-medium text-foreground">
-                          Skills:{" "}
-                        </span>
-                        {profileData.skills.map((s) => s.name).join(", ")}
-                      </p>
-                    )}
-                    {profileData.experiences.length > 0 && (
-                      <div className="mb-1">
-                        <span className="font-medium text-foreground">
-                          Experience:{" "}
-                        </span>
-                        {profileData.experiences.map((e, i) => (
-                          <span key={i}>
-                            {e.title}
-                            {e.company ? ` at ${e.company}` : ""}
-                            {i < profileData.experiences.length - 1
-                              ? ", "
-                              : ""}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {profileData.educations.length > 0 && (
-                      <p>
-                        <span className="font-medium text-foreground">
-                          Education:{" "}
-                        </span>
-                        {profileData.educations
-                          .map((e) =>
-                            [e.degree, e.field, e.school]
-                              .filter(Boolean)
-                              .join(", ")
-                          )
-                          .join(" | ")}
-                      </p>
-                    )}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            ) : (
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-2.5 text-sm text-muted-foreground">
-                <button
-                  type="button"
-                  onClick={() => setUseProfile((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${useProfile ? "bg-yellow-500" : "bg-muted-foreground/30"}`}
-                  role="switch"
-                  aria-checked={useProfile}
-                  aria-label="Use profile data"
-                >
-                  <span
-                    className={`pointer-events-none inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform ${useProfile ? "translate-x-[18px]" : "translate-x-[3px]"}`}
-                  />
-                </button>
-                <span className="flex-1">
-                  {useProfile
-                    ? "No profile data found. Complete onboarding for personalized proposals."
-                    : "Profile data disabled — generating without profile context."}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Job Posting Input */}
         <Textarea
           value={jobPosting}
           onChange={(e) => setJobPosting(e.target.value)}
           placeholder="Paste the job title, description, and any requirements here..."
-          className={`text-base ${hasGenerated || isStreaming ? "max-h-[120px] min-h-[80px] shrink-0" : "min-h-0 flex-1 resize-none"}`}
+          className={`text-base ${hasGenerated || isStreaming ? "max-h-30 min-h-[80px] shrink-0" : "h-70 shrink-0 resize-none"}`}
           disabled={isStreaming}
         />
 
@@ -560,7 +412,7 @@ export default function ProposalWriterPage() {
         <Button
           onClick={handleGenerate}
           disabled={jobPosting.trim().length < 10 || isStreaming}
-          className="w-full shrink-0 gap-2"
+          className={`w-full shrink-0 gap-2 ${!hasGenerated && !isStreaming ? "mb-8" : ""}`}
           size="lg"
         >
           <Sparkles className="size-4" />

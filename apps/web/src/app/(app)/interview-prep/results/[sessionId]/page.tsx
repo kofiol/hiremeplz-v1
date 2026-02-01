@@ -12,6 +12,7 @@ import {
   Sparkles,
   ArrowLeft,
   RotateCcw,
+  History,
   ChevronDown,
   ChevronUp,
   TrendingUp,
@@ -34,6 +35,7 @@ type SessionData = {
   status: string
   transcript: { role: string; text: string; timestamp: string }[]
   metrics: {
+    thinkingPauses?: number[]
     reactionTimes?: number[]
     responseDurations?: number[]
     fillerWordCount?: number
@@ -143,25 +145,58 @@ export default function InterviewResultsPage() {
   const metrics = sessionData.metrics
 
   if (!analysis) {
+    const steps = [
+      "Reading your transcript",
+      "Evaluating communication clarity",
+      "Scoring confidence and composure",
+      "Reviewing content quality",
+      "Writing personalized feedback",
+    ]
+    const activeStep = Math.min(Math.floor(pollCount / 2), steps.length - 1)
+
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-6">
         <div className="interview-orb interview-orb-analyzing">
           <Sparkles className="size-8 text-primary" />
         </div>
         <div className="text-center">
-          <p className="font-medium">Analyzing your interview...</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Our AI is reviewing your transcript and generating feedback
+          <p className="text-lg font-medium">Analyzing your interview...</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This usually takes 10-15 seconds
           </p>
+        </div>
+        <div className="flex flex-col gap-2 text-sm">
+          {steps.map((step, i) => (
+            <div
+              key={step}
+              className="flex items-center gap-2.5 text-muted-foreground"
+            >
+              {i < activeStep ? (
+                <div className="flex size-4 items-center justify-center">
+                  <div className="size-1.5 rounded-full bg-foreground" />
+                </div>
+              ) : i === activeStep ? (
+                <span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : (
+                <div className="flex size-4 items-center justify-center">
+                  <div className="size-1.5 rounded-full bg-muted-foreground/30" />
+                </div>
+              )}
+              <span className={i <= activeStep ? "text-foreground" : ""}>
+                {step}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     )
   }
 
-  const avgReactionTime = metrics.reactionTimes?.length
+  const pauses = metrics.thinkingPauses ?? metrics.reactionTimes
+  const avgThinkTime = pauses?.length
     ? Math.round(
-        metrics.reactionTimes.reduce((a: number, b: number) => a + b, 0) /
-          metrics.reactionTimes.length /
+        pauses.reduce((a: number, b: number) => a + b, 0) /
+          pauses.length /
           1000
       )
     : null
@@ -233,8 +268,8 @@ export default function InterviewResultsPage() {
               icon: AlertTriangle,
             },
             {
-              label: "Avg reaction",
-              value: avgReactionTime !== null ? `${avgReactionTime}s` : "N/A",
+              label: "Avg think time",
+              value: avgThinkTime !== null ? `${avgThinkTime}s` : "N/A",
               icon: Clock,
             },
             {
@@ -362,6 +397,13 @@ export default function InterviewResultsPage() {
           >
             <ArrowLeft className="mr-2 size-4" />
             Back to Prep
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/interview-prep/history")}
+          >
+            <History className="mr-2 size-4" />
+            View History
           </Button>
           <Button onClick={() => router.push("/interview-prep")}>
             <RotateCcw className="mr-2 size-4" />
