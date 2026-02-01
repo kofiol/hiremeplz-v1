@@ -26,6 +26,9 @@ import { Button } from "@/components/ui/button"
 const navMain = [
   { title: "Overview", url: "/overview", icon: Home },
   { title: "Profile", url: "/profile", icon: User },
+]
+
+const navTools = [
   { title: "Interview Prep", url: "/interview-prep", icon: Mic, badge: "BETA" },
   { title: "CV Builder", url: "/cv-builder", icon: FileText, badge: "BETA" },
   { title: "Proposal Writer", url: "/proposal-writer", icon: PenLine, badge: "BETA" },
@@ -111,6 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain label="App" items={navMain} />
+        <NavMain label="Tools" items={navTools} />
         <div className="mt-auto">
           <SidebarGroup>
             <SidebarGroupLabel>Account</SidebarGroupLabel>
