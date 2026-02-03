@@ -13,6 +13,62 @@ hiremeplz.app is a personal AI agent for finding freelance work. It's a Next.js 
 
 **Architecture:** Single-user (one freelancer per account with team context for future expansion)
 
+## Git Workflow
+
+This project uses a **clean two-branch workflow** with custom Git aliases. **Always use these aliases instead of manual Git commands.**
+
+### Branch Structure
+- `main` - Production (deployed to hiremeplz.app via Vercel)
+- `dev` - Development (where all work happens)
+
+### Custom Git Commands
+
+**Starting work:**
+```bash
+git start  # Syncs dev with main before starting work
+```
+
+**Saving progress:**
+```bash
+git save  # Quick commit + push with "WIP" message
+# OR use regular commits:
+git add .
+git commit -m "Descriptive message"
+git push origin dev
+```
+
+**Deploying to production:**
+```bash
+git ship "Week 3 features: proposals + CV builder"
+# Creates PR, merges (squash), syncs everything automatically
+```
+
+**Emergency reset:**
+```bash
+git reset-dev  # Nukes dev and recreates from main
+```
+
+**Shortcuts:**
+- `git st` - Status
+- `git br` - List branches  
+- `git visual` - Pretty branch graph
+- `git last` - Show last commit
+
+### Important Git Rules
+
+1. **NEVER commit directly to `main`** - Always work on `dev`
+2. **NEVER force push** - Use `git ship` workflow instead
+3. **Always `git start` before work** - Ensures dev syncs with main
+4. **Use `git ship` for deploys** - Maintains clean PR history for rollbacks
+
+### When Helping with Git
+
+- Always suggest the custom aliases (`git start`, `git save`, `git ship`)
+- Verify Mark is on `dev` branch before suggesting commits
+- For deployment questions → point to `git ship`
+- If workflow is broken → suggest `git reset-dev`
+- Never suggest force pushing or direct merging to main
+
 ## Monorepo Structure
 
 **Turbo + pnpm monorepo** with the following layout:
@@ -129,6 +185,20 @@ Copy `.env.example` to `.env.local` and configure:
 
 For local development: Supabase runs on `http://localhost:54321`.
 
+### Deployment Configuration
+
+**Vercel:**
+- `main` branch → Production (`hiremeplz.app`)
+- `dev` branch → Preview deployments
+- Environment variables set per branch
+
+**Supabase:**
+- Single project for both dev and prod
+- Multiple auth redirect URLs configured:
+  - `http://localhost:3000/auth/callback`
+  - `https://hiremeplz.app/auth/callback`
+  - Vercel preview URLs
+
 ## Abandoned Features
 
 **Do NOT include these in context injections or code reviews:**
@@ -150,4 +220,9 @@ pnpm test
 
 Add or update tests for any code changes. PR title format: `[<project_name>] <Title>`
 
-FULL DOCS AVALIABLE AT APPS/DOCS - CONSULT CAREFULLY BEFORE CHANGES ALONGSIDE SKILLS/
+**Then deploy:**
+```bash
+git ship "Description of changes"
+```
+
+FULL DOCS AVAILABLE AT APPS/DOCS - CONSULT CAREFULLY BEFORE CHANGES ALONGSIDE SKILLS/
