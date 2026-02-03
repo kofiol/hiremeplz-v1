@@ -46,7 +46,8 @@
       "Bash(pnpm turbo run build:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfix\\(sidebar\\): replace Command icon with rounded square to match branding\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(npx email export:*)"
+      "Bash(npx email export:*)",
+      "Bash(pnpm send-launch:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

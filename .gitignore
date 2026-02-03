@@ -39,3 +39,7 @@ yarn-error.log*
 
 .trigger
 
+# Email scripts
+apps/web/scripts/waitlist.json
+apps/web/scripts/preview-*.html
+
