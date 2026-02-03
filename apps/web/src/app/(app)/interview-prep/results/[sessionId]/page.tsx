@@ -24,6 +24,8 @@ import {
   Clock,
   Target,
 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import type { InterviewAnalysis } from "@/lib/agents/analysis-agent"
 import {
   type InterviewType,
@@ -340,12 +342,10 @@ export default function InterviewResultsPage() {
             <CardTitle className="text-base">Detailed Feedback</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm text-sm leading-relaxed text-muted-foreground">
-              {analysis.detailedFeedback.split("\n").map((p, i) => (
-                <p key={i} className="mb-3">
-                  {p}
-                </p>
-              ))}
+            <div className="prose prose-sm prose-invert max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {analysis.detailedFeedback}
+              </ReactMarkdown>
             </div>
           </CardContent>
         </Card>

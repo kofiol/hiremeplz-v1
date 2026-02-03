@@ -22,6 +22,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const navMain = [
   { title: "Overview", url: "/overview", icon: Home },
@@ -72,14 +77,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {isCollapsed ? (
               // When collapsed: show only the toggle button centered
               <div className="flex items-center justify-center py-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  className="size-8"
-                >
-                  <PanelLeft className="size-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleSidebar}
+                      className="size-8"
+                    >
+                      <PanelLeft className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Expand sidebar</TooltipContent>
+                </Tooltip>
               </div>
             ) : (
               // When expanded: show logo + name + toggle button in a row
@@ -92,18 +102,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <span className="truncate text-xs">{subtitle}</span>
                     </div>
                   </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      toggleSidebar()
-                    }}
-                    className="size-8 shrink-0"
-                  >
-                    <PanelLeft className="size-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleSidebar()
+                        }}
+                        className="size-8 shrink-0"
+                      >
+                        <PanelLeft className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Collapse sidebar</TooltipContent>
+                  </Tooltip>
                 </div>
               </SidebarMenuButton>
             )}
