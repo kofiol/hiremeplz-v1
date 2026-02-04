@@ -162,7 +162,7 @@ export async function persistOnboardingComplete(
       headline,
       about,
       team_mode: collectedData.teamMode ?? "solo",
-      linkedin_url: collectedData.linkedinUrl ?? undefined,
+      linkedin_url: collectedData.linkedinUrl && collectedData.linkedinUrl !== "skipped" ? collectedData.linkedinUrl : undefined,
       profile_completeness_score: 1,
       onboarding_completed_at: now,
       updated_at: now,

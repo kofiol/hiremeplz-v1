@@ -34,7 +34,7 @@ export function FinishOnboarding({ collectedData, onComplete }: AnalysisResultsP
             const payload: Record<string, unknown> = {}
             if (collectedData.teamMode) payload.team = { mode: collectedData.teamMode }
             if (collectedData.profilePath) payload.path = collectedData.profilePath
-            if (collectedData.linkedinUrl) payload.profileSetup = { linkedinUrl: collectedData.linkedinUrl }
+            if (collectedData.linkedinUrl && collectedData.linkedinUrl !== "skipped") payload.profileSetup = { linkedinUrl: collectedData.linkedinUrl }
             if (collectedData.experienceLevel) payload.experienceLevel = collectedData.experienceLevel
             if (collectedData.skills && collectedData.skills.length > 0) payload.skills = collectedData.skills
             if (collectedData.experiences && collectedData.experiences.length > 0) payload.experiences = collectedData.experiences

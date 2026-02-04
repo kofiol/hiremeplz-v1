@@ -99,7 +99,7 @@ export function ProgressSidebar({ collectedData }: ProgressSidebarProps) {
 
         <DataRow label="Engagement" value={engagementText} icon={Briefcase} />
 
-        <DataRow label="LinkedIn" value={data.linkedinUrl} icon={Linkedin} />
+        <DataRow label="LinkedIn" value={data.linkedinUrl === "skipped" ? "Skipped" : data.linkedinUrl} icon={Linkedin} />
       </div>
     </div>
   )

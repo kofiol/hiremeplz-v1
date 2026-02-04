@@ -1,10 +1,27 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
-import { X, Plus } from "lucide-react"
+import { useState, useCallback, useRef, useMemo } from "react"
+import { X, Plus, ChevronDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+
+const COMMON_SKILLS = [
+  // Languages
+  "JavaScript", "TypeScript", "Python", "Java", "C#", "Go", "Rust", "PHP", "Ruby", "Swift", "Kotlin", "C++",
+  // Frontend
+  "React", "Next.js", "Vue.js", "Angular", "Svelte", "Tailwind CSS", "HTML/CSS",
+  // Backend
+  "Node.js", "Express", "Django", "FastAPI", "Spring Boot", "Laravel", ".NET", "Ruby on Rails",
+  // Data & AI
+  "PostgreSQL", "MongoDB", "MySQL", "Redis", "GraphQL", "REST APIs", "Machine Learning", "LLMs/AI",
+  // Cloud & DevOps
+  "AWS", "Google Cloud", "Azure", "Docker", "Kubernetes", "CI/CD", "Terraform",
+  // Mobile
+  "React Native", "Flutter", "iOS", "Android",
+  // Design & Other
+  "Figma", "UI/UX Design", "Agile/Scrum", "Git", "Linux",
+]
 
 type SkillSelectorProps = {
   skills: string[]
@@ -14,10 +31,19 @@ type SkillSelectorProps = {
 
 export function SkillSelector({ skills, onChange, onSubmit }: SkillSelectorProps) {
   const [input, setInput] = useState("")
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const addSkill = useCallback(() => {
-    const trimmed = input.trim()
+  const filteredSuggestions = useMemo(() => {
+    const query = input.trim().toLowerCase()
+    const selected = new Set(skills.map((s) => s.toLowerCase()))
+    return COMMON_SKILLS.filter(
+      (s) => !selected.has(s.toLowerCase()) && (query === "" || s.toLowerCase().includes(query))
+    )
+  }, [input, skills])
+
+  const addSkill = useCallback((name?: string) => {
+    const trimmed = (name ?? input).trim()
     if (!trimmed) return
     if (skills.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
       setInput("")
@@ -39,30 +65,70 @@ export function SkillSelector({ skills, onChange, onSubmit }: SkillSelectorProps
 
   return (
     <div className="space-y-3 rounded-lg border border-border/50 bg-card/80 p-3">
-      <div className="flex gap-2">
-        <Input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              addSkill()
-            }
-          }}
-          placeholder="Type a skill and press Enter..."
-          className="text-sm"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addSkill}
-          disabled={!input.trim()}
-          className="shrink-0"
-        >
-          <Plus className="size-3.5" />
-        </Button>
+      <div className="relative">
+        <div className="flex gap-2">
+          <Input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value)
+              setShowSuggestions(true)
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addSkill()
+                setShowSuggestions(false)
+              }
+              if (e.key === "Escape") {
+                setShowSuggestions(false)
+              }
+            }}
+            placeholder="Type or pick from common skills..."
+            className="text-sm"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSuggestions((v) => !v)}
+            className="shrink-0 px-2"
+            aria-label="Show common skills"
+          >
+            <ChevronDown className={`size-3.5 transition-transform ${showSuggestions ? "rotate-180" : ""}`} />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addSkill()}
+            disabled={!input.trim()}
+            className="shrink-0"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
+
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div className="absolute left-0 right-0 bottom-full z-10 mb-1 max-h-48 overflow-y-auto rounded-lg border border-border/50 bg-popover p-1.5 shadow-md">
+            <div className="flex flex-wrap gap-1">
+              {filteredSuggestions.map((skill) => (
+                <button
+                  key={skill}
+                  type="button"
+                  onClick={() => {
+                    addSkill(skill)
+                    setShowSuggestions(true)
+                  }}
+                  className="rounded-full border border-border/40 bg-card px-2.5 py-1 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-accent"
+                >
+                  {skill}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {skills.length > 0 && (
@@ -86,7 +152,10 @@ export function SkillSelector({ skills, onChange, onSubmit }: SkillSelectorProps
         <Button
           type="button"
           size="sm"
-          onClick={() => onSubmit(skills)}
+          onClick={() => {
+            setShowSuggestions(false)
+            onSubmit(skills)
+          }}
           className="w-full"
         >
           Confirm {skills.length} skill{skills.length !== 1 ? "s" : ""}

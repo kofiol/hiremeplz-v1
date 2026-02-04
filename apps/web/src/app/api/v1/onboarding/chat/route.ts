@@ -49,18 +49,19 @@ function createPrompt(
   const filled = status.filled
   let missing = status.missing
 
-  // Detect LinkedIn skip
+  // Detect LinkedIn skip — remove it from missing so agent moves on
   const lastAssistantMsg = conversationHistory
     .filter((m) => m.role === "assistant")
     .at(-1)?.content?.toLowerCase() ?? ""
   const linkedinWasAsked = lastAssistantMsg.includes("linkedin")
   const isLinkedinSkip =
-    missing.length === 1 &&
-    missing[0].startsWith("linkedinUrl") &&
     linkedinWasAsked &&
-    /skip|no|don'?t|analyze|pass|nah/i.test(message)
+    missing.some((m) => m.startsWith("linkedinUrl")) &&
+    /skip|no|don'?t|manual|enter.*manual|pass|nah/i.test(message)
   if (isLinkedinSkip) {
-    missing = []
+    missing = missing.filter((m) => !m.startsWith("linkedinUrl"))
+    // Mark as skipped so it persists — getDataStatus sees truthy value next turn
+    currentData.linkedinUrl = "skipped"
   }
 
   const stillNeeded =

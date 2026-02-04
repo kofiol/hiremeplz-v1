@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useCallback, useState, useEffect } from "react"
+import { useRef, useCallback, useState, useEffect, useMemo } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   Conversation,
@@ -27,6 +27,7 @@ import { ChatMessageItem } from "./chat-message"
 import { StreamingMessage } from "./streaming-message"
 import { SuggestedReplies } from "./suggested-replies"
 import { FinishOnboarding } from "./analysis-results"
+import { SkillSelector } from "./skill-selector"
 import type { ChatMessage, CollectedData } from "@/lib/onboarding/schema"
 
 type ChatPanelProps = {
@@ -78,6 +79,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [input, setInput] = useState("")
+  const [pendingSkills, setPendingSkills] = useState<string[]>([])
 
   const voiceRecording = useVoiceRecording({
     accessToken,
@@ -104,6 +106,17 @@ export function ChatPanel({
 
   const hasAnalysis = messages.some((m) => m.profileAnalysis)
   const isEditable = !isLoading && !isStreaming && voiceRecording.status === "idle"
+
+  // Detect if the agent is asking about skills
+  const showSkillSelector = useMemo(() => {
+    if (isLoading || isStreaming || hasAnalysis) return false
+    if (collectedData.skills && collectedData.skills.length > 0) return false
+    const lastAssistant = [...messages].reverse().find(
+      (m) => m.role === "assistant" && m.content && !m.toolCall && !m.profileAnalysis
+    )
+    const text = lastAssistant?.content.toLowerCase() ?? ""
+    return text.includes("skill") || text.includes("technologies") || text.includes("stack") || text.includes("frameworks")
+  }, [messages, collectedData.skills, isLoading, isStreaming, hasAnalysis])
 
   return (
     <motion.div
@@ -194,8 +207,23 @@ export function ChatPanel({
       {/* Input area */}
       <div className="relative shrink-0">
         <div className="bg-background px-4 pb-6 pt-4">
+          {/* Skill selector (inline form) */}
+          {showSkillSelector && voiceRecording.status === "idle" && (
+            <div className="mx-auto max-w-3xl pb-2">
+              <SkillSelector
+                skills={pendingSkills}
+                onChange={setPendingSkills}
+                onSubmit={(skills) => {
+                  const text = skills.join(", ")
+                  onSendMessage(`My skills: ${text}`)
+                  setPendingSkills([])
+                }}
+              />
+            </div>
+          )}
+
           {/* Quick replies */}
-          {voiceRecording.status === "idle" && !isLoading && !isStreaming && (
+          {!showSkillSelector && voiceRecording.status === "idle" && !isLoading && !isStreaming && (
             <SuggestedReplies
               collectedData={collectedData}
               messages={messages}
