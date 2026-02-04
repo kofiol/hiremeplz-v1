@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { OnboardingChatbot } from "@/components/onboarding-chatbot";
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
 
 export default function OnboardingPage() {
-  return <OnboardingChatbot />;
+  return <OnboardingShell />
 }

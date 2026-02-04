@@ -47,7 +47,15 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfix\\(sidebar\\): replace Command icon with rounded square to match branding\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(npx email export:*)",
-      "Bash(pnpm send-launch:*)"
+      "Bash(pnpm send-launch:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm install:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "mcp__supabase__list_migrations",
+      "Bash(git start:*)",
+      "Bash(git st:*)",
+      "Bash(pnpm test:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

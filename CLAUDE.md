@@ -6,12 +6,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 hiremeplz.app is a personal AI agent for finding freelance work. It's a Next.js monorepo focused on onboarding, profile enrichment, and agent-driven opportunity discovery.
 
-**Current Focus:**
-- `/overview` agent development (context injection, tool usage, reasoning) 🚀
-- Onboarding UX improvements 🚀
-- LinkedIn profile scraping (fully working) ✅
-
 **Architecture:** Single-user (one freelancer per account with team context for future expansion)
+
+### Feature Status
+
+**Phase 0 - Foundation (Complete):**
+- Authentication (Supabase JWT + Google OAuth) ✅
+- Team/profile bootstrap flow ✅
+- Onboarding chatbot (conversational AI, voice recording, LinkedIn quick-fill) ✅
+- LinkedIn profile scraping (trigger.dev + BrightData) ✅
+- Profile completeness scoring ✅
+- Profile analysis with extended reasoning ✅
+- Interview prep (WebRTC voice, 4 types, post-session AI analysis) ✅
+- CV builder (AI generation, chat refinement, save/load) ✅
+- Proposal writer (job-specific generation, tone/length controls) ✅
+- Email system (React Email + Resend, launch announcements) ✅
+- Settings page + user preferences ✅
+- Feedback collection (bug/feature/review) ✅
+- Landing page + UI component library ✅
+- Redux state management ✅
+
+**Phase 1 - Intelligence Layer (In Progress):**
+- Overview copilot (basic streaming chat with context injection) ✅ done
+- Daily briefing generation from real data 🚀 in progress
+- Action items with deep links 🚀 in progress
+- Agent activity feed 📋 todo
+- Context injection architecture (reusable) 🚀 in progress
+- Rate limiting (basic implementation exists) ✅ done
+- Job engine restart (fetchers, normalizer, ranking) 📋 todo
+- Notification system (in-app + email) 📋 todo
+- Agent orchestration (event-driven chaining) 📋 todo
+
+**Suspended:**
+- Job scraping (Apify, BrightData job datasets) - resuming soon
+- Job matching & ranking logic
+- Application pipeline tracking
 
 ## Git Workflow
 
@@ -76,6 +105,7 @@ git reset-dev  # Nukes dev and recreates from main
 ```
 apps/
   web/                 # Main Next.js 16 frontend + backend
+  docs/                # Project documentation (Obsidian vault)
 packages/
   db/                  # PostgreSQL utilities (pg client)
   trigger/             # trigger.dev workflow definitions
@@ -93,9 +123,10 @@ Use Turbo filters to run tasks on specific packages: `pnpm turbo run <task> --fi
 - **State Management:** Redux Toolkit, TanStack Table
 - **Database:** Supabase PostgreSQL
 - **API Client:** Supabase JS SDK
-- **AI & Agents:** OpenAI Agents SDK
+- **AI & Agents:** OpenAI Agents SDK (gpt-4.1-mini for chat, gpt-4.1 for analysis, gpt-realtime-mini for voice)
 - **Workflows:** trigger.dev (background jobs)
-- **Web Scraping:** Apify, Crawlee, Playwright, Bright Data
+- **Web Scraping:** Bright Data (active - LinkedIn), Apify/Crawlee/Playwright (suspended - job scraping)
+- **Email:** React Email + Resend
 - **Testing:** Vitest (db package), Prettier, ESLint (flat config)
 - **Package Manager:** pnpm 10.26.0 | **Node:** >=18
 
@@ -145,11 +176,18 @@ pnpm turbo run <task> --filter <package_name>
 - `src/middleware.ts` - Next.js middleware (auth, request logging)
 
 **Key API Routes:**
-- `api/v1/auth/bootstrap` - Initial auth setup
-- `api/v1/me` - User profile
-- `api/v1/onboarding/` - Onboarding flow endpoints
+- `api/v1/auth/bootstrap` - Initial auth setup (creates team + profile)
+- `api/v1/me` - User profile + metadata
+- `api/v1/onboarding/` - Onboarding flow (chat, progress, transcribe, save)
+- `api/v1/overview/chat` - Overview copilot (streaming, OpenAI Agents)
+- `api/v1/interview-prep/` - Interview sessions, analysis, history, Realtime API tokens
+- `api/v1/cv-builder/` - Generate, chat, save, load CV data
+- `api/v1/proposals/generate` - Proposal generation from job postings
+- `api/v1/profile/analysis` - AI profile scoring
+- `api/v1/feedback` - User feedback submission
 - `api/v1/teams/` - Team management
 - `api/v1/settings/` - User settings
+- `api/v1/health` - Health check
 
 **Authentication:** JWT-based via Supabase. Server-side verification using `lib/auth.server.ts`.
 

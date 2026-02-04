@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { CollectedData } from "@/lib/onboarding/schema";
 
 export type TeamMode = "solo" | "team";
 
@@ -420,6 +421,55 @@ const onboardingSlice = createSlice({
       state.completion.score = action.payload.score;
       state.completion.missingFields = action.payload.missingFields;
     },
+    setCollectedData(_state, action: PayloadAction<CollectedData>) {
+      // Sync chat-collected data into Redux for cross-component access
+      // Note: This maps from the chat's CollectedData shape to the Redux OnboardingState shape
+      // but we store it as-is on a dedicated key rather than trying to reconcile all fields
+      return {
+        ...initialState,
+        teamMode: action.payload.teamMode ?? "solo",
+        profilePath: action.payload.profilePath ?? null,
+        profileSetup: {
+          ...initialState.profileSetup,
+          linkedinUrl: action.payload.linkedinUrl ?? "",
+        },
+        experienceLevel: action.payload.experienceLevel ?? null,
+        profile: {
+          ...initialState.profile,
+          firstName: action.payload.fullName?.split(" ")[0] ?? "",
+          lastName: action.payload.fullName?.split(" ").slice(1).join(" ") ?? "",
+        },
+        skills: (action.payload.skills ?? []).map((s) => ({
+          id: generateId(),
+          name: s.name,
+          level: 3,
+          years: null,
+        })),
+        experiences: (action.payload.experiences ?? []).map((e) => ({
+          id: generateId(),
+          title: e.title,
+          company: e.company ?? "",
+          startDate: e.startDate,
+          endDate: e.endDate,
+          highlights: e.highlights ?? "",
+        })),
+        educations: (action.payload.educations ?? []).map((e) => ({
+          id: generateId(),
+          school: e.school,
+          degree: e.degree ?? "",
+          field: e.field ?? "",
+          startYear: e.startYear ?? "",
+          endYear: e.endYear ?? "",
+        })),
+        preferences: {
+          ...initialState.preferences,
+          currency: action.payload.currency ?? "USD",
+          hourlyMin: action.payload.currentRateMin,
+          hourlyMax: action.payload.currentRateMax,
+          engagementTypes: (action.payload.engagementTypes ?? []) as ("full_time" | "part_time" | "internship")[],
+        },
+      };
+    },
     resetOnboardingState() {
       return initialState;
     },
@@ -461,6 +511,7 @@ export const {
   setSaving,
   setSaveError,
   setCompletion,
+  setCollectedData,
   resetOnboardingState,
 } = onboardingSlice.actions;
 

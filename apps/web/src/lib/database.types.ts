@@ -1430,6 +1430,7 @@ export type Database = {
         | "interview_prep"
         | "profile_parser"
         | "email_ingest"
+        | "onboarding"
       application_status:
         | "shortlisted"
         | "ready_to_apply"

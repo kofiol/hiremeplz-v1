@@ -1,0 +1,536 @@
+"use client"
+
+import { useCallback, useState, useRef, useEffect } from "react"
+import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo } from "@/lib/onboarding/schema"
+import { INITIAL_COLLECTED_DATA } from "@/lib/onboarding/schema"
+import { useTypewriter } from "./use-typewriter"
+import { useOnboardingProgress } from "./use-onboarding-progress"
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type UseOnboardingChatOptions = {
+  accessToken: string | null
+  userMetadata?: {
+    fullName?: string | null
+    planDisplayName?: string | null
+  }
+  onDataUpdate?: (data: CollectedData) => void
+}
+
+type UseOnboardingChatReturn = {
+  messages: ChatMessage[]
+  collectedData: CollectedData
+  hasStarted: boolean
+  isLoading: boolean
+  isStreaming: boolean
+  streamingContent: string
+  error: string | null
+  activeToolCall: { name: string; status: string; elapsed?: number } | null
+  toolCallElapsed: number
+  isReasoning: boolean
+  reasoningContent: string
+  reasoningDuration: number | undefined
+  reasoningPhase: "thinking" | "evaluating"
+  isRestoring: boolean
+  startConversation: () => Promise<void>
+  sendMessage: (text: string) => Promise<void>
+  editMessage: (messageId: string, newText: string) => Promise<void>
+  stopGeneration: () => void
+  setError: (error: string | null) => void
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function generateId() {
+  return Math.random().toString(36).slice(2)
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
+
+export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboardingChatReturn {
+  const { accessToken, userMetadata, onDataUpdate } = options
+
+  // State
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [collectedData, setCollectedData] = useState<CollectedData>(INITIAL_COLLECTED_DATA)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [streamingContent, setStreamingContent] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [activeToolCall, setActiveToolCall] = useState<{
+    name: string
+    status: string
+    elapsed?: number
+  } | null>(null)
+  const [toolCallElapsed, setToolCallElapsed] = useState(0)
+  const [isReasoning, setIsReasoning] = useState(false)
+  const [reasoningContent, setReasoningContent] = useState("")
+  const [reasoningDuration, setReasoningDuration] = useState<number | undefined>()
+  const [reasoningPhase, setReasoningPhase] = useState<"thinking" | "evaluating">("thinking")
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const onDataUpdateRef = useRef(onDataUpdate)
+  onDataUpdateRef.current = onDataUpdate
+
+  // Typewriter
+  const typewriter = useTypewriter(setStreamingContent)
+
+  // Progress
+  const { isRestoring, loadProgress, saveProgress } = useOnboardingProgress()
+
+  // Tool call elapsed timer
+  const toolCallActive = activeToolCall !== null
+  useEffect(() => {
+    if (!toolCallActive) {
+      setToolCallElapsed(0)
+      return
+    }
+    setToolCallElapsed(0)
+    const id = setInterval(() => setToolCallElapsed((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [toolCallActive])
+
+  // Load progress on mount
+  useEffect(() => {
+    if (!accessToken) return
+    loadProgress(accessToken, userMetadata).then((state) => {
+      if (state) {
+        setMessages(state.messages)
+        setCollectedData(state.collectedData)
+        setHasStarted(state.hasStarted)
+        onDataUpdateRef.current?.(state.collectedData)
+      }
+    })
+  }, [accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync collectedData to parent via callback
+  const updateCollectedData = useCallback((data: CollectedData) => {
+    setCollectedData(data)
+    onDataUpdateRef.current?.(data)
+  }, [])
+
+  // ── SSE Stream Processor ─────────────────────────────────────
+  const processStreamResponse = useCallback(async (
+    response: Response,
+    updatedMessages: ChatMessage[],
+    currentCollectedData: CollectedData,
+    currentHasStarted: boolean,
+    currentAccessToken: string,
+    signal?: AbortSignal
+  ) => {
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error("No response body")
+
+    const decoder = new TextDecoder()
+    let fillerContent = ""
+    let summaryContent = ""
+    let toolCallSeen = false
+    let toolCallFinished = false
+    let toolCallResult: ToolCallInfo | null = null
+    let lastElapsed: number | undefined
+    let finalCollectedData = currentCollectedData
+    let wasAborted = false
+    let profileAnalysisResult: ProfileAnalysis | null = null
+    let reasoningText = ""
+    let reasoningDur: number | undefined
+
+    setIsStreaming(true)
+    setStreamingContent("")
+    typewriter.reset()
+    typewriter.start()
+
+    const abortHandler = () => {
+      wasAborted = true
+      reader.cancel()
+    }
+    signal?.addEventListener("abort", abortHandler)
+
+    try {
+      while (true) {
+        if (signal?.aborted) {
+          wasAborted = true
+          break
+        }
+
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith("data: ")) continue
+          const data = line.slice(6)
+          if (data === "[DONE]") continue
+
+          try {
+            const parsed = JSON.parse(data)
+
+            if (parsed.type === "text") {
+              if (!toolCallSeen || !toolCallFinished) {
+                fillerContent += parsed.content
+                typewriter.targetRef.current = fillerContent
+              } else {
+                summaryContent += parsed.content
+                typewriter.targetRef.current = summaryContent
+              }
+            } else if (parsed.type === "tool_call") {
+              if (parsed.status === "started") {
+                toolCallSeen = true
+                setActiveToolCall({ name: parsed.name, status: "running" })
+              } else if (parsed.status === "completed" || parsed.status === "failed") {
+                toolCallFinished = true
+                toolCallResult = {
+                  name: parsed.name ?? "linkedin_scrape",
+                  status: parsed.status as "completed" | "failed",
+                  elapsed: lastElapsed,
+                }
+                setActiveToolCall(null)
+                typewriter.flush()
+                typewriter.targetRef.current = ""
+                typewriter.indexRef.current = 0
+                setStreamingContent("")
+              }
+            } else if (parsed.type === "tool_status") {
+              lastElapsed = parsed.elapsed
+              setActiveToolCall((prev) =>
+                prev ? { ...prev, elapsed: parsed.elapsed } : null
+              )
+            } else if (parsed.type === "final") {
+              if (parsed.collectedData) {
+                finalCollectedData = parsed.collectedData
+              }
+            } else if (parsed.type === "profile_analysis") {
+              profileAnalysisResult = {
+                overallScore: parsed.overallScore,
+                categories: parsed.categories,
+                strengths: parsed.strengths,
+                improvements: parsed.improvements,
+                detailedFeedback: parsed.detailedFeedback,
+              }
+            } else if (parsed.type === "reasoning_started") {
+              typewriter.flush()
+              setIsReasoning(true)
+              setReasoningPhase("thinking")
+              setReasoningContent("")
+              reasoningText = ""
+            } else if (parsed.type === "reasoning_chunk") {
+              reasoningText += parsed.content
+              setReasoningContent(reasoningText)
+            } else if (parsed.type === "reasoning_evaluating") {
+              setReasoningPhase("evaluating")
+            } else if (parsed.type === "reasoning_completed") {
+              setIsReasoning(false)
+              setReasoningDuration(parsed.duration)
+              reasoningDur = parsed.duration
+            }
+          } catch {
+            // Ignore parse errors for incomplete chunks
+          }
+        }
+      }
+
+      await typewriter.waitForComplete()
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        wasAborted = true
+      } else {
+        throw err
+      }
+    } finally {
+      signal?.removeEventListener("abort", abortHandler)
+      typewriter.reset()
+      setIsStreaming(false)
+      setStreamingContent("")
+      setActiveToolCall(null)
+      setIsReasoning(false)
+      setReasoningPhase("thinking")
+    }
+
+    if (wasAborted && toolCallSeen && !toolCallFinished) {
+      toolCallResult = {
+        name: "linkedin_scrape",
+        status: "aborted",
+        elapsed: lastElapsed,
+      }
+    }
+
+    // Build messages
+    const newMessages: ChatMessage[] = []
+
+    if (toolCallResult) {
+      if (fillerContent.trim()) {
+        newMessages.push({ id: generateId(), role: "assistant", content: fillerContent.trim() })
+      }
+      newMessages.push({ id: generateId(), role: "assistant", content: "", toolCall: toolCallResult })
+      if (summaryContent.trim()) {
+        newMessages.push({ id: generateId(), role: "assistant", content: summaryContent.trim() })
+      }
+    } else {
+      const combined = (fillerContent + summaryContent).trim()
+      if (combined) {
+        newMessages.push({ id: generateId(), role: "assistant", content: combined })
+      }
+    }
+
+    if (profileAnalysisResult) {
+      newMessages.push({
+        id: generateId(),
+        role: "assistant",
+        content: "",
+        profileAnalysis: profileAnalysisResult,
+        reasoning: reasoningText ? { content: reasoningText, duration: reasoningDur } : undefined,
+      })
+    }
+
+    setReasoningContent("")
+    setReasoningDuration(undefined)
+
+    const finalMessages = [...updatedMessages, ...newMessages]
+    setMessages(finalMessages)
+    updateCollectedData(finalCollectedData as CollectedData)
+
+    saveProgress(finalMessages, finalCollectedData as CollectedData, currentHasStarted, currentAccessToken)
+  }, [typewriter, saveProgress, updateCollectedData])
+
+  // ── Start Conversation ─────────────────────────────────────
+  const startConversation = useCallback(async () => {
+    if (!accessToken) return
+
+    const newHasStarted = true
+    setHasStarted(newHasStarted)
+    setIsLoading(true)
+    setError(null)
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    try {
+      const initialMessage = collectedData.fullName
+        ? `Hi, I'm ${collectedData.fullName} and I'm ready to set up my profile!`
+        : "Hi, I'm ready to set up my profile!"
+
+      const response = await fetch("/api/v1/onboarding/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: initialMessage,
+          conversationHistory: [],
+          collectedData,
+          stream: true,
+        }),
+        signal: controller.signal,
+      })
+
+      if (!response.ok) throw new Error("Failed to start conversation")
+
+      const contentType = response.headers.get("content-type")
+
+      if (contentType?.includes("text/event-stream")) {
+        await processStreamResponse(response, [], collectedData, newHasStarted, accessToken, controller.signal)
+      } else {
+        const data = await response.json()
+        const newMessages: ChatMessage[] = [
+          { id: generateId(), role: "assistant", content: data.message },
+        ]
+        setMessages(newMessages)
+        if (data.collectedData) updateCollectedData(data.collectedData)
+        saveProgress(newMessages, data.collectedData ?? collectedData, newHasStarted, accessToken)
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return
+      setError(err instanceof Error ? err.message : "Failed to start conversation")
+    } finally {
+      setIsLoading(false)
+      abortControllerRef.current = null
+    }
+  }, [accessToken, collectedData, processStreamResponse, saveProgress, updateCollectedData])
+
+  // ── Send Message ─────────────────────────────────────────────
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || isLoading || isStreaming || !accessToken) return
+
+    const userMessage: ChatMessage = { id: generateId(), role: "user", content: text.trim() }
+    const updatedMessages = [...messages, userMessage]
+    setMessages(updatedMessages)
+    setIsLoading(true)
+    setError(null)
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    saveProgress(updatedMessages, collectedData, hasStarted, accessToken)
+
+    try {
+      const conversationHistory = updatedMessages
+        .filter((m) => !m.toolCall)
+        .map((m) => ({ role: m.role, content: m.content }))
+
+      const response = await fetch("/api/v1/onboarding/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: text.trim(),
+          conversationHistory,
+          collectedData,
+          stream: true,
+        }),
+        signal: controller.signal,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error?.message || "Failed to send message")
+      }
+
+      const contentType = response.headers.get("content-type")
+
+      if (contentType?.includes("text/event-stream")) {
+        await processStreamResponse(response, updatedMessages, collectedData, hasStarted, accessToken, controller.signal)
+      } else {
+        const data = await response.json()
+        const assistantMessage: ChatMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: data.message,
+        }
+        const finalMessages = [...updatedMessages, assistantMessage]
+        setMessages(finalMessages)
+        if (data.collectedData) updateCollectedData(data.collectedData)
+        saveProgress(finalMessages, data.collectedData ?? collectedData, hasStarted, accessToken)
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return
+      setError(err instanceof Error ? err.message : "Failed to send message")
+    } finally {
+      setIsLoading(false)
+      abortControllerRef.current = null
+    }
+  }, [messages, collectedData, isLoading, isStreaming, hasStarted, accessToken, processStreamResponse, saveProgress, updateCollectedData])
+
+  // ── Edit Message ─────────────────────────────────────────────
+  // FIX: Truncates history after edit point, sends truncated history to backend.
+  // Backend re-derives state from conversation. No more resetting ALL data.
+  const editMessage = useCallback(async (messageId: string, newText: string) => {
+    if (!accessToken || isLoading || isStreaming) return
+
+    const trimmed = newText.trim()
+    if (!trimmed) return
+
+    const editedIndex = messages.findIndex((m) => m.id === messageId)
+    if (editedIndex === -1) return
+
+    const original = messages[editedIndex]
+    if (original.role !== "user") return
+
+    const historyBefore = messages.slice(0, editedIndex)
+    const updatedUserMessage: ChatMessage = { ...original, content: trimmed }
+    const messagesWithEdit = [...historyBefore, updatedUserMessage]
+
+    const conversationHistory = historyBefore
+      .filter((m) => !m.toolCall)
+      .map((m) => ({ role: m.role, content: m.content }))
+
+    setMessages(messagesWithEdit)
+    setIsLoading(true)
+    setError(null)
+
+    // Keep current collectedData instead of resetting — let backend re-derive
+    const editData = collectedData
+
+    try {
+      const response = await fetch("/api/v1/onboarding/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: trimmed,
+          conversationHistory,
+          collectedData: editData,
+          stream: true,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error?.message || "Failed to update message")
+      }
+
+      const contentType = response.headers.get("content-type")
+
+      if (contentType?.includes("text/event-stream")) {
+        await processStreamResponse(response, messagesWithEdit, editData, hasStarted, accessToken)
+      } else {
+        const data = await response.json()
+        const assistantMessage: ChatMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: data.message,
+        }
+        const nextMessages = [...messagesWithEdit, assistantMessage]
+        setMessages(nextMessages)
+        const nextData: CollectedData = data.collectedData ?? editData
+        updateCollectedData(nextData)
+        saveProgress(nextMessages, nextData, hasStarted, accessToken)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update message")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [messages, collectedData, isLoading, isStreaming, hasStarted, accessToken, processStreamResponse, saveProgress, updateCollectedData])
+
+  // ── Stop Generation ───────────────────────────────────────────
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    typewriter.reset()
+    setIsLoading(false)
+    setIsStreaming(false)
+    setStreamingContent("")
+    setActiveToolCall(null)
+    setIsReasoning(false)
+    setReasoningPhase("thinking")
+    setReasoningContent("")
+    setReasoningDuration(undefined)
+  }, [typewriter])
+
+  return {
+    messages,
+    collectedData,
+    hasStarted,
+    isLoading,
+    isStreaming,
+    streamingContent,
+    error,
+    activeToolCall,
+    toolCallElapsed,
+    isReasoning,
+    reasoningContent,
+    reasoningDuration,
+    reasoningPhase,
+    isRestoring,
+    startConversation,
+    sendMessage,
+    editMessage,
+    stopGeneration,
+    setError,
+  }
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin, verifyAuth } from "@/lib/auth.server";
 import { computeAndUpdateProfileCompleteness } from "@/lib/profile-completeness.server";
+import { ONBOARDING_AGENT_TYPE } from "@/lib/onboarding/constants";
 import type { Json } from "@/lib/database.types";
 
 const onboardingSchema = z.object({
@@ -379,7 +380,7 @@ export async function POST(request: NextRequest) {
         .select("settings_json")
         .eq("team_id", authContext.teamId)
         .eq("user_id", authContext.userId)
-        .eq("agent_type", "job_search")
+        .eq("agent_type", ONBOARDING_AGENT_TYPE)
         .maybeSingle<{ settings_json: Record<string, unknown> | null }>();
 
     if (existingAgentSettingsError) {
@@ -426,7 +427,7 @@ export async function POST(request: NextRequest) {
         {
           team_id: authContext.teamId,
           user_id: authContext.userId,
-          agent_type: "job_search",
+          agent_type: ONBOARDING_AGENT_TYPE,
           settings_json: nextSettings as unknown as Json,
           updated_at: new Date().toISOString(),
         },
