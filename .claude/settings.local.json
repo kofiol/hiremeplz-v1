@@ -57,7 +57,8 @@
       "Bash(git st:*)",
       "Bash(pnpm test:*)",
       "Bash(git merge:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git status:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
