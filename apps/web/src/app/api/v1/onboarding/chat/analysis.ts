@@ -30,7 +30,7 @@ Include rate analysis comparing their current rate vs dream rate.`
   const analysisAgent = new Agent({
     name: "Profile Analyst",
     instructions: PROFILE_ANALYSIS_INSTRUCTIONS,
-    model: "gpt-5.2-mini",
+    model: "gpt-5.1",
     modelSettings: { reasoning_effort: "high" } as Record<string, unknown>,
     outputType: ProfileAnalysisJsonSchema,
   })

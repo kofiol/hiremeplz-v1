@@ -55,7 +55,9 @@
       "mcp__supabase__list_migrations",
       "Bash(git start:*)",
       "Bash(git st:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(git merge:*)",
+      "Bash(taskkill:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
