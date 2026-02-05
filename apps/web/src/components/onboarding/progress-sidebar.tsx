@@ -12,10 +12,10 @@ type ProgressSidebarProps = {
 
 function DataRow({ label, value, icon: Icon }: { label: string; value: string | null; icon?: React.ElementType }) {
   return (
-    <div className="flex items-start gap-2 text-sm">
-      {Icon && <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />}
+    <div className="flex items-start gap-3 text-base">
+      {Icon && <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
         {value ? (
           <p className="truncate text-foreground">{value}</p>
         ) : (
@@ -58,19 +58,19 @@ export function ProgressSidebar({ collectedData }: ProgressSidebarProps) {
   }, [data.engagementTypes])
 
   return (
-    <div className="flex h-full w-72 shrink-0 flex-col border-r border-border/50 bg-card/50">
-      <div className="p-4">
-        <h2 className="text-sm font-semibold text-foreground">Profile Data</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
+    <div className="flex h-full w-80 shrink-0 flex-col border-r border-border/50 bg-card/50">
+      <div className="p-5">
+        <h2 className="text-base font-semibold text-foreground">Profile Data</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Collected during conversation
         </p>
       </div>
 
-      <div className="px-4 pb-3">
+      <div className="px-5 pb-4">
         <StepIndicator collectedData={data} />
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-5">
         <DataRow label="Name" value={data.fullName} icon={User} />
 
         <DataRow

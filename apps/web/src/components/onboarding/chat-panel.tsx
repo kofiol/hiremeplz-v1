@@ -6,6 +6,7 @@ import {
   Conversation,
   ConversationContent,
 } from "@/components/ai-elements/conversation"
+import { Button } from "@/components/ui/button"
 import {
   Message,
   MessageContent,
@@ -20,7 +21,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Reasoning } from "@/components/ui/reasoning"
-import { LoaderIcon, Mic, Square } from "lucide-react"
+import { ArrowLeft, LoaderIcon, Mic, Square } from "lucide-react"
 import { useVoiceRecording } from "@/hooks/use-voice-recording"
 import { OnboardingVoiceBar } from "@/components/onboarding-voice-bar"
 import { ChatMessageItem } from "./chat-message"
@@ -33,6 +34,7 @@ import type { ChatMessage, CollectedData } from "@/lib/onboarding/schema"
 type ChatPanelProps = {
   messages: ChatMessage[]
   collectedData: CollectedData
+  suggestions: string[]
   isLoading: boolean
   isStreaming: boolean
   streamingContent: string
@@ -52,11 +54,13 @@ type ChatPanelProps = {
   onLinkedinClick?: () => void
   linkedinPopupEnabled?: boolean
   onComplete?: () => void
+  onBack?: () => void
 }
 
 export function ChatPanel({
   messages,
   collectedData,
+  suggestions,
   isLoading,
   isStreaming,
   streamingContent,
@@ -76,6 +80,7 @@ export function ChatPanel({
   onLinkedinClick,
   linkedinPopupEnabled,
   onComplete,
+  onBack,
 }: ChatPanelProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [input, setInput] = useState("")
@@ -107,16 +112,40 @@ export function ChatPanel({
   const hasAnalysis = messages.some((m) => m.profileAnalysis)
   const isEditable = !isLoading && !isStreaming && voiceRecording.status === "idle"
 
-  // Detect if the agent is asking about skills
+  // Detect if the agent is specifically asking about skills (not just mentioning them)
   const showSkillSelector = useMemo(() => {
     if (isLoading || isStreaming || hasAnalysis) return false
     if (collectedData.skills && collectedData.skills.length > 0) return false
+
+    // Only show skill selector if we're past the LinkedIn/orientation phase
+    // Experience level comes after LinkedIn, so if it's set, we're definitely past orientation
+    const pastOrientationPhase = !!collectedData.experienceLevel || !!collectedData.linkedinUrl
+
+    if (!pastOrientationPhase) return false
+
     const lastAssistant = [...messages].reverse().find(
       (m) => m.role === "assistant" && m.content && !m.toolCall && !m.profileAnalysis
     )
     const text = lastAssistant?.content.toLowerCase() ?? ""
-    return text.includes("skill") || text.includes("technologies") || text.includes("stack") || text.includes("frameworks")
-  }, [messages, collectedData.skills, isLoading, isStreaming, hasAnalysis])
+
+    // More specific patterns that indicate the agent is actually asking for skills input
+    const isAskingAboutSkills =
+      text.includes("tell me about your skill") ||
+      text.includes("what skill") ||
+      text.includes("your skill") ||
+      text.includes("which technologies") ||
+      text.includes("what technologies") ||
+      text.includes("technical skill") ||
+      text.includes("programming language") ||
+      text.includes("frameworks you") ||
+      text.includes("top skills")
+
+    // Don't trigger if it's talking about LinkedIn or the orientation
+    const isTalkingAboutLinkedin = text.includes("linkedin")
+    const isOrientationMessage = text.includes("finding gigs") || text.includes("powers everything")
+
+    return isAskingAboutSkills && !isTalkingAboutLinkedin && !isOrientationMessage
+  }, [messages, collectedData.skills, collectedData.experienceLevel, collectedData.linkedinUrl, isLoading, isStreaming, hasAnalysis])
 
   return (
     <motion.div
@@ -127,7 +156,21 @@ export function ChatPanel({
       className="flex flex-1 flex-col min-h-0 overflow-hidden"
     >
       <Conversation className="flex-1 min-h-0">
-        <ConversationContent className="mx-auto w-full max-w-3xl pt-12 pb-4">
+        <ConversationContent className="mx-auto w-full max-w-3xl pt-4 pb-4">
+          {/* Back button */}
+          {onBack && (
+            <div className="mb-6">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="size-4" />
+                Back
+              </Button>
+            </div>
+          )}
           {messages.map((message) => (
             <ChatMessageItem
               key={message.id}
@@ -145,7 +188,7 @@ export function ChatPanel({
           {activeToolCall && (
             <Message from="assistant" hideAvatar>
               <MessageContent>
-                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/80 px-3 py-2 text-sm text-muted-foreground backdrop-blur-sm">
+                <div className="flex items-center gap-2 rounded-lg border border-border/30 bg-accent px-3 py-2 text-sm text-accent-foreground">
                   <LoaderIcon className="size-3.5 animate-spin" />
                   <span>
                     Fetching LinkedIn profile
@@ -207,26 +250,10 @@ export function ChatPanel({
       {/* Input area */}
       <div className="relative shrink-0">
         <div className="bg-background px-4 pb-6 pt-4">
-          {/* Skill selector (inline form) */}
-          {showSkillSelector && voiceRecording.status === "idle" && (
-            <div className="mx-auto max-w-3xl pb-2">
-              <SkillSelector
-                skills={pendingSkills}
-                onChange={setPendingSkills}
-                onSubmit={(skills) => {
-                  const text = skills.join(", ")
-                  onSendMessage(`My skills: ${text}`)
-                  setPendingSkills([])
-                }}
-              />
-            </div>
-          )}
-
-          {/* Quick replies */}
+          {/* Quick replies (only when not showing skill selector) */}
           {!showSkillSelector && voiceRecording.status === "idle" && !isLoading && !isStreaming && (
             <SuggestedReplies
-              collectedData={collectedData}
-              messages={messages}
+              suggestions={suggestions}
               onReply={(text) => {
                 onSendMessage(text)
               }}
@@ -250,6 +277,26 @@ export function ChatPanel({
                     elapsed={voiceRecording.elapsed}
                     audioLevel={voiceRecording.audioLevel}
                     onStop={voiceRecording.stop}
+                  />
+                </motion.div>
+              ) : showSkillSelector ? (
+                <motion.div
+                  key="skill-input"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <SkillSelector
+                    skills={pendingSkills}
+                    onChange={setPendingSkills}
+                    onSubmit={(skills) => {
+                      const text = skills.join(", ")
+                      onSendMessage(`My skills: ${text}`)
+                      setPendingSkills([])
+                    }}
+                    onVoiceClick={() => voiceRecording.start()}
+                    voiceSupported={voiceRecording.isSupported}
                   />
                 </motion.div>
               ) : (

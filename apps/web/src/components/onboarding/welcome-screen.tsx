@@ -2,12 +2,33 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
+import { MessageSquare, ClipboardList, Sparkles, Target, FileText, Mic } from "lucide-react"
+
+export type OnboardingMode = "chatbot" | "form"
 
 type WelcomeScreenProps = {
   firstName: string
   isLoading: boolean
-  onStart: () => void
+  onStart: (mode: OnboardingMode) => void
 }
+
+const BENEFITS = [
+  {
+    icon: Target,
+    title: "Smart Job Matching",
+    description: "AI ranks opportunities by fit, budget, and win probability",
+  },
+  {
+    icon: FileText,
+    title: "Tailored Proposals",
+    description: "Generate cover letters in your voice, tuned to each job",
+  },
+  {
+    icon: Mic,
+    title: "Interview Practice",
+    description: "Real-time voice prep with AI feedback on your performance",
+  },
+]
 
 export function WelcomeScreen({ firstName, isLoading, onStart }: WelcomeScreenProps) {
   return (
@@ -15,49 +36,120 @@ export function WelcomeScreen({ firstName, isLoading, onStart }: WelcomeScreenPr
       key="welcome"
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.35 }}
-      className="flex flex-1 flex-col items-center justify-center p-6 min-h-0"
+      className="flex flex-1 flex-col items-center justify-center p-6 min-h-0 overflow-y-auto"
     >
-      <motion.h1
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center text-3xl font-semibold tracking-tight sm:text-4xl"
-        suppressHydrationWarning
-      >
-        Welcome, {firstName}
-      </motion.h1>
-
-      <motion.p
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-3 max-w-sm text-center text-base text-muted-foreground"
-      >
-        Our AI agent will build your freelance profile in just a few minutes.
-      </motion.p>
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-8"
-      >
-        <Button
-          size="lg"
-          className="gap-2 px-10 py-6 text-base shadow-[0_0_20px_oklch(from_var(--primary)_l_c_h_/_0.15)] transition-shadow hover:shadow-[0_0_30px_oklch(from_var(--primary)_l_c_h_/_0.25)]"
-          onClick={onStart}
-          disabled={isLoading}
+      <div className="w-full max-w-2xl space-y-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center"
         >
-          {isLoading ? (
-            <>
-              <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <h1
+            className="text-3xl font-semibold tracking-tight sm:text-4xl"
+            suppressHydrationWarning
+          >
+            Welcome, {firstName}
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground">
+            Let's set up your freelance profile in about 5 minutes.
+          </p>
+        </motion.div>
+
+        {/* Value proposition */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-xl border border-border/50 bg-card/50 p-6"
+        >
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <Sparkles className="size-4" />
+            What this unlocks
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            {BENEFITS.map((benefit) => (
+              <div key={benefit.title} className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <benefit.icon className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{benefit.title}</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground border-t border-border/50 pt-4">
+            The more we know about your skills, experience, and goals, the better we can match you with the right opportunities and help you win them.
+          </p>
+        </motion.div>
+
+        {/* Mode selection */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="space-y-3"
+        >
+          <p className="text-center text-sm text-muted-foreground">
+            Choose how you'd like to complete your profile:
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Chatbot option */}
+            <button
+              onClick={() => onStart("chatbot")}
+              disabled={isLoading}
+              className="group relative flex flex-col items-start gap-3 rounded-xl border border-border/50 bg-card/50 p-5 text-left transition-all hover:border-primary/50 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            >
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+                <MessageSquare className="size-5" />
+              </div>
+              <div>
+                <h3 className="font-medium">AI Conversation</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Chat naturally with our AI assistant. It'll guide you through questions and can even import from LinkedIn.
+                </p>
+              </div>
+              <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                Recommended
+              </span>
+            </button>
+
+            {/* Form option */}
+            <button
+              onClick={() => onStart("form")}
+              disabled={isLoading}
+              className="group flex flex-col items-start gap-3 rounded-xl border border-border/50 bg-card/50 p-5 text-left transition-all hover:border-primary/50 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            >
+              <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-muted/80">
+                <ClipboardList className="size-5" />
+              </div>
+              <div>
+                <h3 className="font-medium">Standard Form</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Prefer forms? Fill out your profile step-by-step with traditional inputs.
+                </p>
+              </div>
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Loading state */}
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-center"
+          >
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               Starting...
-            </>
-          ) : (
-            "Get Started"
-          )}
-        </Button>
-      </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </div>
     </motion.div>
   )
 }

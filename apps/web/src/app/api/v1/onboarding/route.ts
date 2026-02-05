@@ -6,6 +6,7 @@ import { ONBOARDING_AGENT_TYPE } from "@/lib/onboarding/constants";
 import type { Json } from "@/lib/database.types";
 
 const onboardingSchema = z.object({
+  fullName: z.string().min(1).optional().nullable(),
   team: z
     .object({
       mode: z.enum(["solo", "team"]).optional(),
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     const {
+      fullName,
       team,
       cv,
       skills,
@@ -141,13 +143,18 @@ export async function POST(request: NextRequest) {
         ? preferences.timeZones[0]
         : null;
 
-    if (primaryTimeZone) {
+    // Build profile updates
+    const profileUpdates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (fullName) profileUpdates.display_name = fullName;
+    if (primaryTimeZone) profileUpdates.timezone = primaryTimeZone;
+    if (profileSetup?.linkedinUrl) profileUpdates.linkedin_url = profileSetup.linkedinUrl;
+
+    if (Object.keys(profileUpdates).length > 1) {
       const { error: profileUpdateError } = await supabaseAdmin
         .from("profiles")
-        .update({
-          timezone: primaryTimeZone,
-          updated_at: new Date().toISOString(),
-        })
+        .update(profileUpdates)
         .eq("user_id", authContext.userId)
         .eq("team_id", authContext.teamId);
 

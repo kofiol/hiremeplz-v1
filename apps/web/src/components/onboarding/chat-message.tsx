@@ -20,6 +20,7 @@ import {
   XCircle,
 } from "lucide-react"
 import type { ChatMessage as ChatMessageType } from "@/lib/onboarding/schema"
+import { SavedFieldsCard } from "./saved-fields-card"
 
 type ChatMessageProps = {
   message: ChatMessageType
@@ -121,13 +122,13 @@ export function ChatMessageItem({
             )}
           </div>
         ) : message.toolCall ? (
-          <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/80 px-3 py-2 text-sm text-muted-foreground backdrop-blur-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-border/30 bg-accent px-3 py-2 text-sm text-accent-foreground">
             {message.toolCall.status === "completed" ? (
-              <CheckCircle className="size-3.5 text-green-500" />
+              <CheckCircle className="size-3.5 text-success" />
             ) : message.toolCall.status === "aborted" ? (
               <OctagonX className="size-3.5 text-orange-500" />
             ) : (
-              <XCircle className="size-3.5 text-red-500" />
+              <XCircle className="size-3.5 text-destructive" />
             )}
             <span>
               {message.toolCall.status === "aborted" ? "Stopped" : "Fetched"} LinkedIn profile
@@ -170,8 +171,15 @@ export function ChatMessageItem({
             )}
           </div>
         ) : (
-          <div className="max-w-none whitespace-pre-wrap text-base text-foreground">
-            {message.content}
+          <div className="space-y-3">
+            {message.content && (
+              <div className="max-w-none whitespace-pre-wrap text-base text-foreground">
+                {message.content}
+              </div>
+            )}
+            {message.savedFields && message.savedFields.length > 0 && (
+              <SavedFieldsCard fields={message.savedFields} />
+            )}
           </div>
         )}
       </MessageContent>

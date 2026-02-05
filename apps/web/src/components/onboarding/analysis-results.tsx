@@ -32,6 +32,7 @@ export function FinishOnboarding({ collectedData, onComplete }: AnalysisResultsP
           }
           try {
             const payload: Record<string, unknown> = {}
+            if (collectedData.fullName) payload.fullName = collectedData.fullName
             if (collectedData.teamMode) payload.team = { mode: collectedData.teamMode }
             if (collectedData.profilePath) payload.path = collectedData.profilePath
             if (collectedData.linkedinUrl && collectedData.linkedinUrl !== "skipped") payload.profileSetup = { linkedinUrl: collectedData.linkedinUrl }
@@ -60,11 +61,11 @@ export function FinishOnboarding({ collectedData, onComplete }: AnalysisResultsP
           } catch {
             // Best-effort — navigate regardless
           }
-          router.push("/overview")
+          router.push("/analysis")
         }}
         className="gap-2 px-8 py-5 text-base"
       >
-        <CheckCircle className="size-5" />
+        <CheckCircle className="size-5 text-success" />
         Finish Onboarding
       </Button>
       <p className="text-center text-sm text-muted-foreground">

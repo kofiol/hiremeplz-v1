@@ -41,9 +41,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
           return;
         }
         const data = await res.json();
+        // Check if onboarding is incomplete
         if (!cancelled && !data.onboarding_completed_at && (data.profile_completeness_score ?? 0) < 1) {
           router.replace("/onboarding");
           return;
+        }
+        // Check if analysis hasn't been seen yet (post-onboarding "wow moment")
+        if (!cancelled && data.onboarding_completed_at && !data.analysis_seen_at) {
+          if (pathname !== "/analysis") {
+            router.replace("/analysis");
+            return;
+          }
         }
       } catch {
         // If the check fails, let them through
@@ -53,7 +61,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
     checkOnboarding();
     return () => { cancelled = true; };
-  }, [isLoading, session, router]);
+  }, [isLoading, session, router, pathname]);
 
   const handleNavItemClick = (href: string) => {
     router.push(href);

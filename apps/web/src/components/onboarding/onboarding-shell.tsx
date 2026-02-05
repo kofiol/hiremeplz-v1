@@ -6,8 +6,9 @@ import { useSession } from "@/app/auth/session-provider"
 import { useOnboardingChat } from "@/hooks/use-onboarding-chat"
 import { store } from "@/lib/state/store"
 import { setCollectedData } from "@/lib/state/onboardingSlice"
-import { WelcomeScreen } from "./welcome-screen"
+import { WelcomeScreen, type OnboardingMode } from "./welcome-screen"
 import { ChatPanel } from "./chat-panel"
+import { FormPanel } from "./form-panel"
 import { ProgressSidebar } from "./progress-sidebar"
 import { LinkedinDialog } from "./linkedin-dialog"
 import type { CollectedData } from "@/lib/onboarding/schema"
@@ -21,6 +22,9 @@ export function OnboardingShell() {
     userMetadata?.full_name?.split(" ")[0] ??
     userMetadata?.name?.split(" ")[0] ??
     "there"
+
+  // Mode selection state
+  const [mode, setMode] = useState<OnboardingMode | null>(null)
 
   const handleDataUpdate = useCallback((data: CollectedData) => {
     store.dispatch(setCollectedData(data))
@@ -46,17 +50,39 @@ export function OnboardingShell() {
     [chat]
   )
 
+  const handleModeSelect = useCallback((selectedMode: OnboardingMode) => {
+    setMode(selectedMode)
+    if (selectedMode === "chatbot") {
+      chat.startConversation()
+    }
+  }, [chat])
+
+  const handleBack = useCallback(() => {
+    setMode(null)
+    chat.reset()
+  }, [chat])
+
   // Restoring progress - show nothing while loading
   if (chat.isRestoring) return null
+
+  // Determine if we should show the welcome screen
+  const showWelcome = mode === null && !chat.hasStarted
 
   return (
     <>
       <AnimatePresence mode="wait">
-        {!chat.hasStarted ? (
+        {showWelcome ? (
           <WelcomeScreen
             firstName={firstName}
             isLoading={chat.isLoading}
-            onStart={chat.startConversation}
+            onStart={handleModeSelect}
+          />
+        ) : mode === "form" ? (
+          <FormPanel
+            accessToken={accessToken}
+            firstName={firstName}
+            fullName={userMetadata?.full_name ?? userMetadata?.name ?? null}
+            onBack={handleBack}
           />
         ) : (
           <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -69,6 +95,7 @@ export function OnboardingShell() {
             <ChatPanel
               messages={chat.messages}
               collectedData={chat.collectedData}
+              suggestions={chat.suggestions}
               isLoading={chat.isLoading}
               isStreaming={chat.isStreaming}
               streamingContent={chat.streamingContent}
@@ -87,6 +114,7 @@ export function OnboardingShell() {
               setError={chat.setError}
               onLinkedinClick={() => setLinkedinDialogOpen(true)}
               linkedinPopupEnabled={true}
+              onBack={handleBack}
             />
           </div>
         )}

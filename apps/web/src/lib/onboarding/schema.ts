@@ -153,6 +153,11 @@ export type ToolCallInfo = {
   elapsed?: number
 }
 
+export type SavedField = {
+  field: string
+  value: unknown
+}
+
 export type ReasoningInfo = {
   content: string
   duration?: number
@@ -163,6 +168,7 @@ export type ChatMessage = {
   role: "user" | "assistant"
   content: string
   toolCall?: ToolCallInfo
+  savedFields?: SavedField[]
   profileAnalysis?: ProfileAnalysis & {
     // Legacy fields from old saved progress
     score?: number
@@ -178,7 +184,8 @@ export type SSEEvent =
   | { type: "text"; content: string }
   | { type: "tool_call"; name: string; status: "started" | "completed" | "failed" }
   | { type: "tool_status"; elapsed: number }
-  | { type: "final"; collectedData: Partial<CollectedData>; isComplete: boolean }
+  | { type: "saved_fields"; fields: SavedField[] }
+  | { type: "final"; collectedData: Partial<CollectedData>; isComplete: boolean; suggestions?: string[] }
   | { type: "analysis_started" }
   | { type: "reasoning_started" }
   | { type: "reasoning_chunk"; content: string }
@@ -209,20 +216,20 @@ export const ChatRequestSchema = z.object({
 // ============================================================================
 
 export const SaveProfileDataParamsSchema = z.object({
-  fullName: z.string().nullable(),
-  teamMode: TeamModeSchema.nullable(),
-  profilePath: ProfilePathSchema.nullable(),
-  linkedinUrl: z.string().nullable(),
-  experienceLevel: ExperienceLevelSchema.nullable(),
-  skills: z.array(SkillSchema).nullable(),
-  experiences: z.array(ExperienceSchema).nullable(),
-  educations: z.array(EducationSchema).nullable(),
-  currentRateMin: z.number().nullable(),
-  currentRateMax: z.number().nullable(),
-  dreamRateMin: z.number().nullable(),
-  dreamRateMax: z.number().nullable(),
-  currency: CurrencySchema.nullable(),
-  engagementTypes: z.array(EngagementTypeSchema).nullable(),
+  fullName: z.string().nullable().describe("User's full name (e.g., 'John Smith')"),
+  teamMode: TeamModeSchema.nullable().describe("Working style: 'solo' or 'team' (usually auto-set)"),
+  profilePath: ProfilePathSchema.nullable().describe("Onboarding path: 'linkedin' or 'manual' (usually auto-set)"),
+  linkedinUrl: z.string().nullable().describe("LinkedIn profile URL (e.g., 'https://linkedin.com/in/username')"),
+  experienceLevel: ExperienceLevelSchema.nullable().describe("Career level: intern_new_grad, entry, mid, senior, lead, or director"),
+  skills: z.array(SkillSchema).nullable().describe("Technical skills and technologies the user knows (e.g., JavaScript, React, AWS). Each skill has a 'name' field."),
+  experiences: z.array(ExperienceSchema).nullable().describe("Work experience history. Each has: title (job title), company, startDate, endDate, highlights."),
+  educations: z.array(EducationSchema).nullable().describe("Educational background. Each has: school (institution name), degree, field (major/area of study), startYear, endYear."),
+  currentRateMin: z.number().nullable().describe("Minimum current hourly rate in dollars (number only, no currency symbol)"),
+  currentRateMax: z.number().nullable().describe("Maximum current hourly rate in dollars (number only, no currency symbol)"),
+  dreamRateMin: z.number().nullable().describe("Minimum target/dream hourly rate in dollars (number only, no currency symbol)"),
+  dreamRateMax: z.number().nullable().describe("Maximum target/dream hourly rate in dollars (number only, no currency symbol)"),
+  currency: CurrencySchema.nullable().describe("Rate currency: USD, EUR, GBP, CAD, or AUD"),
+  engagementTypes: z.array(EngagementTypeSchema).nullable().describe("Preferred work arrangement: array of 'full_time' and/or 'part_time'"),
 })
 
 export type SaveProfileDataInput = z.infer<typeof SaveProfileDataParamsSchema>

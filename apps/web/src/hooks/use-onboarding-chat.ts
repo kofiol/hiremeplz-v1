@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState, useRef, useEffect } from "react"
-import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo } from "@/lib/onboarding/schema"
+import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo, SavedField } from "@/lib/onboarding/schema"
 import { INITIAL_COLLECTED_DATA } from "@/lib/onboarding/schema"
 import { useTypewriter } from "./use-typewriter"
 import { useOnboardingProgress } from "./use-onboarding-progress"
@@ -22,6 +22,7 @@ type UseOnboardingChatOptions = {
 type UseOnboardingChatReturn = {
   messages: ChatMessage[]
   collectedData: CollectedData
+  suggestions: string[]
   hasStarted: boolean
   isLoading: boolean
   isStreaming: boolean
@@ -39,6 +40,7 @@ type UseOnboardingChatReturn = {
   editMessage: (messageId: string, newText: string) => Promise<void>
   stopGeneration: () => void
   setError: (error: string | null) => void
+  reset: () => void
 }
 
 // ============================================================================
@@ -64,6 +66,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const [activeToolCall, setActiveToolCall] = useState<{
     name: string
     status: string
@@ -138,6 +141,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     let finalCollectedData = currentCollectedData
     let wasAborted = false
     let profileAnalysisResult: ProfileAnalysis | null = null
+    let savedFieldsResult: SavedField[] | null = null
     let reasoningText = ""
     let reasoningDur: number | undefined
 
@@ -203,9 +207,18 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
               setActiveToolCall((prev) =>
                 prev ? { ...prev, elapsed: parsed.elapsed } : null
               )
+            } else if (parsed.type === "saved_fields") {
+              if (parsed.fields && parsed.fields.length > 0) {
+                savedFieldsResult = parsed.fields
+              }
             } else if (parsed.type === "final") {
               if (parsed.collectedData) {
                 finalCollectedData = parsed.collectedData
+              }
+              if (parsed.suggestions) {
+                setSuggestions(parsed.suggestions)
+              } else {
+                setSuggestions([])
               }
             } else if (parsed.type === "profile_analysis") {
               profileAnalysisResult = {
@@ -276,8 +289,23 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     } else {
       const combined = (fillerContent + summaryContent).trim()
       if (combined) {
-        newMessages.push({ id: generateId(), role: "assistant", content: combined })
+        newMessages.push({
+          id: generateId(),
+          role: "assistant",
+          content: combined,
+          savedFields: savedFieldsResult ?? undefined,
+        })
       }
+    }
+
+    // If there were saved fields but no text message (edge case), create a standalone saved fields message
+    if (savedFieldsResult && newMessages.length === 0) {
+      newMessages.push({
+        id: generateId(),
+        role: "assistant",
+        content: "",
+        savedFields: savedFieldsResult,
+      })
     }
 
     if (profileAnalysisResult) {
@@ -365,6 +393,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     setMessages(updatedMessages)
     setIsLoading(true)
     setError(null)
+    setSuggestions([]) // Clear suggestions when sending new message
 
     const controller = new AbortController()
     abortControllerRef.current = controller
@@ -512,9 +541,19 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     setReasoningDuration(undefined)
   }, [typewriter])
 
+  // ── Reset ─────────────────────────────────────────────────────
+  const reset = useCallback(() => {
+    stopGeneration()
+    setMessages([])
+    setCollectedData(INITIAL_COLLECTED_DATA)
+    setHasStarted(false)
+    setError(null)
+  }, [stopGeneration])
+
   return {
     messages,
     collectedData,
+    suggestions,
     hasStarted,
     isLoading,
     isStreaming,
@@ -532,5 +571,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     editMessage,
     stopGeneration,
     setError,
+    reset,
   }
 }

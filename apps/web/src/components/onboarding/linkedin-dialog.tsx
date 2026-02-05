@@ -70,7 +70,7 @@ export function LinkedinDialog({ open, onOpenChange, onSubmit }: LinkedinDialogP
             <p className="text-sm text-red-500">{validation.error}</p>
           )}
           {url.trim() && validation.isValid && (
-            <p className="text-sm text-green-600 flex items-center gap-1.5">
+            <p className="text-sm text-success flex items-center gap-1.5">
               <CheckCircle className="size-3.5" />
               Valid LinkedIn profile URL
             </p>

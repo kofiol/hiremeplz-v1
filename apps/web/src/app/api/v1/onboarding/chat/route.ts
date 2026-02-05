@@ -5,6 +5,7 @@ import {
   getLinkedInScrapeStatus as getScrapeStatusUtil,
 } from "@/lib/linkedin-scraper.server"
 import { getDataStatus } from "@/lib/onboarding/data-status"
+import { getSuggestionsForMessage } from "./suggestions-agent"
 import { ChatRequestSchema } from "@/lib/onboarding/schema"
 import type { CollectedData } from "@/lib/onboarding/schema"
 import { verifyAuth } from "@/lib/auth.server"
@@ -48,6 +49,7 @@ function createPrompt(
   const status = getDataStatus(currentData)
   const filled = status.filled
   let missing = status.missing
+  const progress = status.progress
 
   // Detect LinkedIn skip — remove it from missing so agent moves on
   const lastAssistantMsg = conversationHistory
@@ -71,11 +73,18 @@ function createPrompt(
           .join("\n")
       : "ALL DONE - profile is complete! Call trigger_profile_analysis now."
 
-  return `
-## ALREADY COLLECTED (DO NOT ask about these again):
-${filled.length > 0 ? filled.join("\n") : "Nothing yet"}
+  // Recalculate progress after potential LinkedIn skip
+  const adjustedFilledCount = missing.length === 0 ? progress.total : progress.total - missing.length
+  const adjustedPercent = Math.round((adjustedFilledCount / progress.total) * 100)
+  const isLastStep = missing.length === 1
 
-## STILL NEEDED (ask ONLY item #1 — ignore the rest until #1 is done):
+  return `
+## PROGRESS: Step ${adjustedFilledCount + 1} of ${progress.total} (${adjustedPercent}% complete)${isLastStep ? " — THIS IS THE LAST QUESTION" : ""}
+
+## ALREADY COLLECTED:
+${filled.length > 0 ? filled.join("\n") : "Nothing yet — this is the first question"}
+
+## STILL NEEDED:
 ${stillNeeded}
 
 ## Conversation so far:
@@ -85,8 +94,7 @@ ${conversationContext}
 ${message}
 ${extraContext ? `\n## Additional context:\n${extraContext}` : ""}
 
-Respond naturally. Ask about the FIRST missing item only. NEVER re-ask about already collected data.
-REMEMBER: Call save_profile_data for any info the user provided. Call trigger_profile_analysis when ALL required fields are present.`
+Remember: Save any data the user provided, then ask about item #1 in STILL NEEDED (or call trigger_profile_analysis if ALL DONE).`
 }
 
 // ============================================================================
@@ -144,7 +152,7 @@ async function handleLinkedInFlow(
   conversationHistory: Array<{ role: string; content: string }>,
   conversationContext: string,
   message: string
-) {
+): Promise<string> {
   // Phase 1: Filler text
   const fillerAgent = createFillerAgent(
     "IMPORTANT: The user just provided their LinkedIn profile URL. Acknowledge it briefly and let them know you're fetching their profile data now. Keep your response to 1-2 short sentences. Do NOT call any tools. Do NOT ask any questions — just confirm you're fetching their profile."
@@ -176,6 +184,7 @@ async function handleLinkedInFlow(
   }
 
   // Phase 3: Handle results
+  let responseText = ""
   if (scrapeResult.status === "completed") {
     emit({ type: "tool_call", name: "linkedin_scrape", status: "completed" })
 
@@ -192,7 +201,7 @@ async function handleLinkedInFlow(
     })
 
     emit({ type: "text", content: "\n\n" })
-    await streamAgentText(
+    responseText = await streamAgentText(
       summaryAgent,
       createPrompt(
         ctx.collectedData,
@@ -208,7 +217,7 @@ async function handleLinkedInFlow(
 
     const errorAgent = createFillerAgent("")
     emit({ type: "text", content: "\n\n" })
-    await streamAgentText(
+    responseText = await streamAgentText(
       errorAgent,
       createPrompt(
         ctx.collectedData,
@@ -220,6 +229,8 @@ async function handleLinkedInFlow(
       emit
     )
   }
+
+  return responseText
 }
 
 // ============================================================================
@@ -284,30 +295,47 @@ export async function POST(request: NextRequest) {
     const ctx: OnboardingToolContext = {
       collectedData: { ...collectedData },
       analysisRequested: false,
+      lastSavedFields: [],
     }
 
     const linkedInUrl = extractLinkedInUrl(message)
 
     if (stream) {
       return createSSEResponse(async (emit) => {
+        let assistantResponseText = ""
+
         if (linkedInUrl) {
-          await handleLinkedInFlow(emit, linkedInUrl, ctx, conversationHistory, conversationContext, message)
+          assistantResponseText = await handleLinkedInFlow(emit, linkedInUrl, ctx, conversationHistory, conversationContext, message)
         } else {
           const saveProfileData = createSaveProfileDataTool(ctx)
           const triggerAnalysis = createTriggerAnalysisTool(ctx)
           const agent = createConversationalAgent([saveProfileData, triggerAnalysis])
-          await streamAgentText(
+          assistantResponseText = await streamAgentText(
             agent,
             createPrompt(ctx.collectedData, conversationContext, message, conversationHistory),
             emit
           )
         }
 
-        // Emit final data
+        // Emit saved fields if any were saved
+        if (ctx.lastSavedFields.length > 0) {
+          emit({
+            type: "saved_fields",
+            fields: ctx.lastSavedFields,
+          })
+        }
+
+        // Use handoff agent to intelligently decide suggestions
+        let suggestions: string[] = []
+        if (!ctx.analysisRequested && assistantResponseText) {
+          suggestions = await getSuggestionsForMessage(assistantResponseText)
+        }
+
         emit({
           type: "final",
           collectedData: ctx.collectedData,
           isComplete: ctx.analysisRequested,
+          suggestions,
         })
 
         // Profile Analysis (when triggered by tool)
