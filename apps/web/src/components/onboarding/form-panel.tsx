@@ -43,7 +43,6 @@ type EngagementType = z.infer<typeof EngagementTypeSchema>
 
 // Form step definitions
 const STEPS = [
-  { id: "name", title: "Your Name", description: "How should we address you?" },
   { id: "linkedin", title: "LinkedIn (Optional)", description: "We can pull details from your profile" },
   { id: "experience", title: "Experience Level", description: "Where are you in your career?" },
   { id: "skills", title: "Skills", description: "What technologies and skills do you have?" },
@@ -296,8 +295,6 @@ export function FormPanel({ accessToken, firstName, fullName, onBack }: FormPane
   // Step validation
   const canProceed = useMemo(() => {
     switch (STEPS[currentStep].id) {
-      case "name":
-        return formData.fullName.trim().length > 0
       case "linkedin":
         return true // Optional
       case "experience":
@@ -443,23 +440,6 @@ export function FormPanel({ accessToken, firstName, fullName, onBack }: FormPane
     const step = STEPS[currentStep]
 
     switch (step.id) {
-      case "name":
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="fullName">Full Name</Label>
-              <FilledInput
-                id="fullName"
-                value={formData.fullName}
-                onChange={(e) => updateField("fullName", e.target.value)}
-                placeholder="John Doe"
-                className="mt-1.5"
-                autoFocus
-              />
-            </div>
-          </div>
-        )
-
       case "linkedin":
         return (
           <div className="space-y-4">

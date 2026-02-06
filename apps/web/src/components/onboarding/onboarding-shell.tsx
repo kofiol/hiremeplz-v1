@@ -18,10 +18,9 @@ export function OnboardingShell() {
   const accessToken = session?.access_token ?? null
   const userMetadata = session?.user?.user_metadata
 
-  const firstName =
-    userMetadata?.full_name?.split(" ")[0] ??
-    userMetadata?.name?.split(" ")[0] ??
-    "there"
+  // Name state — initialized from auth metadata (Google OAuth fills this)
+  const authFullName = userMetadata?.full_name ?? userMetadata?.name ?? null
+  const [collectedName, setCollectedName] = useState<string | null>(authFullName)
 
   // Mode selection state
   const [mode, setMode] = useState<OnboardingMode | null>(null)
@@ -33,8 +32,8 @@ export function OnboardingShell() {
   const chat = useOnboardingChat({
     accessToken,
     userMetadata: {
-      fullName: userMetadata?.full_name ?? userMetadata?.name ?? null,
-      planDisplayName: userMetadata?.full_name ?? userMetadata?.name ?? null,
+      fullName: collectedName ?? authFullName,
+      planDisplayName: collectedName ?? authFullName,
     },
     onDataUpdate: handleDataUpdate,
   })
@@ -50,12 +49,16 @@ export function OnboardingShell() {
     [chat]
   )
 
+  const handleNameSubmit = useCallback((name: string) => {
+    setCollectedName(name)
+  }, [])
+
   const handleModeSelect = useCallback((selectedMode: OnboardingMode) => {
     setMode(selectedMode)
     if (selectedMode === "chatbot") {
-      chat.startConversation()
+      chat.startConversation(collectedName ?? undefined)
     }
-  }, [chat])
+  }, [chat, collectedName])
 
   const handleBack = useCallback(() => {
     setMode(null)
@@ -73,15 +76,16 @@ export function OnboardingShell() {
       <AnimatePresence mode="wait">
         {showWelcome ? (
           <WelcomeScreen
-            firstName={firstName}
+            fullName={collectedName}
             isLoading={chat.isLoading}
+            onNameSubmit={handleNameSubmit}
             onStart={handleModeSelect}
           />
         ) : mode === "form" ? (
           <FormPanel
             accessToken={accessToken}
-            firstName={firstName}
-            fullName={userMetadata?.full_name ?? userMetadata?.name ?? null}
+            firstName={collectedName?.split(" ")[0] ?? "there"}
+            fullName={collectedName}
             onBack={handleBack}
           />
         ) : (

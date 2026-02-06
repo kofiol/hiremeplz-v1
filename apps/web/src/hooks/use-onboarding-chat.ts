@@ -3,7 +3,6 @@
 import { useCallback, useState, useRef, useEffect } from "react"
 import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo, SavedField, InputHint } from "@/lib/onboarding/schema"
 import { INITIAL_COLLECTED_DATA, DEFAULT_INPUT_HINT } from "@/lib/onboarding/schema"
-import { useTypewriter } from "./use-typewriter"
 import { useOnboardingProgress } from "./use-onboarding-progress"
 
 // ============================================================================
@@ -35,7 +34,7 @@ type UseOnboardingChatReturn = {
   reasoningDuration: number | undefined
   reasoningPhase: "thinking" | "evaluating"
   isRestoring: boolean
-  startConversation: () => Promise<void>
+  startConversation: (overrideName?: string) => Promise<void>
   sendMessage: (text: string) => Promise<void>
   editMessage: (messageId: string, newText: string) => Promise<void>
   stopGeneration: () => void
@@ -81,9 +80,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
   const abortControllerRef = useRef<AbortController | null>(null)
   const onDataUpdateRef = useRef(onDataUpdate)
   onDataUpdateRef.current = onDataUpdate
-
-  // Typewriter
-  const typewriter = useTypewriter(setStreamingContent)
 
   // Progress
   const { isRestoring, loadProgress, saveProgress } = useOnboardingProgress()
@@ -147,8 +143,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
 
     setIsStreaming(true)
     setStreamingContent("")
-    typewriter.reset()
-    typewriter.start()
 
     const abortHandler = () => {
       wasAborted = true
@@ -180,10 +174,10 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
             if (parsed.type === "text") {
               if (!toolCallSeen || !toolCallFinished) {
                 fillerContent += parsed.content
-                typewriter.targetRef.current = fillerContent
+                setStreamingContent(fillerContent)
               } else {
                 summaryContent += parsed.content
-                typewriter.targetRef.current = summaryContent
+                setStreamingContent(summaryContent)
               }
             } else if (parsed.type === "tool_call") {
               if (parsed.status === "started") {
@@ -197,9 +191,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
                   elapsed: lastElapsed,
                 }
                 setActiveToolCall(null)
-                typewriter.flush()
-                typewriter.targetRef.current = ""
-                typewriter.indexRef.current = 0
                 setStreamingContent("")
               }
             } else if (parsed.type === "tool_status") {
@@ -229,7 +220,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
                 detailedFeedback: parsed.detailedFeedback,
               }
             } else if (parsed.type === "reasoning_started") {
-              typewriter.flush()
               setIsReasoning(true)
               setReasoningPhase("thinking")
               setReasoningContent("")
@@ -250,7 +240,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
         }
       }
 
-      await typewriter.waitForComplete()
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         wasAborted = true
@@ -259,7 +248,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
       }
     } finally {
       signal?.removeEventListener("abort", abortHandler)
-      typewriter.reset()
       setIsStreaming(false)
       setStreamingContent("")
       setActiveToolCall(null)
@@ -326,10 +314,10 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     updateCollectedData(finalCollectedData as CollectedData)
 
     saveProgress(finalMessages, finalCollectedData as CollectedData, currentHasStarted, currentAccessToken)
-  }, [typewriter, saveProgress, updateCollectedData])
+  }, [saveProgress, updateCollectedData])
 
   // ── Start Conversation ─────────────────────────────────────
-  const startConversation = useCallback(async () => {
+  const startConversation = useCallback(async (overrideName?: string) => {
     if (!accessToken) return
 
     const newHasStarted = true
@@ -340,9 +328,15 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     const controller = new AbortController()
     abortControllerRef.current = controller
 
+    // Merge override name into collectedData before sending
+    const nameToUse = overrideName ?? collectedData.fullName
+    const startData = nameToUse
+      ? { ...collectedData, fullName: nameToUse }
+      : collectedData
+
     try {
-      const initialMessage = collectedData.fullName
-        ? `Hi, I'm ${collectedData.fullName} and I'm ready to set up my profile!`
+      const initialMessage = nameToUse
+        ? `Hi, I'm ${nameToUse} and I'm ready to set up my profile!`
         : "Hi, I'm ready to set up my profile!"
 
       const response = await fetch("/api/v1/onboarding/chat", {
@@ -354,7 +348,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
         body: JSON.stringify({
           message: initialMessage,
           conversationHistory: [],
-          collectedData,
+          collectedData: startData,
           stream: true,
         }),
         signal: controller.signal,
@@ -365,7 +359,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
       const contentType = response.headers.get("content-type")
 
       if (contentType?.includes("text/event-stream")) {
-        await processStreamResponse(response, [], collectedData, newHasStarted, accessToken, controller.signal)
+        await processStreamResponse(response, [], startData, newHasStarted, accessToken, controller.signal)
       } else {
         const data = await response.json()
         const newMessages: ChatMessage[] = [
@@ -373,7 +367,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
         ]
         setMessages(newMessages)
         if (data.collectedData) updateCollectedData(data.collectedData)
-        saveProgress(newMessages, data.collectedData ?? collectedData, newHasStarted, accessToken)
+        saveProgress(newMessages, data.collectedData ?? startData, newHasStarted, accessToken)
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return
@@ -530,7 +524,6 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
-    typewriter.reset()
     setIsLoading(false)
     setIsStreaming(false)
     setStreamingContent("")
@@ -539,7 +532,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     setReasoningPhase("thinking")
     setReasoningContent("")
     setReasoningDuration(undefined)
-  }, [typewriter])
+  }, [])
 
   // ── Reset ─────────────────────────────────────────────────────
   const reset = useCallback(() => {

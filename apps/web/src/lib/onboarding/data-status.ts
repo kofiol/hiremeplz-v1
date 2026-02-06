@@ -1,14 +1,13 @@
 import type { CollectedData } from "./schema"
 
-const TOTAL_STEPS = 9
+const TOTAL_STEPS = 8
 
 export function getDataStatus(data: Partial<CollectedData>) {
   const filled: string[] = []
   const missing: string[] = []
 
-  // 1. Name
+  // Name (always collected before chat starts — never missing)
   if (data.fullName) filled.push(`fullName: ${data.fullName}`)
-  else missing.push("fullName")
 
   // teamMode is auto-set, not counted in steps
   if (data.teamMode) filled.push(`teamMode: ${data.teamMode}`)

@@ -58,7 +58,11 @@
       "Bash(pnpm test:*)",
       "Bash(git merge:*)",
       "Bash(taskkill:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "WebFetch(domain:www.zolkos.com)",
+      "WebFetch(domain:www.natemeyvis.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:news.ycombinator.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

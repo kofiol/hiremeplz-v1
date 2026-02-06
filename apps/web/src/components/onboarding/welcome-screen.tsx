@@ -1,14 +1,17 @@
 "use client"
 
+import { useState } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, ClipboardList, Sparkles, Target, FileText, Mic } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { MessageSquare, ClipboardList, Sparkles, Target, FileText, Mic, ArrowRight } from "lucide-react"
 
 export type OnboardingMode = "chatbot" | "form"
 
 type WelcomeScreenProps = {
-  firstName: string
+  fullName: string | null
   isLoading: boolean
+  onNameSubmit: (name: string) => void
   onStart: (mode: OnboardingMode) => void
 }
 
@@ -30,7 +33,65 @@ const BENEFITS = [
   },
 ]
 
-export function WelcomeScreen({ firstName, isLoading, onStart }: WelcomeScreenProps) {
+export function WelcomeScreen({ fullName, isLoading, onNameSubmit, onStart }: WelcomeScreenProps) {
+  const [nameInput, setNameInput] = useState("")
+  const hasName = !!fullName?.trim()
+  const firstName = fullName?.split(" ")[0] ?? ""
+
+  // Phase 1: Name collection
+  if (!hasName) {
+    return (
+      <motion.div
+        key="name-input"
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.35 }}
+        className="flex flex-1 flex-col items-center justify-center p-6 min-h-0 overflow-y-auto"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-md space-y-6 text-center"
+        >
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Before we get started
+            </h1>
+            <p className="mt-3 text-base text-muted-foreground">
+              What's your full name?
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              const trimmed = nameInput.trim()
+              if (trimmed) onNameSubmit(trimmed)
+            }}
+            className="flex flex-col gap-4"
+          >
+            <Input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="John Doe"
+              className="text-center text-lg h-12"
+              autoFocus
+            />
+            <Button
+              type="submit"
+              disabled={!nameInput.trim()}
+              className="gap-2"
+            >
+              Continue
+              <ArrowRight className="size-4" />
+            </Button>
+          </form>
+        </motion.div>
+      </motion.div>
+    )
+  }
+
+  // Phase 2: Mode selection (name is known)
   return (
     <motion.div
       key="welcome"

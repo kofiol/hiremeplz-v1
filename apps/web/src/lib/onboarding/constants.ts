@@ -10,7 +10,6 @@ export const EXPERIENCE_LEVEL_LABELS: Record<string, string> = {
 }
 
 export const ONBOARDING_STEPS = [
-  { key: "fullName", label: "Name" },
   { key: "linkedinUrl", label: "LinkedIn" },
   { key: "experienceLevel", label: "Experience Level" },
   { key: "skills", label: "Skills" },

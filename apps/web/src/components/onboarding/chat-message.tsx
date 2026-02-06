@@ -173,8 +173,10 @@ export function ChatMessageItem({
         ) : (
           <div className="space-y-3">
             {message.content && (
-              <div className="max-w-none whitespace-pre-wrap text-base text-foreground">
-                {message.content}
+              <div className="prose prose-base max-w-none text-foreground">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.content}
+                </ReactMarkdown>
               </div>
             )}
             {message.savedFields && message.savedFields.length > 0 && (
