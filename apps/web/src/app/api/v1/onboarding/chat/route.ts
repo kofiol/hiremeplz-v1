@@ -5,14 +5,13 @@ import {
   getLinkedInScrapeStatus as getScrapeStatusUtil,
 } from "@/lib/linkedin-scraper.server"
 import { getDataStatus } from "@/lib/onboarding/data-status"
-import { getSuggestionsForMessage } from "./suggestions-agent"
-import { ChatRequestSchema } from "@/lib/onboarding/schema"
+import { ChatRequestSchema, DEFAULT_INPUT_HINT } from "@/lib/onboarding/schema"
 import type { CollectedData } from "@/lib/onboarding/schema"
 import { verifyAuth } from "@/lib/auth.server"
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "@/lib/rate-limit.server"
 import { createSSEResponse, streamAgentText } from "./streaming"
 import type { SSEEmitter } from "./streaming"
-import { createSaveProfileDataTool, createTriggerAnalysisTool } from "./tools"
+import { createSaveProfileDataTool, createTriggerAnalysisTool, createSetInputHintTool } from "./tools"
 import type { OnboardingToolContext } from "./tools"
 import { createConversationalAgent, createFillerAgent, CONVERSATIONAL_AGENT_INSTRUCTIONS } from "./agent"
 import { runProfileAnalysis } from "./analysis"
@@ -193,11 +192,12 @@ async function handleLinkedInFlow(
 
     const saveProfileData = createSaveProfileDataTool(ctx)
     const triggerAnalysis = createTriggerAnalysisTool(ctx)
+    const setInputHint = createSetInputHintTool(ctx)
     const summaryAgent = new Agent({
       name: "Conversational Assistant",
       instructions: CONVERSATIONAL_AGENT_INSTRUCTIONS,
       model: "gpt-4.1-nano",
-      tools: [saveProfileData, triggerAnalysis],
+      tools: [saveProfileData, triggerAnalysis, setInputHint],
     })
 
     emit({ type: "text", content: "\n\n" })
@@ -294,6 +294,7 @@ export async function POST(request: NextRequest) {
     // Closure state for tool execution
     const ctx: OnboardingToolContext = {
       collectedData: { ...collectedData },
+      originalCollectedData: { ...collectedData },
       analysisRequested: false,
       lastSavedFields: [],
     }
@@ -302,15 +303,14 @@ export async function POST(request: NextRequest) {
 
     if (stream) {
       return createSSEResponse(async (emit) => {
-        let assistantResponseText = ""
-
         if (linkedInUrl) {
-          assistantResponseText = await handleLinkedInFlow(emit, linkedInUrl, ctx, conversationHistory, conversationContext, message)
+          await handleLinkedInFlow(emit, linkedInUrl, ctx, conversationHistory, conversationContext, message)
         } else {
           const saveProfileData = createSaveProfileDataTool(ctx)
           const triggerAnalysis = createTriggerAnalysisTool(ctx)
-          const agent = createConversationalAgent([saveProfileData, triggerAnalysis])
-          assistantResponseText = await streamAgentText(
+          const setInputHint = createSetInputHintTool(ctx)
+          const agent = createConversationalAgent([saveProfileData, triggerAnalysis, setInputHint])
+          await streamAgentText(
             agent,
             createPrompt(ctx.collectedData, conversationContext, message, conversationHistory),
             emit
@@ -325,17 +325,11 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Use handoff agent to intelligently decide suggestions
-        let suggestions: string[] = []
-        if (!ctx.analysisRequested && assistantResponseText) {
-          suggestions = await getSuggestionsForMessage(assistantResponseText)
-        }
-
         emit({
           type: "final",
           collectedData: ctx.collectedData,
           isComplete: ctx.analysisRequested,
-          suggestions,
+          inputHint: ctx.inputHint ?? DEFAULT_INPUT_HINT,
         })
 
         // Profile Analysis (when triggered by tool)
@@ -379,7 +373,8 @@ export async function POST(request: NextRequest) {
     } else {
       const saveProfileData = createSaveProfileDataTool(ctx)
       const triggerAnalysis = createTriggerAnalysisTool(ctx)
-      const agent = createConversationalAgent([saveProfileData, triggerAnalysis])
+      const setInputHint = createSetInputHintTool(ctx)
+      const agent = createConversationalAgent([saveProfileData, triggerAnalysis, setInputHint])
       const result = await run(
         agent,
         createPrompt(ctx.collectedData, conversationContext, message, conversationHistory)

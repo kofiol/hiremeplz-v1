@@ -46,13 +46,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           router.replace("/onboarding");
           return;
         }
-        // Check if analysis hasn't been seen yet (post-onboarding "wow moment")
-        if (!cancelled && data.onboarding_completed_at && !data.analysis_seen_at) {
-          if (pathname !== "/analysis") {
-            router.replace("/analysis");
-            return;
-          }
-        }
       } catch {
         // If the check fails, let them through
       }
@@ -61,7 +54,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
     checkOnboarding();
     return () => { cancelled = true; };
-  }, [isLoading, session, router, pathname]);
+  }, [isLoading, session, router]);
 
   const handleNavItemClick = (href: string) => {
     router.push(href);

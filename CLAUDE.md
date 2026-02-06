@@ -263,4 +263,10 @@ Add or update tests for any code changes. PR title format: `[<project_name>] <Ti
 git ship "Description of changes"
 ```
 
+### Rules
+
+When I specify an architecture or SDK to use (e.g., 'use a handoff agent', 'use OpenAI Agents SDK'), implement EXACTLY that pattern. Do not substitute with a simpler alternative. If unclear, ask for clarification before coding.
+After implementing a feature, re-read the original request and verify every stated requirement is addressed before reporting completion. Create a mental checklist of all explicit requirements.
+
+
 FULL DOCS AVAILABLE AT APPS/DOCS - CONSULT CAREFULLY BEFORE CHANGES ALONGSIDE SKILLS/

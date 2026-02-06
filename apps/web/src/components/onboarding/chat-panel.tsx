@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useCallback, useState, useEffect, useMemo } from "react"
+import { useRef, useCallback, useState, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   Conversation,
@@ -29,12 +29,12 @@ import { StreamingMessage } from "./streaming-message"
 import { SuggestedReplies } from "./suggested-replies"
 import { FinishOnboarding } from "./analysis-results"
 import { SkillSelector } from "./skill-selector"
-import type { ChatMessage, CollectedData } from "@/lib/onboarding/schema"
+import type { ChatMessage, CollectedData, InputHint } from "@/lib/onboarding/schema"
 
 type ChatPanelProps = {
   messages: ChatMessage[]
   collectedData: CollectedData
-  suggestions: string[]
+  inputHint: InputHint
   isLoading: boolean
   isStreaming: boolean
   streamingContent: string
@@ -60,7 +60,7 @@ type ChatPanelProps = {
 export function ChatPanel({
   messages,
   collectedData,
-  suggestions,
+  inputHint,
   isLoading,
   isStreaming,
   streamingContent,
@@ -112,40 +112,8 @@ export function ChatPanel({
   const hasAnalysis = messages.some((m) => m.profileAnalysis)
   const isEditable = !isLoading && !isStreaming && voiceRecording.status === "idle"
 
-  // Detect if the agent is specifically asking about skills (not just mentioning them)
-  const showSkillSelector = useMemo(() => {
-    if (isLoading || isStreaming || hasAnalysis) return false
-    if (collectedData.skills && collectedData.skills.length > 0) return false
-
-    // Only show skill selector if we're past the LinkedIn/orientation phase
-    // Experience level comes after LinkedIn, so if it's set, we're definitely past orientation
-    const pastOrientationPhase = !!collectedData.experienceLevel || !!collectedData.linkedinUrl
-
-    if (!pastOrientationPhase) return false
-
-    const lastAssistant = [...messages].reverse().find(
-      (m) => m.role === "assistant" && m.content && !m.toolCall && !m.profileAnalysis
-    )
-    const text = lastAssistant?.content.toLowerCase() ?? ""
-
-    // More specific patterns that indicate the agent is actually asking for skills input
-    const isAskingAboutSkills =
-      text.includes("tell me about your skill") ||
-      text.includes("what skill") ||
-      text.includes("your skill") ||
-      text.includes("which technologies") ||
-      text.includes("what technologies") ||
-      text.includes("technical skill") ||
-      text.includes("programming language") ||
-      text.includes("frameworks you") ||
-      text.includes("top skills")
-
-    // Don't trigger if it's talking about LinkedIn or the orientation
-    const isTalkingAboutLinkedin = text.includes("linkedin")
-    const isOrientationMessage = text.includes("finding gigs") || text.includes("powers everything")
-
-    return isAskingAboutSkills && !isTalkingAboutLinkedin && !isOrientationMessage
-  }, [messages, collectedData.skills, collectedData.experienceLevel, collectedData.linkedinUrl, isLoading, isStreaming, hasAnalysis])
+  const showSkillSelector = inputHint.type === "skill_selector" && !isLoading && !isStreaming && !hasAnalysis
+  const activeSuggestions = inputHint.type === "suggestions" ? inputHint.suggestions : []
 
   return (
     <motion.div
@@ -253,7 +221,7 @@ export function ChatPanel({
           {/* Quick replies (only when not showing skill selector) */}
           {!showSkillSelector && voiceRecording.status === "idle" && !isLoading && !isStreaming && (
             <SuggestedReplies
-              suggestions={suggestions}
+              suggestions={activeSuggestions}
               onReply={(text) => {
                 onSendMessage(text)
               }}

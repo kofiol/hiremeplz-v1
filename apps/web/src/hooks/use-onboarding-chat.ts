@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useState, useRef, useEffect } from "react"
-import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo, SavedField } from "@/lib/onboarding/schema"
-import { INITIAL_COLLECTED_DATA } from "@/lib/onboarding/schema"
+import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo, SavedField, InputHint } from "@/lib/onboarding/schema"
+import { INITIAL_COLLECTED_DATA, DEFAULT_INPUT_HINT } from "@/lib/onboarding/schema"
 import { useTypewriter } from "./use-typewriter"
 import { useOnboardingProgress } from "./use-onboarding-progress"
 
@@ -22,7 +22,7 @@ type UseOnboardingChatOptions = {
 type UseOnboardingChatReturn = {
   messages: ChatMessage[]
   collectedData: CollectedData
-  suggestions: string[]
+  inputHint: InputHint
   hasStarted: boolean
   isLoading: boolean
   isStreaming: boolean
@@ -66,7 +66,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [inputHint, setInputHint] = useState<InputHint>(DEFAULT_INPUT_HINT)
   const [activeToolCall, setActiveToolCall] = useState<{
     name: string
     status: string
@@ -215,10 +215,10 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
               if (parsed.collectedData) {
                 finalCollectedData = parsed.collectedData
               }
-              if (parsed.suggestions) {
-                setSuggestions(parsed.suggestions)
+              if (parsed.inputHint) {
+                setInputHint(parsed.inputHint)
               } else {
-                setSuggestions([])
+                setInputHint(DEFAULT_INPUT_HINT)
               }
             } else if (parsed.type === "profile_analysis") {
               profileAnalysisResult = {
@@ -393,7 +393,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     setMessages(updatedMessages)
     setIsLoading(true)
     setError(null)
-    setSuggestions([]) // Clear suggestions when sending new message
+    setInputHint(DEFAULT_INPUT_HINT) // Clear input hint when sending new message
 
     const controller = new AbortController()
     abortControllerRef.current = controller
@@ -553,7 +553,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
   return {
     messages,
     collectedData,
-    suggestions,
+    inputHint,
     hasStarted,
     isLoading,
     isStreaming,

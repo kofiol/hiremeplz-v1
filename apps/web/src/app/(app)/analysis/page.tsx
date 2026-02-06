@@ -1,5 +1,5 @@
-import { AnalysisShell } from "@/components/analysis"
+import { redirect } from "next/navigation"
 
 export default function AnalysisPage() {
-  return <AnalysisShell />
+  redirect("/profile")
 }

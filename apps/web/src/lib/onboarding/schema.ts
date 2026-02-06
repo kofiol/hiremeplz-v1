@@ -144,6 +144,18 @@ export const ProfileAnalysisJsonSchema = {
 }
 
 // ============================================================================
+// Input Hints — agent-driven UI mode selection
+// ============================================================================
+
+export type InputHint =
+  | { type: "text" }
+  | { type: "suggestions"; suggestions: string[] }
+  | { type: "skill_selector" }
+  | { type: "none" }
+
+export const DEFAULT_INPUT_HINT: InputHint = { type: "text" }
+
+// ============================================================================
 // Chat types
 // ============================================================================
 
@@ -185,7 +197,7 @@ export type SSEEvent =
   | { type: "tool_call"; name: string; status: "started" | "completed" | "failed" }
   | { type: "tool_status"; elapsed: number }
   | { type: "saved_fields"; fields: SavedField[] }
-  | { type: "final"; collectedData: Partial<CollectedData>; isComplete: boolean; suggestions?: string[] }
+  | { type: "final"; collectedData: Partial<CollectedData>; isComplete: boolean; inputHint?: InputHint }
   | { type: "analysis_started" }
   | { type: "reasoning_started" }
   | { type: "reasoning_chunk"; content: string }

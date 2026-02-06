@@ -95,7 +95,7 @@ export function OnboardingShell() {
             <ChatPanel
               messages={chat.messages}
               collectedData={chat.collectedData}
-              suggestions={chat.suggestions}
+              inputHint={chat.inputHint}
               isLoading={chat.isLoading}
               isStreaming={chat.isStreaming}
               streamingContent={chat.streamingContent}

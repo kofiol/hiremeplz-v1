@@ -1,6 +1,6 @@
 import { tool } from "@openai/agents"
 import { z } from "zod"
-import type { CollectedData, SaveProfileDataInput } from "@/lib/onboarding/schema"
+import type { CollectedData, SaveProfileDataInput, InputHint } from "@/lib/onboarding/schema"
 import { SaveProfileDataParamsSchema } from "@/lib/onboarding/schema"
 
 // ============================================================================
@@ -14,8 +14,10 @@ export type SavedField = {
 
 export type OnboardingToolContext = {
   collectedData: Partial<CollectedData>
+  originalCollectedData: Partial<CollectedData>
   analysisRequested: boolean
   lastSavedFields: SavedField[]
+  inputHint?: InputHint
 }
 
 // ============================================================================
@@ -37,7 +39,9 @@ FIELD GUIDE (use the correct field for each data type):
 - dreamRateMin/Max: Target hourly rate range (numbers only)
 - engagementTypes: Work style array (["full_time"], ["part_time"], or both)
 
-IMPORTANT: When user lists programming languages/frameworks/tools, save to 'skills' NOT 'educations'.`,
+CRITICAL RULES:
+- ONLY save data the user EXPLICITLY stated in their message. NEVER infer, guess, or fabricate values for fields the user did not mention.
+- When user lists programming languages/frameworks/tools, save to 'skills' NOT 'educations'.`,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: SaveProfileDataParamsSchema as any,
     execute: async (_input: unknown) => {
@@ -77,6 +81,39 @@ IMPORTANT: When user lists programming languages/frameworks/tools, save to 'skil
 }
 
 // ============================================================================
+// set_input_hint tool
+// ============================================================================
+
+export function createSetInputHintTool(ctx: OnboardingToolContext) {
+  return tool({
+    name: "set_input_hint",
+    description: `Set the UI input mode shown to the user after your response. Call this EVERY turn.
+
+- "text": Default text input (for open-ended questions: name, details, follow-ups)
+- "suggestions": Show pill buttons (provide the suggestions array)
+- "skill_selector": Show the skill dropdown component
+- "none": Hide input entirely (after triggering analysis)`,
+    parameters: z.object({
+      type: z.enum(["text", "suggestions", "skill_selector", "none"]),
+      suggestions: z
+        .array(z.string())
+        .nullable()
+        .describe("Required when type is 'suggestions'. The pill button labels to show. Pass null otherwise."),
+    }),
+    execute: async (input) => {
+      if (input.type === "suggestions" && input.suggestions) {
+        ctx.inputHint = { type: "suggestions", suggestions: input.suggestions }
+      } else if (input.type === "suggestions") {
+        ctx.inputHint = { type: "text" }
+      } else {
+        ctx.inputHint = { type: input.type }
+      }
+      return "Input hint set."
+    },
+  })
+}
+
+// ============================================================================
 // trigger_profile_analysis tool
 // ============================================================================
 
@@ -88,7 +125,39 @@ export function createTriggerAnalysisTool(ctx: OnboardingToolContext) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: z.object({ confirmation: z.literal(true) }) as any,
     execute: async () => {
+      // Validate against ORIGINAL data (pre-turn snapshot) to prevent
+      // the agent from fabricating data via save_profile_data then
+      // immediately triggering analysis in the same turn.
+      const orig = ctx.originalCollectedData
       const data = ctx.collectedData
+
+      // Fields that were missing at turn start — these required user input
+      // across prior turns and cannot be filled by fabrication.
+      const missingAtStart: string[] = []
+      if (!orig.fullName) missingAtStart.push("fullName")
+      if (!orig.teamMode) missingAtStart.push("teamMode")
+      if (!orig.experienceLevel) missingAtStart.push("experienceLevel")
+      if (!orig.skills || orig.skills.length < 3)
+        missingAtStart.push("skills (need at least 3)")
+      if (!orig.experiences || orig.experiences.length < 1)
+        missingAtStart.push("experiences (need at least 1)")
+      if (!orig.educations || orig.educations.length < 1)
+        missingAtStart.push("educations (need at least 1)")
+      if (orig.currentRateMin == null && orig.currentRateMax == null)
+        missingAtStart.push("currentRate")
+      if (orig.dreamRateMin == null && orig.dreamRateMax == null)
+        missingAtStart.push("dreamRate")
+      if (!orig.engagementTypes || orig.engagementTypes.length < 1)
+        missingAtStart.push("engagementTypes")
+
+      // Allow at most 1 field group to have been newly provided this turn
+      // (the field the user was actually asked about).
+      // If 2+ groups were missing at turn start, the agent skipped questions.
+      if (missingAtStart.length > 1) {
+        return `CANNOT trigger analysis yet. Still missing from PRIOR turns: ${missingAtStart.join(", ")}. You skipped questions — go back and ask the user about each one. Do NOT call trigger_profile_analysis again until all items are resolved.`
+      }
+
+      // Final check: current data must actually be complete
       const missing: string[] = []
       if (!data.fullName) missing.push("fullName")
       if (!data.teamMode) missing.push("teamMode")
