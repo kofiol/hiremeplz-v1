@@ -7,62 +7,69 @@ export type TypewriterControls = {
   targetRef: React.MutableRefObject<string>
   /** The ref tracking the current cursor position */
   indexRef: React.MutableRefObject<number>
-  /** Start the typewriter interval (idempotent) */
+  /** Start the rAF loop (idempotent) */
   start: () => void
-  /** Stop the typewriter interval */
+  /** Stop the rAF loop */
   stop: () => void
-  /** Instantly flush all pending text */
+  /** Instantly flush all pending text and stop */
   flush: () => string
   /** Reset target and index to empty */
   reset: () => void
-  /** Wait for the typewriter to catch up to target */
-  waitForComplete: () => Promise<void>
 }
 
 /**
- * Extracted from onboarding-chatbot.tsx (lines 358-406).
- * Provides a char-by-char typewriter effect for streaming text.
+ * Smooth character-by-character reveal for streamed text.
  *
- * @param onUpdate - called with the current visible text on each tick
+ * Uses requestAnimationFrame for 60fps rendering. Each frame reveals
+ * enough characters to catch up within ~120ms, so tokens appear
+ * almost instantly but with a smooth per-character feel.
  */
 export function useTypewriter(
   onUpdate: (text: string) => void
 ): TypewriterControls {
   const targetRef = useRef("")
   const indexRef = useRef(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const rafRef = useRef<number | null>(null)
   const onUpdateRef = useRef(onUpdate)
   useEffect(() => {
     onUpdateRef.current = onUpdate
   })
 
-  const start = useCallback(() => {
-    if (intervalRef.current) return
-    intervalRef.current = setInterval(() => {
-      const target = targetRef.current
-      const idx = indexRef.current
-      if (idx < target.length) {
-        const behind = target.length - idx
-        const step = behind > 80 ? 4 : behind > 40 ? 3 : behind > 15 ? 2 : 1
-        indexRef.current = Math.min(idx + step, target.length)
-        onUpdateRef.current(target.slice(0, indexRef.current))
-      }
-    }, 18)
+  const tick = useCallback(() => {
+    const target = targetRef.current
+    const idx = indexRef.current
+
+    if (idx < target.length) {
+      const behind = target.length - idx
+      // Catch up within ~250ms (~15 frames at 60fps)
+      // Always reveal at least 1 char per frame for smoothness
+      const step = Math.max(1, Math.ceil(behind / 15))
+      indexRef.current = Math.min(idx + step, target.length)
+      onUpdateRef.current(target.slice(0, indexRef.current))
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
   }, [])
 
+  const start = useCallback(() => {
+    if (rafRef.current !== null) return
+    rafRef.current = requestAnimationFrame(tick)
+  }, [tick])
+
   const stop = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
     }
   }, [])
 
   const flush = useCallback(() => {
+    stop()
     indexRef.current = targetRef.current.length
     const text = targetRef.current
     onUpdateRef.current(text)
     return text
-  }, [])
+  }, [stop])
 
   const reset = useCallback(() => {
     stop()
@@ -70,23 +77,9 @@ export function useTypewriter(
     indexRef.current = 0
   }, [stop])
 
-  const waitForComplete = useCallback((): Promise<void> => {
-    return new Promise((resolve) => {
-      const check = () => {
-        if (indexRef.current >= targetRef.current.length) {
-          resolve()
-        } else {
-          setTimeout(check, 20)
-        }
-      }
-      check()
-    })
-  }, [])
-
-  // Cleanup on unmount
   useEffect(() => {
     return () => stop()
   }, [stop])
 
-  return { targetRef, indexRef, start, stop, flush, reset, waitForComplete }
+  return { targetRef, indexRef, start, stop, flush, reset }
 }

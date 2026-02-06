@@ -3,6 +3,7 @@
 import { useCallback, useState, useRef, useEffect } from "react"
 import type { CollectedData, ChatMessage, ProfileAnalysis, ToolCallInfo, SavedField, InputHint } from "@/lib/onboarding/schema"
 import { INITIAL_COLLECTED_DATA, DEFAULT_INPUT_HINT } from "@/lib/onboarding/schema"
+import { useTypewriter } from "./use-typewriter"
 import { useOnboardingProgress } from "./use-onboarding-progress"
 
 // ============================================================================
@@ -81,6 +82,9 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
   const onDataUpdateRef = useRef(onDataUpdate)
   onDataUpdateRef.current = onDataUpdate
 
+  // Smooth character reveal for streamed text
+  const typewriter = useTypewriter(setStreamingContent)
+
   // Progress
   const { isRestoring, loadProgress, saveProgress } = useOnboardingProgress()
 
@@ -143,6 +147,8 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
 
     setIsStreaming(true)
     setStreamingContent("")
+    typewriter.reset()
+    typewriter.start()
 
     const abortHandler = () => {
       wasAborted = true
@@ -174,10 +180,10 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
             if (parsed.type === "text") {
               if (!toolCallSeen || !toolCallFinished) {
                 fillerContent += parsed.content
-                setStreamingContent(fillerContent)
+                typewriter.targetRef.current = fillerContent
               } else {
                 summaryContent += parsed.content
-                setStreamingContent(summaryContent)
+                typewriter.targetRef.current = summaryContent
               }
             } else if (parsed.type === "tool_call") {
               if (parsed.status === "started") {
@@ -191,7 +197,11 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
                   elapsed: lastElapsed,
                 }
                 setActiveToolCall(null)
+                typewriter.flush()
+                typewriter.targetRef.current = ""
+                typewriter.indexRef.current = 0
                 setStreamingContent("")
+                typewriter.start()
               }
             } else if (parsed.type === "tool_status") {
               lastElapsed = parsed.elapsed
@@ -240,6 +250,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
         }
       }
 
+      typewriter.flush()
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         wasAborted = true
@@ -248,6 +259,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
       }
     } finally {
       signal?.removeEventListener("abort", abortHandler)
+      typewriter.reset()
       setIsStreaming(false)
       setStreamingContent("")
       setActiveToolCall(null)
@@ -314,7 +326,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     updateCollectedData(finalCollectedData as CollectedData)
 
     saveProgress(finalMessages, finalCollectedData as CollectedData, currentHasStarted, currentAccessToken)
-  }, [saveProgress, updateCollectedData])
+  }, [typewriter, saveProgress, updateCollectedData])
 
   // ── Start Conversation ─────────────────────────────────────
   const startConversation = useCallback(async (overrideName?: string) => {
@@ -524,6 +536,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
+    typewriter.reset()
     setIsLoading(false)
     setIsStreaming(false)
     setStreamingContent("")
@@ -532,7 +545,7 @@ export function useOnboardingChat(options: UseOnboardingChatOptions): UseOnboard
     setReasoningPhase("thinking")
     setReasoningContent("")
     setReasoningDuration(undefined)
-  }, [])
+  }, [typewriter])
 
   // ── Reset ─────────────────────────────────────────────────────
   const reset = useCallback(() => {
