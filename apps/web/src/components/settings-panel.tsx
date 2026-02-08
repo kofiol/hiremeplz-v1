@@ -440,6 +440,41 @@ export function SettingsPanel({
                   </p>
                 </div>
               </div>
+
+              <div className="space-y-3 rounded-xl border border-border/50 bg-card p-5">
+                <div>
+                  <Label>Focus Mode</Label>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    Dim earlier messages after the AI responds so you can focus on your reply.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors duration-150 hover:border-primary/30">
+                  <span className="text-sm">Enable Focus Mode</span>
+                  <Checkbox
+                    checked={focusModeEnabled}
+                    onCheckedChange={(value) => setFocusModeEnabled(value === true)}
+                  />
+                </div>
+
+                {focusModeEnabled && (
+                  <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Dim intensity</Label>
+                      <span className="text-sm text-muted-foreground">{focusOpacity}%</span>
+                    </div>
+                    <Slider
+                      value={[focusOpacity]}
+                      min={0}
+                      max={50}
+                      step={5}
+                      onValueChange={(vals) => setFocusOpacity(vals[0])}
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      How much to dim the conversation history. 0% = no dimming, 50% = heavy.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -528,41 +563,6 @@ export function SettingsPanel({
                 <p className="text-xs text-muted-foreground">Experimental features in active development</p>
               </div>
               <div className="space-y-4 rounded-xl border border-border/50 bg-card p-5">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Label>Focus Mode</Label>
-                    <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
-                      BETA
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    After the AI responds, dim the rest of the page so you can focus on your reply.
-                  </p>
-                  <div className="flex items-center justify-between rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors duration-150 hover:border-primary/30">
-                    <span className="text-sm">Enable Focus Mode</span>
-                    <Checkbox
-                      checked={focusModeEnabled}
-                      onCheckedChange={(value) => setFocusModeEnabled(value === true)}
-                    />
-                  </div>
-
-                  {focusModeEnabled && (
-                    <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm">Opacity</Label>
-                        <span className="text-sm text-muted-foreground">{focusOpacity}%</span>
-                      </div>
-                      <Slider
-                        value={[focusOpacity]}
-                        min={0}
-                        max={100}
-                        step={5}
-                        onValueChange={(vals) => setFocusOpacity(vals[0])}
-                      />
-                    </div>
-                  )}
-                </div>
-
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Label>LinkedIn Import Popup</Label>

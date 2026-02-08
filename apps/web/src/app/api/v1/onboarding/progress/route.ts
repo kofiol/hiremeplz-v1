@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, verifyAuth } from "@/lib/auth.server";
+import { ONBOARDING_AGENT_TYPE } from "@/lib/onboarding/constants";
 import type { Json } from "@/lib/database.types";
 
 export async function GET(request: NextRequest) {
@@ -14,24 +15,38 @@ export async function GET(request: NextRequest) {
         .select("settings_json")
         .eq("team_id", authContext.teamId)
         .eq("user_id", authContext.userId)
-        .eq("agent_type", "job_search")
+        .eq("agent_type", ONBOARDING_AGENT_TYPE)
         .maybeSingle<{ settings_json: Record<string, unknown> | null }>();
 
     if (existingAgentSettingsError) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "agent_settings_load_failed",
-            message: "Failed to load agent settings",
-            details: existingAgentSettingsError.message,
-          },
-        },
-        { status: 500 }
-      );
+      // Try legacy "job_search" agent_type as fallback
+      const { data: legacySettings } = await supabaseAdmin
+        .from("user_agent_settings")
+        .select("settings_json")
+        .eq("team_id", authContext.teamId)
+        .eq("user_id", authContext.userId)
+        .eq("agent_type", "job_search")
+        .maybeSingle<{ settings_json: Record<string, unknown> | null }>();
+
+      const legacyProgress = legacySettings?.settings_json?.onboarding_progress ?? null;
+      return NextResponse.json({ onboardingProgress: legacyProgress });
     }
 
     const currentSettings = existingAgentSettings?.settings_json ?? {};
-    const onboardingProgress = (currentSettings.onboarding_progress as Record<string, unknown>) ?? null;
+    let onboardingProgress = (currentSettings.onboarding_progress as Record<string, unknown>) ?? null;
+
+    // Fallback: check legacy "job_search" agent_type if no progress found
+    if (!onboardingProgress) {
+      const { data: legacySettings } = await supabaseAdmin
+        .from("user_agent_settings")
+        .select("settings_json")
+        .eq("team_id", authContext.teamId)
+        .eq("user_id", authContext.userId)
+        .eq("agent_type", "job_search")
+        .maybeSingle<{ settings_json: Record<string, unknown> | null }>();
+
+      onboardingProgress = (legacySettings?.settings_json?.onboarding_progress as Record<string, unknown>) ?? null;
+    }
 
     return NextResponse.json({
       onboardingProgress,
@@ -75,7 +90,7 @@ export async function POST(request: NextRequest) {
         .select("settings_json")
         .eq("team_id", authContext.teamId)
         .eq("user_id", authContext.userId)
-        .eq("agent_type", "job_search")
+        .eq("agent_type", ONBOARDING_AGENT_TYPE)
         .maybeSingle<{ settings_json: Record<string, unknown> | null }>();
 
     if (existingAgentSettingsError) {
@@ -108,7 +123,7 @@ export async function POST(request: NextRequest) {
         {
           team_id: authContext.teamId,
           user_id: authContext.userId,
-          agent_type: "job_search",
+          agent_type: ONBOARDING_AGENT_TYPE,
           settings_json: nextSettings as unknown as Json,
           updated_at: new Date().toISOString(),
         },

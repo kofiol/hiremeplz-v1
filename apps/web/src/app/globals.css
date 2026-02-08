@@ -39,6 +39,7 @@
   --border: oklch(0.8847 0.0069 97.3627);
   --input: oklch(0.7621 0.0156 98.3528);
   --ring: oklch(0.6171 0.1375 39.0427);
+  --success: oklch(0.5889 0.1225 142.5);
   --chart-1: oklch(0.5583 0.1276 42.9956);
   --chart-2: oklch(0.6898 0.1581 290.4107);
   --chart-3: oklch(0.8816 0.0276 93.1280);
@@ -94,6 +95,7 @@
   --border: oklch(0.3618 0.0101 106.8928);
   --input: oklch(0.4336 0.0113 100.2195);
   --ring: oklch(0.6724 0.1308 38.7559);
+  --success: oklch(0.6489 0.1503 142.5);
   --chart-1: oklch(0.5583 0.1276 42.9956);
   --chart-2: oklch(0.6898 0.1581 290.4107);
   --chart-3: oklch(0.2130 0.0078 95.4245);
@@ -147,6 +149,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: var(--success);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -321,8 +324,8 @@
     line-height: 1.3;
   }
 
-  .prose h1, .prose-invert h1 { font-size: 2rem; }
-  .prose h2, .prose-invert h2 { font-size: 1.5rem; }
+  .prose h1, .prose-invert h1 { font-size: 2rem; font-family: var(--font-serif); }
+  .prose h2, .prose-invert h2 { font-size: 1.5rem; font-family: var(--font-serif); }
   .prose h3, .prose-invert h3 { font-size: 1.25rem; }
   .prose h4, .prose-invert h4 { font-size: 1.125rem; }
   .prose h5, .prose-invert h5 { font-size: 1rem; }

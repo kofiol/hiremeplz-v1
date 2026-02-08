@@ -72,7 +72,7 @@ export function Message({
       )}
       <div
         className={cn(
-          "flex flex-col gap-1",
+          "flex flex-col gap-1 min-w-0",
           hideAvatar ? "max-w-full" : "max-w-[80%]",
           isUser ? "items-end" : "items-start"
         )}
@@ -91,7 +91,7 @@ export function MessageContent({
   ...props
 }: MessageContentProps) {
   return (
-    <div className={cn("flex flex-col gap-2", className)} {...props}>
+    <div className={cn("flex flex-col gap-2 min-w-0 w-full", className)} {...props}>
       {children}
     </div>
   );

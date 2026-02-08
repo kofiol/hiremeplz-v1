@@ -60,8 +60,8 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
   }
 
   return (
-    <div className="relative flex h-screen items-center justify-center bg-background p-4">
-      <main className="flex h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden">
+    <div className="relative flex h-screen bg-background">
+      <main className="flex h-screen w-full max-w-7xl mx-auto flex-col overflow-hidden">
         {children}
       </main>
     </div>

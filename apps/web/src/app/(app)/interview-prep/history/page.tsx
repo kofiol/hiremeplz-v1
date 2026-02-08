@@ -12,6 +12,7 @@ import {
   History,
   ChevronRight,
   Inbox,
+  Trophy,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -121,6 +122,51 @@ export default function InterviewHistoryPage() {
           </p>
         </div>
 
+        {/* Best score card */}
+        {(() => {
+          const completedSessions = sessions.filter(
+            (s) => s.status === "completed" && s.overall_score !== null
+          )
+          if (completedSessions.length === 0) return null
+
+          const bestSession = completedSessions.reduce((best, current) =>
+            (current.overall_score ?? 0) > (best.overall_score ?? 0)
+              ? current
+              : best
+          )
+
+          return (
+            <Card
+              className="group mb-8 cursor-pointer border-primary/20 bg-primary/5 transition-all hover:border-primary/40 hover:bg-primary/10"
+              onClick={() =>
+                router.push(`/interview-prep/results/${bestSession.id}`)
+              }
+            >
+              <CardContent className="flex items-center gap-6 p-6">
+                <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+                  <Trophy className="size-8 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                    Personal Best
+                  </p>
+                  <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight">
+                    {bestSession.overall_score}
+                    <span className="ml-1.5 text-lg font-normal text-muted-foreground">
+                      / 100
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {interviewTypeLabels[bestSession.interview_type]} &middot;{" "}
+                    {formatDate(bestSession.created_at)}
+                  </p>
+                </div>
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+              </CardContent>
+            </Card>
+          )
+        })()}
+
         {/* Sessions list */}
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-16 text-center">
@@ -138,18 +184,21 @@ export default function InterviewHistoryPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {sessions.map((s) => (
-              <Card
-                key={s.id}
-                className="cursor-pointer border-border/50 transition-colors hover:bg-accent/30"
-                onClick={() => router.push(`/interview-prep/results/${s.id}`)}
-              >
-                <CardContent className="flex items-center gap-4 p-4">
+          <div>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              All Sessions
+            </h2>
+            <div className="divide-y divide-border/50 overflow-hidden rounded-lg border border-border/50 bg-card/50">
+              {sessions.map((s) => (
+                <div
+                  key={s.id}
+                  className="group flex cursor-pointer items-center gap-4 px-4 py-3 transition-colors hover:bg-accent/20"
+                  onClick={() => router.push(`/interview-prep/results/${s.id}`)}
+                >
                   {/* Score */}
                   <div
                     className={cn(
-                      "flex size-12 shrink-0 items-center justify-center rounded-lg font-bold tabular-nums",
+                      "flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-bold tabular-nums",
                       scoreBgColor(s.overall_score),
                       scoreColor(s.overall_score)
                     )}
@@ -160,31 +209,31 @@ export default function InterviewHistoryPage() {
                   {/* Details */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">
+                      <p className="text-sm font-medium">
                         {interviewTypeLabels[s.interview_type]}
                       </p>
                       <Badge
                         variant={s.status === "completed" ? "secondary" : "outline"}
-                        className="text-[10px]"
+                        className="text-[10px] opacity-70"
                       >
-                        {s.status}
+                        {s.status.charAt(0).toUpperCase() + s.status.slice(1)}
                       </Badge>
                     </div>
                     {s.context && (
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {s.context}
                       </p>
                     )}
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/70">
                       {formatDate(s.created_at)}
                     </p>
                   </div>
 
                   {/* Arrow */}
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            ))}
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

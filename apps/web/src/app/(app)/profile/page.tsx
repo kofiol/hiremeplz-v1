@@ -1,17 +1,24 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { useSession } from "@/app/auth/session-provider"
 import { useUserPlan } from "@/hooks/use-user-plan"
-import {
-  ProfileAnalysisResults,
-} from "@/components/ui/score-indicator"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import {
+  AnalysisLoading,
+  AnalysisHero,
+  AnalysisCategories,
+  AnalysisInsights,
+  AnalysisCTAs,
+  LinkedinStatus,
+} from "@/components/analysis"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { RefreshCw, AlertCircle, Pencil, Check, X, Loader2 } from "lucide-react"
@@ -35,6 +42,8 @@ type ProfileAnalysis = {
   detailedFeedback: string
   createdAt: string
 }
+
+type LinkedinScrapeStatus = "enriching" | "completed" | "failed" | null
 
 type ProfileFields = {
   displayName: string
@@ -186,11 +195,23 @@ function InlineField({
 export default function ProfilePage() {
   const { session, isLoading: sessionLoading } = useSession()
   const { displayName, email } = useUserPlan()
+  const router = useRouter()
+
+  // Analysis state
   const [analysis, setAnalysis] = useState<ProfileAnalysis | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pollCount, setPollCount] = useState(0)
 
+  // First-visit state
+  const [isFirstVisit, setIsFirstVisit] = useState(false)
+  const [isSavingSeen, setIsSavingSeen] = useState(false)
+
+  // LinkedIn state
+  const [linkedinStatus, setLinkedinStatus] = useState<LinkedinScrapeStatus>(null)
+
+  // Profile fields
   const [profileFields, setProfileFields] = useState<ProfileFields>({
     displayName: "",
     headline: "",
@@ -223,6 +244,126 @@ export default function ProfilePage() {
     return { name, email: userEmail, avatarUrl, initials }
   }, [session, displayName, email])
 
+  // Check if this is the first visit (analysis not yet seen)
+  useEffect(() => {
+    if (!session) return
+
+    async function checkFirstVisit() {
+      try {
+        const res = await fetch("/api/v1/me", {
+          headers: { Authorization: `Bearer ${session!.access_token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.onboarding_completed_at && !data.analysis_seen_at) {
+            setIsFirstVisit(true)
+          }
+        }
+      } catch {
+        // Ignore — not critical
+      }
+    }
+
+    checkFirstVisit()
+  }, [session])
+
+  // Fetch analysis with polling + auto-trigger
+  useEffect(() => {
+    if (!session) return
+
+    let analysisTriggered = false
+
+    async function fetchAnalysis() {
+      try {
+        const res = await fetch("/api/v1/profile/analysis", {
+          headers: { Authorization: `Bearer ${session!.access_token}` },
+        })
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch analysis")
+        }
+
+        const data = await res.json()
+
+        if (data.analysis) {
+          setAnalysis(data.analysis)
+          setIsLoading(false)
+        } else if (pollCount === 0 && !analysisTriggered) {
+          // No analysis exists — auto-trigger one
+          analysisTriggered = true
+          try {
+            const postRes = await fetch("/api/v1/profile/analysis", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session!.access_token}` },
+            })
+            if (postRes.ok) {
+              const postData = await postRes.json()
+              if (postData.analysis) {
+                setAnalysis(postData.analysis)
+                setIsLoading(false)
+                return
+              }
+            }
+          } catch {
+            // POST failed, continue polling
+          }
+          setTimeout(() => setPollCount((c) => c + 1), 3000)
+        } else if (pollCount < 30) {
+          // Still generating — poll again
+          setTimeout(() => setPollCount((c) => c + 1), 3000)
+        } else {
+          // Max polls reached
+          setIsLoading(false)
+        }
+      } catch (err) {
+        console.error("Error fetching analysis:", err)
+        setError(err instanceof Error ? err.message : "Failed to load analysis")
+        setIsLoading(false)
+      }
+    }
+
+    fetchAnalysis()
+  }, [session, pollCount])
+
+  // Check LinkedIn scrape status
+  useEffect(() => {
+    if (!session) return
+
+    async function checkLinkedinStatus() {
+      try {
+        const res = await fetch("/api/v1/settings/agent?agent_type=onboarding", {
+          headers: { Authorization: `Bearer ${session!.access_token}` },
+        })
+
+        if (!res.ok) return
+
+        const data = await res.json()
+        const settings = data.settings_json
+
+        if (settings?.linkedin_scrape_run_id) {
+          const runRes = await fetch(`/api/v1/linkedin-scrape/status?run_id=${settings.linkedin_scrape_run_id}`, {
+            headers: { Authorization: `Bearer ${session!.access_token}` },
+          })
+
+          if (runRes.ok) {
+            const runData = await runRes.json()
+            if (runData.status === "running" || runData.status === "queued") {
+              setLinkedinStatus("enriching")
+            } else if (runData.status === "succeeded") {
+              setLinkedinStatus("completed")
+            } else if (runData.status === "failed") {
+              setLinkedinStatus("failed")
+            }
+          }
+        }
+      } catch {
+        // Ignore errors for LinkedIn status
+      }
+    }
+
+    checkLinkedinStatus()
+  }, [session])
+
   // Fetch profile fields from settings API
   const fetchProfileFields = useCallback(async () => {
     if (!session?.access_token) return
@@ -250,37 +391,13 @@ export default function ProfilePage() {
     }
   }, [session?.access_token])
 
-  const fetchAnalysis = useCallback(async () => {
-    if (!session?.access_token) return
-
-    try {
-      const response = await fetch("/api/v1/profile/analysis", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null)
-        throw new Error(data?.error?.message || "Failed to fetch analysis")
-      }
-
-      const data = await response.json()
-      setAnalysis(data.analysis ?? null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load analysis")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.access_token])
-
   useEffect(() => {
     if (!sessionLoading && session?.access_token) {
-      fetchAnalysis()
       fetchProfileFields()
     }
-  }, [sessionLoading, session?.access_token, fetchAnalysis, fetchProfileFields])
+  }, [sessionLoading, session?.access_token, fetchProfileFields])
 
+  // Refresh analysis (manual)
   const refreshAnalysis = useCallback(async () => {
     if (!session?.access_token || isRefreshing) return
 
@@ -309,6 +426,24 @@ export default function ProfilePage() {
     }
   }, [session?.access_token, isRefreshing])
 
+  // "Continue to Overview" handler (first-visit only)
+  const handleContinue = useCallback(async () => {
+    if (!session) return
+
+    setIsSavingSeen(true)
+    try {
+      await fetch("/api/v1/analysis/seen", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      router.push("/overview")
+    } catch {
+      // Redirect anyway
+      router.push("/overview")
+    }
+  }, [session, router])
+
+  // Save inline-editable field
   const saveField = useCallback(
     async (fieldKey: FieldKey, value: string) => {
       if (!session?.access_token) return
@@ -338,20 +473,19 @@ export default function ProfilePage() {
     [session?.access_token],
   )
 
-  if (sessionLoading || isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <span className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span>Loading...</span>
-        </div>
-      </div>
-    )
+  // Loading state — show analysis loading spinner with progress steps
+  if (sessionLoading || (isLoading && !analysis)) {
+    return <AnalysisLoading pollCount={pollCount} />
   }
 
   return (
     <ScrollArea className="flex-1 overflow-hidden">
       <div className="mx-auto max-w-3xl space-y-8 p-4 lg:p-6">
+        {/* LinkedIn status banner */}
+        {linkedinStatus && (
+          <LinkedinStatus status={linkedinStatus} />
+        )}
+
         {/* Header */}
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div className="flex items-center gap-4">
@@ -368,7 +502,7 @@ export default function ProfilePage() {
               <p className="text-muted-foreground">{userInfo.email}</p>
               <div className="mt-2 flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
-                  Profile Analysis
+                  Profile
                 </Badge>
                 <Badge variant="outline" className="text-xs">
                   BETA
@@ -376,18 +510,20 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshAnalysis}
-            disabled={isRefreshing}
-            className="gap-2"
-          >
-            <RefreshCw
-              className={`size-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            {isRefreshing ? "Analyzing..." : "Refresh Analysis"}
-          </Button>
+          {!isFirstVisit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshAnalysis}
+              disabled={isRefreshing}
+              className="gap-2"
+            >
+              <RefreshCw
+                className={`size-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              {isRefreshing ? "Analyzing..." : "Refresh Analysis"}
+            </Button>
+          )}
         </div>
 
         {/* Profile Details Card */}
@@ -418,46 +554,26 @@ export default function ProfilePage() {
         {/* Analysis content */}
         {analysis ? (
           <div className="space-y-6">
-            {/* Score card + category bars */}
-            <ProfileAnalysisResults analysis={analysis} />
+            {/* Hero score ring */}
+            <AnalysisHero
+              score={analysis.overallScore}
+              firstName={userInfo.name.split(" ")[0]}
+            />
 
-            {/* Strengths & Improvements */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-lg border border-border/50 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-emerald-500">
-                  Strengths
-                </h3>
-                <ul className="space-y-2">
-                  {analysis.strengths.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 text-sm text-muted-foreground"
-                    >
-                      <span className="mt-1 size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-lg border border-border/50 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-amber-500">
-                  Areas for Improvement
-                </h3>
-                <ul className="space-y-2">
-                  {analysis.improvements.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 text-sm text-muted-foreground"
-                    >
-                      <span className="mt-1 size-1.5 shrink-0 rounded-full bg-amber-500" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            <Separator />
 
-            {/* Detailed feedback */}
+            {/* Category bars */}
+            <AnalysisCategories categories={analysis.categories} />
+
+            {/* Strengths & Improvements grid */}
+            <AnalysisInsights
+              strengths={analysis.strengths}
+              improvements={analysis.improvements}
+            />
+
+            <Separator />
+
+            {/* Detailed feedback markdown */}
             <div className="rounded-lg border border-border/50 p-6">
               <div className="prose prose-base prose-invert max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -466,17 +582,27 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Last analyzed timestamp */}
-            <p className="text-xs text-muted-foreground">
-              Last analyzed{" "}
-              {new Date(analysis.createdAt).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
+            {/* First visit: CTAs with "Continue to Overview" */}
+            {isFirstVisit ? (
+              <AnalysisCTAs
+                categories={analysis.categories}
+                improvements={analysis.improvements}
+                onContinue={handleContinue}
+                isLoading={isSavingSeen}
+              />
+            ) : (
+              /* Returning user: timestamp + refresh */
+              <p className="text-xs text-muted-foreground">
+                Last analyzed{" "}
+                {new Date(analysis.createdAt).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border/50 p-12 text-center">

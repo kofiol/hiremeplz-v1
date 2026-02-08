@@ -227,6 +227,107 @@ export type Database = {
           },
         ]
       }
+      conversation_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          model: string | null
+          role: string
+          saved_fields: Json | null
+          tokens_used: number | null
+          tool_calls: Json | null
+        }
+        Insert: {
+          content?: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          role: string
+          saved_fields?: Json | null
+          tokens_used?: number | null
+          tool_calls?: Json | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          role?: string
+          saved_fields?: Json | null
+          tokens_used?: number | null
+          tool_calls?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          agent_type: Database["public"]["Enums"]["agent_type"]
+          created_at: string
+          finished_at: string | null
+          id: string
+          metadata: Json | null
+          model: string | null
+          prompt_version_id: string | null
+          started_at: string
+          status: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          agent_type: Database["public"]["Enums"]["agent_type"]
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          metadata?: Json | null
+          model?: string | null
+          prompt_version_id?: string | null
+          started_at?: string
+          status?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          agent_type?: Database["public"]["Enums"]["agent_type"]
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          metadata?: Json | null
+          model?: string | null
+          prompt_version_id?: string | null
+          started_at?: string
+          status?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_prompt_version_id_fkey"
+            columns: ["prompt_version_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cover_letters: {
         Row: {
           content: string
@@ -840,38 +941,58 @@ export type Database = {
       profile_analyses: {
         Row: {
           categories: Json
+          conversation_id: string | null
           created_at: string
           detailed_feedback: string
           id: string
           improvements: Json
           overall_score: number
+          prompt_version_id: string | null
           strengths: Json
           team_id: string
           user_id: string
         }
         Insert: {
           categories: Json
+          conversation_id?: string | null
           created_at?: string
           detailed_feedback: string
           id?: string
           improvements: Json
           overall_score: number
+          prompt_version_id?: string | null
           strengths: Json
           team_id: string
           user_id: string
         }
         Update: {
           categories?: Json
+          conversation_id?: string | null
           created_at?: string
           detailed_feedback?: string
           id?: string
           improvements?: Json
           overall_score?: number
+          prompt_version_id?: string | null
           strengths?: Json
           team_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profile_analyses_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_analyses_prompt_version_id_fkey"
+            columns: ["prompt_version_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profile_analyses_team_id_fkey"
             columns: ["team_id"]
@@ -884,6 +1005,7 @@ export type Database = {
       profiles: {
         Row: {
           about: string | null
+          analysis_seen_at: string | null
           avatar_url: string | null
           country_code: string | null
           created_at: string
@@ -905,6 +1027,7 @@ export type Database = {
         }
         Insert: {
           about?: string | null
+          analysis_seen_at?: string | null
           avatar_url?: string | null
           country_code?: string | null
           created_at?: string
@@ -926,6 +1049,7 @@ export type Database = {
         }
         Update: {
           about?: string | null
+          analysis_seen_at?: string | null
           avatar_url?: string | null
           country_code?: string | null
           created_at?: string
@@ -954,6 +1078,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prompt_versions: {
+        Row: {
+          agent_type: Database["public"]["Enums"]["agent_type"]
+          created_at: string
+          id: string
+          instructions: string
+          is_active: boolean
+          model: string
+          model_settings: Json | null
+          name: string
+          version: number
+        }
+        Insert: {
+          agent_type: Database["public"]["Enums"]["agent_type"]
+          created_at?: string
+          id?: string
+          instructions: string
+          is_active?: boolean
+          model: string
+          model_settings?: Json | null
+          name: string
+          version?: number
+        }
+        Update: {
+          agent_type?: Database["public"]["Enums"]["agent_type"]
+          created_at?: string
+          id?: string
+          instructions?: string
+          is_active?: boolean
+          model?: string
+          model_settings?: Json | null
+          name?: string
+          version?: number
+        }
+        Relationships: []
       }
       team_members: {
         Row: {
@@ -1430,6 +1590,7 @@ export type Database = {
         | "interview_prep"
         | "profile_parser"
         | "email_ingest"
+        | "onboarding"
       application_status:
         | "shortlisted"
         | "ready_to_apply"
@@ -1550,3 +1711,52 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      agent_type: [
+        "job_search",
+        "cover_letter",
+        "dashboard_copilot",
+        "upwork_profile_optimizer",
+        "interview_prep",
+        "profile_parser",
+        "email_ingest",
+        "onboarding",
+      ],
+      application_status: [
+        "shortlisted",
+        "ready_to_apply",
+        "applied",
+        "in_conversation",
+        "interviewing",
+        "won",
+        "lost",
+        "archived",
+      ],
+      feedback_status: ["action_required", "resolved"],
+      message_direction: ["inbound", "outbound"],
+      platform: ["upwork", "linkedin"],
+      run_status: ["queued", "running", "succeeded", "failed", "canceled"],
+      team_role: ["leader", "member"],
+    },
+  },
+} as const

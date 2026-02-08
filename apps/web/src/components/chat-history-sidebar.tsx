@@ -145,7 +145,7 @@ export function ChatHistorySidebar() {
 
         {/* Chat list — scrollable, only visible when expanded */}
         {!isCollapsed && (
-          <ScrollArea className="flex-1 min-h-0 overflow-hidden px-2 pb-2">
+          <ScrollArea className="flex-1 min-h-0 w-full overflow-hidden px-2 pb-2">
             {visibleSessions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground text-xs text-center px-2">
                 <MessageSquare className="size-8 mb-2 opacity-40" />
@@ -155,32 +155,38 @@ export function ChatHistorySidebar() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-0.5">
+              <div className="flex w-full flex-col gap-0.5 overflow-hidden">
                 {visibleSessions.map((session) => (
-                  <button
-                    key={session.id}
-                    onClick={() => handleSelectChat(session.id)}
-                    className={cn(
-                      "group/item flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent",
-                      activeSessionId === session.id &&
-                        "bg-sidebar-accent font-medium"
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm leading-tight">
-                        {session.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatRelativeTime(session.updatedAt)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeleteChat(e, session.id)}
-                      className="shrink-0 mt-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </button>
+                  <Tooltip key={session.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        onClick={() => handleSelectChat(session.id)}
+                        className={cn(
+                          "group/item flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent cursor-pointer overflow-hidden",
+                          activeSessionId === session.id &&
+                            "bg-sidebar-accent font-medium"
+                        )}
+                      >
+                        <div className="w-0 flex-1">
+                          <p className="truncate text-sm leading-tight">
+                            {session.title}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground mt-0.5">
+                            {formatRelativeTime(session.updatedAt)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteChat(e, session.id)}
+                          className="shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-64">
+                      {session.title}
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
               </div>
             )}

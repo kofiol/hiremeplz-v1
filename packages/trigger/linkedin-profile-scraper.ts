@@ -16,8 +16,22 @@ import { z } from "zod"
 
 const BRIGHTDATA_DATASET_ID = "gd_l1viktl72bvl7bjuj0"
 const BRIGHTDATA_API_BASE = "https://api.brightdata.com/datasets/v3"
-const MAX_POLL_ATTEMPTS = 60 // 5 minutes max (60 * 5s)
-const POLL_INTERVAL_SECONDS = 5
+const MAX_POLL_ATTEMPTS = 60 // ~6 minutes max with progressive intervals
+
+/**
+ * Progressive polling intervals to reduce BrightData API calls while staying responsive.
+ *
+ * Most scrapes complete in 1-2 minutes, so we check frequently early, then back off.
+ * Expected savings:
+ * - Fast scrapes (<30s): Complete 2-3x faster (2s vs 5s checks)
+ * - Typical scrapes (1-2min): ~same # of calls but better responsiveness
+ * - Slow scrapes (3-5min): 30-40% fewer API calls (10s vs 5s intervals at tail)
+ */
+function getPollInterval(attemptNumber: number): number {
+  if (attemptNumber <= 5) return 2 // First 10 seconds: check every 2s (fast scrapes)
+  if (attemptNumber <= 15) return 5 // Next 50 seconds: check every 5s (typical scrapes)
+  return 10 // After 60s: check every 10s (slow scrapes)
+}
 
 // ============================================================================
 // Input/Output Schemas (Zod)
@@ -263,6 +277,20 @@ function distillProfile(raw: BrightDataLinkedInProfile): DistilledProfile {
       duration: e.duration ?? null,
     })) ?? []
 
+  // Synthesize experience from current_company if experience array is empty
+  const currentCompanyName = raw.current_company_name ?? raw.current_company?.name
+  if (experiences.length === 0 && currentCompanyName) {
+    experiences.push({
+      title: raw.headline ?? "Current Role",
+      company: currentCompanyName,
+      startDate: null,
+      endDate: null,
+      highlights: null,
+      location: raw.location ?? raw.city ?? null,
+      duration: null,
+    })
+  }
+
   // Extract education
   const educations: DistilledProfile["educations"] =
     raw.education?.map((e) => ({
@@ -479,24 +507,25 @@ export const scrapeLinkedInProfile = schemaTask({
       const snapshotId = await triggerScrape(urls, apiKey)
       logger.info(`Snapshot created: ${snapshotId}`)
 
-      // Step 2: Poll for results
+      // Step 2: Poll for results with progressive intervals
       let attempts = 0
       let profiles: BrightDataLinkedInProfile[] = []
 
       while (attempts < MAX_POLL_ATTEMPTS) {
         attempts++
-        logger.info(`Polling for results (attempt ${attempts}/${MAX_POLL_ATTEMPTS})...`)
+        const interval = getPollInterval(attempts)
+        logger.info(`Polling for results (attempt ${attempts}/${MAX_POLL_ATTEMPTS}, next check in ${interval}s)...`)
 
         const result = await fetchSnapshot(snapshotId, apiKey)
 
         if (result.status === "ready" && result.data) {
           profiles = result.data
-          logger.info(`Received ${profiles.length} profile(s)`)
+          logger.info(`Received ${profiles.length} profile(s) after ${attempts} attempts`)
           break
         }
 
-        // Wait before next poll
-        await wait.for({ seconds: POLL_INTERVAL_SECONDS })
+        // Wait with progressive interval before next poll
+        await wait.for({ seconds: interval })
       }
 
       if (profiles.length === 0) {

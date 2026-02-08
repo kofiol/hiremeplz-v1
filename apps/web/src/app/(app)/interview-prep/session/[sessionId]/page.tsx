@@ -14,6 +14,11 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
@@ -809,21 +814,26 @@ export default function InterviewSessionPage() {
       {/* Bottom controls */}
       {status === "connected" && (
         <div className="flex shrink-0 items-center justify-center gap-4 border-t border-border/50 px-4 py-4">
-          <Button
-            variant="outline"
-            size="icon"
-            className={cn(
-              "size-12 rounded-full",
-              isMuted && "border-red-500/50 bg-red-500/10 text-red-500"
-            )}
-            onClick={toggleMute}
-          >
-            {isMuted ? (
-              <MicOff className="size-5" />
-            ) : (
-              <Mic className="size-5" />
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "size-12 rounded-full",
+                  isMuted && "border-red-500/50 bg-red-500/10 text-red-500"
+                )}
+                onClick={toggleMute}
+              >
+                {isMuted ? (
+                  <MicOff className="size-5" />
+                ) : (
+                  <Mic className="size-5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isMuted ? "Unmute" : "Mute"}</TooltipContent>
+          </Tooltip>
 
           <Button
             variant="destructive"

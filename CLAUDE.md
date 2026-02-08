@@ -6,12 +6,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 hiremeplz.app is a personal AI agent for finding freelance work. It's a Next.js monorepo focused on onboarding, profile enrichment, and agent-driven opportunity discovery.
 
-**Current Focus:**
-- `/overview` agent development (context injection, tool usage, reasoning) 🚀
-- Onboarding UX improvements 🚀
-- LinkedIn profile scraping (fully working) ✅
-
 **Architecture:** Single-user (one freelancer per account with team context for future expansion)
+
+### Feature Status
+
+**Phase 0 - Foundation (Complete):**
+- Authentication (Supabase JWT + Google OAuth) ✅
+- Team/profile bootstrap flow ✅
+- Onboarding chatbot (conversational AI, voice recording, LinkedIn quick-fill) ✅
+- LinkedIn profile scraping (trigger.dev + BrightData) ✅
+- Profile completeness scoring ✅
+- Profile analysis with extended reasoning ✅
+- Interview prep (WebRTC voice, 4 types, post-session AI analysis) ✅
+- CV builder (AI generation, chat refinement, save/load) ✅
+- Proposal writer (job-specific generation, tone/length controls) ✅
+- Email system (React Email + Resend, launch announcements) ✅
+- Settings page + user preferences ✅
+- Feedback collection (bug/feature/review) ✅
+- Landing page + UI component library ✅
+- Redux state management ✅
+
+**Phase 1 - Intelligence Layer (In Progress):**
+- Overview copilot (basic streaming chat with context injection) ✅ done
+- Daily briefing generation from real data 🚀 in progress
+- Action items with deep links 🚀 in progress
+- Agent activity feed 📋 todo
+- Context injection architecture (reusable) 🚀 in progress
+- Rate limiting (basic implementation exists) ✅ done
+- Job engine restart (fetchers, normalizer, ranking) 📋 todo
+- Notification system (in-app + email) 📋 todo
+- Agent orchestration (event-driven chaining) 📋 todo
+
+**Suspended:**
+- Job scraping (Apify, BrightData job datasets) - resuming soon
+- Job matching & ranking logic
+- Application pipeline tracking
 
 ## Git Workflow
 
@@ -76,6 +105,7 @@ git reset-dev  # Nukes dev and recreates from main
 ```
 apps/
   web/                 # Main Next.js 16 frontend + backend
+  docs/                # Project documentation (Obsidian vault)
 packages/
   db/                  # PostgreSQL utilities (pg client)
   trigger/             # trigger.dev workflow definitions
@@ -93,9 +123,10 @@ Use Turbo filters to run tasks on specific packages: `pnpm turbo run <task> --fi
 - **State Management:** Redux Toolkit, TanStack Table
 - **Database:** Supabase PostgreSQL
 - **API Client:** Supabase JS SDK
-- **AI & Agents:** OpenAI Agents SDK
+- **AI & Agents:** OpenAI Agents SDK (gpt-4.1-mini for chat, gpt-4.1 for analysis, gpt-realtime-mini for voice)
 - **Workflows:** trigger.dev (background jobs)
-- **Web Scraping:** Apify, Crawlee, Playwright, Bright Data
+- **Web Scraping:** Bright Data (active - LinkedIn), Apify/Crawlee/Playwright (suspended - job scraping)
+- **Email:** React Email + Resend
 - **Testing:** Vitest (db package), Prettier, ESLint (flat config)
 - **Package Manager:** pnpm 10.26.0 | **Node:** >=18
 
@@ -145,11 +176,18 @@ pnpm turbo run <task> --filter <package_name>
 - `src/middleware.ts` - Next.js middleware (auth, request logging)
 
 **Key API Routes:**
-- `api/v1/auth/bootstrap` - Initial auth setup
-- `api/v1/me` - User profile
-- `api/v1/onboarding/` - Onboarding flow endpoints
+- `api/v1/auth/bootstrap` - Initial auth setup (creates team + profile)
+- `api/v1/me` - User profile + metadata
+- `api/v1/onboarding/` - Onboarding flow (chat, progress, transcribe, save)
+- `api/v1/overview/chat` - Overview copilot (streaming, OpenAI Agents)
+- `api/v1/interview-prep/` - Interview sessions, analysis, history, Realtime API tokens
+- `api/v1/cv-builder/` - Generate, chat, save, load CV data
+- `api/v1/proposals/generate` - Proposal generation from job postings
+- `api/v1/profile/analysis` - AI profile scoring
+- `api/v1/feedback` - User feedback submission
 - `api/v1/teams/` - Team management
 - `api/v1/settings/` - User settings
+- `api/v1/health` - Health check
 
 **Authentication:** JWT-based via Supabase. Server-side verification using `lib/auth.server.ts`.
 
@@ -225,4 +263,25 @@ Add or update tests for any code changes. PR title format: `[<project_name>] <Ti
 git ship "Description of changes"
 ```
 
-FULL DOCS AVAILABLE AT APPS/DOCS - CONSULT CAREFULLY BEFORE CHANGES ALONGSIDE SKILLS/
+### Rules
+
+After completing a task that involves tool use, provide a quick summary of the work you've done
+
+By default, implement changes rather than only suggesting them. If the user's intent is unclear, infer the most useful likely action and proceed, using tools to discover any missing details instead of guessing. Try to infer the user's intent about whether a tool call (e.g. file edit or read) is intended or not, and act accordingly.
+
+If you intend to call multiple tools and there are no dependencies between the tool calls, make all of the independent tool calls in parallel. Prioritize calling tools simultaneously whenever the actions can be done in parallel rather than sequentially. For example, when reading 3 files, run 3 tool calls in parallel to read all 3 files into context at the same time. Maximize use of parallel tool calls where possible to increase speed and efficiency.
+
+However, if some tool calls depend on previous calls to inform dependent values like the parameters, do not call these tools in parallel and instead call them sequentially. Never use placeholders or guess missing parameters in tool calls.
+
+Never speculate about code you have not opened. If the user references a specific file, you MUST read the file before answering. Make sure to investigate and read relevant files BEFORE answering questions about the codebase. Never make any claims about code before investigating unless you are certain of the correct answer - give grounded and hallucination-free answers. If the user asks you to use web search to retrieve information, always do so before providing any answers.
+
+When an LLM is needed, please default to ChatGPT 4.1 mini, unless the user requests otherwise. The exact model string for ChatGPT 4.1 mini is gpt-4.1-mini.
+
+Please write high-quality, general-purpose solutions using the standard tools available. Do not create helper scripts or workarounds to accomplish tasks more efficiently. Implement solutions that work correctly for all valid inputs, not just the test cases. Do not hard-code values or create solutions that only work for specific test inputs. Instead, implement the actual logic that solves the problems generally.
+
+Focus on understanding the problem requirements and implementing the correct algorithm. Tests are there to verify correctness, not to define the solution. Provide a principled implementation that follows best practices and software design principles.
+
+If the task is unreasonable or infeasible, or if any of the tests are incorrect, please inform me rather than working around them. The solution should be robust, maintainable, and extendable.
+
+When I specify an architecture or SDK to use (e.g., 'use a handoff agent', 'use OpenAI Agents SDK'), implement EXACTLY that pattern. Do not substitute with a simpler alternative. If unclear, ask for clarification before coding.
+After implementing a feature, re-read the original request and verify every stated requirement is addressed before reporting completion. Create a mental checklist of all explicit requirements.

@@ -10,17 +10,17 @@ export function useFocusMode(): [
   number,
   (opacity: number) => void,
 ] {
-  const [enabled, setEnabledState] = useState(false)
-  const [opacity, setOpacityState] = useState(20)
+  const [enabled, setEnabledState] = useState(true)
+  const [opacity, setOpacityState] = useState(10)
 
   useEffect(() => {
     const syncState = () => {
       try {
         const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored === "true") {
-          setEnabledState(true)
-        } else {
+        if (stored === "false") {
           setEnabledState(false)
+        } else {
+          setEnabledState(true)
         }
         
         const storedOpacity = localStorage.getItem(OPACITY_STORAGE_KEY)

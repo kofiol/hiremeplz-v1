@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin, verifyAuth } from "@/lib/auth.server";
 import { computeAndUpdateProfileCompleteness } from "@/lib/profile-completeness.server";
+import { ONBOARDING_AGENT_TYPE } from "@/lib/onboarding/constants";
 import type { Json } from "@/lib/database.types";
 
 const onboardingSchema = z.object({
+  fullName: z.string().min(1).optional().nullable(),
   team: z
     .object({
       mode: z.enum(["solo", "team"]).optional(),
@@ -124,6 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     const {
+      fullName,
       team,
       cv,
       skills,
@@ -140,13 +143,18 @@ export async function POST(request: NextRequest) {
         ? preferences.timeZones[0]
         : null;
 
-    if (primaryTimeZone) {
+    // Build profile updates
+    const profileUpdates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (fullName) profileUpdates.display_name = fullName;
+    if (primaryTimeZone) profileUpdates.timezone = primaryTimeZone;
+    if (profileSetup?.linkedinUrl) profileUpdates.linkedin_url = profileSetup.linkedinUrl;
+
+    if (Object.keys(profileUpdates).length > 1) {
       const { error: profileUpdateError } = await supabaseAdmin
         .from("profiles")
-        .update({
-          timezone: primaryTimeZone,
-          updated_at: new Date().toISOString(),
-        })
+        .update(profileUpdates)
         .eq("user_id", authContext.userId)
         .eq("team_id", authContext.teamId);
 
@@ -379,7 +387,7 @@ export async function POST(request: NextRequest) {
         .select("settings_json")
         .eq("team_id", authContext.teamId)
         .eq("user_id", authContext.userId)
-        .eq("agent_type", "job_search")
+        .eq("agent_type", ONBOARDING_AGENT_TYPE)
         .maybeSingle<{ settings_json: Record<string, unknown> | null }>();
 
     if (existingAgentSettingsError) {
@@ -426,7 +434,7 @@ export async function POST(request: NextRequest) {
         {
           team_id: authContext.teamId,
           user_id: authContext.userId,
-          agent_type: "job_search",
+          agent_type: ONBOARDING_AGENT_TYPE,
           settings_json: nextSettings as unknown as Json,
           updated_at: new Date().toISOString(),
         },

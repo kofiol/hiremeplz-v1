@@ -1,4 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { CollectedData } from "@/lib/onboarding/schema";
+import { isSkipped } from "@/lib/onboarding/schema";
 
 export type TeamMode = "solo" | "team";
 
@@ -420,6 +422,56 @@ const onboardingSlice = createSlice({
       state.completion.score = action.payload.score;
       state.completion.missingFields = action.payload.missingFields;
     },
+    setCollectedData(_state, action: PayloadAction<CollectedData>) {
+      // Sync chat-collected data into Redux for cross-component access
+      // Note: This maps from the chat's CollectedData shape to the Redux OnboardingState shape
+      // but we store it as-is on a dedicated key rather than trying to reconcile all fields
+      const d = action.payload;
+      return {
+        ...initialState,
+        teamMode: d.teamMode ?? "solo",
+        profilePath: d.profilePath ?? null,
+        profileSetup: {
+          ...initialState.profileSetup,
+          linkedinUrl: isSkipped(d.linkedinUrl) ? "" : (d.linkedinUrl ?? ""),
+        },
+        experienceLevel: isSkipped(d.experienceLevel) ? null : (d.experienceLevel ?? null),
+        profile: {
+          ...initialState.profile,
+          firstName: d.fullName?.split(" ")[0] ?? "",
+          lastName: d.fullName?.split(" ").slice(1).join(" ") ?? "",
+        },
+        skills: isSkipped(d.skills) ? [] : (d.skills ?? []).map((s) => ({
+          id: generateId(),
+          name: s.name,
+          level: 3,
+          years: null,
+        })),
+        experiences: isSkipped(d.experiences) ? [] : (d.experiences ?? []).map((e) => ({
+          id: generateId(),
+          title: e.title,
+          company: e.company ?? "",
+          startDate: e.startDate,
+          endDate: e.endDate,
+          highlights: e.highlights ?? "",
+        })),
+        educations: isSkipped(d.educations) ? [] : (d.educations ?? []).map((e) => ({
+          id: generateId(),
+          school: e.school,
+          degree: e.degree ?? "",
+          field: e.field ?? "",
+          startYear: e.startYear ?? "",
+          endYear: e.endYear ?? "",
+        })),
+        preferences: {
+          ...initialState.preferences,
+          currency: d.currency ?? "USD",
+          hourlyMin: isSkipped(d.currentRateMin) ? null : d.currentRateMin,
+          hourlyMax: isSkipped(d.currentRateMax) ? null : d.currentRateMax,
+          engagementTypes: isSkipped(d.engagementTypes) ? [] : (d.engagementTypes ?? []) as ("full_time" | "part_time" | "internship")[],
+        },
+      };
+    },
     resetOnboardingState() {
       return initialState;
     },
@@ -461,6 +513,7 @@ export const {
   setSaving,
   setSaveError,
   setCompletion,
+  setCollectedData,
   resetOnboardingState,
 } = onboardingSlice.actions;
 

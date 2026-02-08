@@ -43,7 +43,7 @@ function Reasoning({ isStreaming, duration, phase = "thinking", className }: Rea
               {isEvaluating ? "Evaluating..." : "Thinking..."}
             </span>
           ) : duration ? (
-            `Evaluated in ${duration}s`
+            isEvaluating ? `Evaluated in ${duration}s` : `Thought for ${duration}s`
           ) : (
             "Reasoning"
           )}
