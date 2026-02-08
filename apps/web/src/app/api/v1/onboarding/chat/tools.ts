@@ -56,10 +56,61 @@ CRITICAL RULES:
       const args = _input as SaveProfileDataInput
       const savedFields: SavedField[] = []
 
-      // Currency should only be saved alongside rate fields — the agent
-      // tends to hallucinate "USD" as a default when saving unrelated data.
-      const savingRates = args.currentRateMin != null || args.currentRateMax != null
-        || args.dreamRateMin != null || args.dreamRateMax != null
+      // ── Anti-fabrication: block bulk skips ──────────────────────
+      // The agent asks ONE question per turn, so at most 1 field
+      // should be newly set to "skipped" per tool call. When the
+      // model sends "skipped" for fields the user was never asked
+      // about, silently drop them.
+      const PAIRED_FIELDS: Record<string, string> = {
+        currentRateMax: "currentRateMin",
+        dreamRateMax: "dreamRateMin",
+      }
+      const STEP_ORDER = [
+        "linkedinUrl", "experienceLevel", "skills", "experiences",
+        "educations", "engagementTypes", "currentRateMin", "dreamRateMin",
+      ]
+
+      const newlySkippedSteps = new Set<string>()
+      for (const [key, value] of Object.entries(args)) {
+        if (value === "skipped") {
+          const origValue = (ctx.originalCollectedData as Record<string, unknown>)[key]
+          if (origValue === null || origValue === undefined) {
+            // Map paired rate fields to their primary key
+            const stepKey = PAIRED_FIELDS[key] ?? key
+            newlySkippedSteps.add(stepKey)
+          }
+        }
+      }
+
+      if (newlySkippedSteps.size > 1) {
+        // Keep only the first skipped step (the one user was actually asked about)
+        const keepStep = STEP_ORDER.find((k) => newlySkippedSteps.has(k))
+        const dropped: string[] = []
+        for (const [key, value] of Object.entries(args)) {
+          if (value === "skipped") {
+            const stepKey = PAIRED_FIELDS[key] ?? key
+            if (stepKey !== keepStep) {
+              ;(args as Record<string, unknown>)[key] = null
+              dropped.push(key)
+            }
+          }
+        }
+        if (dropped.length > 0) {
+          console.warn(
+            `[save_profile_data] Blocked bulk skip: kept ${keepStep}, dropped ${dropped.join(", ")}`
+          )
+        }
+      }
+
+      // ── Currency guard ─────────────────────────────────────────
+      // Currency should only be saved alongside NUMERIC rate fields.
+      // The agent tends to hallucinate "USD" as a default, and
+      // "skipped" rate values are non-null strings — so check for
+      // actual numbers, not just non-null.
+      const savingRates = typeof args.currentRateMin === "number"
+        || typeof args.currentRateMax === "number"
+        || typeof args.dreamRateMin === "number"
+        || typeof args.dreamRateMax === "number"
       if (!savingRates && args.currency != null) {
         args.currency = null
       }

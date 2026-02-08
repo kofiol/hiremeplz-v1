@@ -77,12 +77,28 @@ function createPrompt(
     currentData.linkedinUrl = "skipped"
   }
 
-  const stillNeeded =
-    missing.length > 0
-      ? missing
-          .map((item, i) => `${i + 1}. ${item}${i === 0 ? " <<<< ASK THIS ONE NEXT" : ""}`)
-          .join("\n")
-      : "ALL DONE - profile is complete! Call trigger_profile_analysis now."
+  // Detect skill follow-up needed: skills are filled but don't have context
+  // markers yet (like "primary" or "occasional"), and experiences is the next step.
+  const skillsAreFilled = Array.isArray(currentData.skills) && currentData.skills.length > 0
+  const experiencesStillMissing = missing.some((m) => m.startsWith("experiences"))
+  const skills = Array.isArray(currentData.skills) ? currentData.skills : []
+  const skillsLackContext = skillsAreFilled && !skills.some(
+    (s: { name: string }) => /\b(primary|occasional|main|secondary)\b/i.test(s.name)
+  )
+  const needsSkillFollowUp = skillsLackContext && experiencesStillMissing
+
+  let stillNeeded: string
+  if (missing.length > 0) {
+    const items = missing.map((item, i) => {
+      if (needsSkillFollowUp && i === 0 && item.startsWith("experiences")) {
+        return `${i + 1}. <<<< SKILL FOLLOW-UP NEEDED — ask which skills are PRIMARY vs. occasional before moving to experiences`
+      }
+      return `${i + 1}. ${item}${i === 0 && !needsSkillFollowUp ? " <<<< ASK THIS ONE NEXT" : ""}`
+    })
+    stillNeeded = items.join("\n")
+  } else {
+    stillNeeded = "ALL DONE - profile is complete! Call trigger_profile_analysis now."
+  }
 
   // Recalculate progress after potential LinkedIn skip
   const adjustedFilledCount = missing.length === 0 ? progress.total : progress.total - missing.length

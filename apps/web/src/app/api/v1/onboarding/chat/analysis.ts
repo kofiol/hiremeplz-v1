@@ -27,17 +27,25 @@ export async function runProfileAnalysis(
   const analysisModel = promptVersion?.model ?? "gpt-5.1"
   const analysisModelSettings = promptVersion?.modelSettings ?? { reasoning_effort: "high" }
 
-  // Replace "skipped" strings with null so the analysis agent sees clean data
-  const cleanedData = cleanForAnalysis(collectedData)
+  const { summary, skippedFields, providedFields } = prepareAnalysisContext(collectedData)
+  const rateDataExists = hasRateData(collectedData)
+  const name = collectedData.fullName ?? "this freelancer"
 
-  const prompt = `
-Analyze this freelancer profile and provide comprehensive feedback:
+  const prompt = `You just finished onboarding ${name} through a conversational chat. Now analyze what you collected and provide a comprehensive profile assessment.
 
-Profile Data:
-${JSON.stringify(cleanedData, null, 2)}
+## What Was Collected
 
-Provide an overall score (0-100), category scores, strengths, improvements, and detailed feedback.
-Include rate analysis comparing their current rate vs dream rate.`
+${summary}
+
+## Context Notes
+- Skills were collected via a dropdown selector — names only, no proficiency levels or years of experience were captured. Assess the skill *combination and coherence*, not individual skill depth.
+- "Skipped" means the user made a deliberate choice to skip that section. Acknowledge lightly and suggest they revisit later, but do NOT penalize them.
+- Experience highlights came from conversational probing — quality depends on how much detail the user shared.
+${rateDataExists ? "- Rate data is available — include rate analysis comparing current vs dream rate." : "- No rate data was provided. Score ratePositioning at 40-50 (neutral) and note they can add rates later. Do NOT fabricate rate analysis."}
+${providedFields.length > 0 ? `\nFields provided: ${providedFields.join(", ")}` : ""}
+${skippedFields.length > 0 ? `\nFields deliberately skipped: ${skippedFields.join(", ")}` : ""}
+
+Provide an overall score (0-100), category scores, strengths, improvements, and detailed feedback.`
 
   const analysisAgent = new Agent({
     name: "Profile Analyst",
@@ -119,7 +127,7 @@ Include rate analysis comparing their current rate vs dream rate.`
 
     if (authContext) {
       try {
-        await persistOnboardingComplete(authContext, collectedData, analysis, conversationId)
+        await persistOnboardingComplete(authContext, collectedData, analysis, conversationId, promptVersion?.id)
       } catch (persistError) {
         console.error("Failed to persist onboarding data:", persistError)
       }
@@ -131,14 +139,144 @@ Include rate analysis comparing their current rate vs dream rate.`
 // Persist onboarding data + analysis to Supabase
 // ============================================================================
 
-function cleanForAnalysis(data: Partial<CollectedData>): Partial<CollectedData> {
-  const clean = { ...data }
-  for (const [key, value] of Object.entries(clean)) {
-    if (isSkipped(value)) {
-      ;(clean as Record<string, unknown>)[key] = null
-    }
+function hasRateData(data: Partial<CollectedData>): boolean {
+  return (
+    typeof data.currentRateMin === "number" ||
+    typeof data.currentRateMax === "number" ||
+    typeof data.dreamRateMin === "number" ||
+    typeof data.dreamRateMax === "number"
+  )
+}
+
+function prepareAnalysisContext(data: Partial<CollectedData>): {
+  summary: string
+  skippedFields: string[]
+  providedFields: string[]
+} {
+  const lines: string[] = []
+  const skippedFields: string[] = []
+  const providedFields: string[] = []
+
+  // Name
+  if (data.fullName) {
+    lines.push(`**Name:** ${data.fullName}`)
+    providedFields.push("name")
   }
-  return clean
+
+  // Experience Level
+  if (isSkipped(data.experienceLevel)) {
+    lines.push("**Experience Level:** Skipped")
+    skippedFields.push("experience level")
+  } else if (data.experienceLevel) {
+    const label = EXPERIENCE_LEVEL_LABELS[data.experienceLevel] ?? data.experienceLevel
+    lines.push(`**Experience Level:** ${label}`)
+    providedFields.push("experience level")
+  } else {
+    lines.push("**Experience Level:** Not collected")
+  }
+
+  // Skills
+  if (isSkipped(data.skills)) {
+    lines.push("**Skills:** Skipped")
+    skippedFields.push("skills")
+  } else if (data.skills?.length) {
+    const skillNames = data.skills.map((s) => s.name).join(", ")
+    lines.push(`**Skills:** ${skillNames}`)
+    lines.push("  *(Collected via dropdown selector — names only, no proficiency data)*")
+    providedFields.push("skills")
+  } else {
+    lines.push("**Skills:** Not collected")
+  }
+
+  // Experiences
+  if (isSkipped(data.experiences)) {
+    lines.push("**Work Experience:** Skipped")
+    skippedFields.push("work experience")
+  } else if (data.experiences?.length) {
+    lines.push("**Work Experience:**")
+    for (const exp of data.experiences) {
+      const company = exp.company ? ` at ${exp.company}` : ""
+      const dates = [exp.startDate, exp.endDate].filter(Boolean).join(" – ")
+      const datePart = dates ? ` (${dates})` : ""
+      lines.push(`  - ${exp.title}${company}${datePart}`)
+      if (exp.highlights) {
+        lines.push(`    Highlights: ${exp.highlights}`)
+      }
+    }
+    providedFields.push("work experience")
+  } else {
+    lines.push("**Work Experience:** Not collected")
+  }
+
+  // Education
+  if (isSkipped(data.educations)) {
+    lines.push("**Education:** Skipped")
+    skippedFields.push("education")
+  } else if (data.educations?.length) {
+    lines.push("**Education:**")
+    for (const edu of data.educations) {
+      const degree = edu.degree ? `${edu.degree}` : ""
+      const field = edu.field ? ` in ${edu.field}` : ""
+      const years = [edu.startYear, edu.endYear].filter(Boolean).join("–")
+      const yearPart = years ? ` (${years})` : ""
+      lines.push(`  - ${degree}${field} from ${edu.school}${yearPart}`)
+    }
+    providedFields.push("education")
+  } else {
+    lines.push("**Education:** Not collected")
+  }
+
+  // Engagement Types
+  if (isSkipped(data.engagementTypes)) {
+    lines.push("**Engagement Types:** Skipped")
+    skippedFields.push("engagement types")
+  } else if (data.engagementTypes?.length) {
+    const labels = data.engagementTypes.map((t) =>
+      t === "full_time" ? "Full-time" : "Part-time"
+    )
+    lines.push(`**Engagement Types:** ${labels.join(" and ")}`)
+    providedFields.push("engagement types")
+  } else {
+    lines.push("**Engagement Types:** Not collected")
+  }
+
+  // Current Rate
+  const currency = data.currency ?? "USD"
+  if (isSkipped(data.currentRateMin)) {
+    lines.push("**Current Rate:** Skipped")
+    skippedFields.push("current rate")
+  } else if (typeof data.currentRateMin === "number") {
+    const max = typeof data.currentRateMax === "number" ? data.currentRateMax : null
+    const rateStr = max ? `$${data.currentRateMin}–${max}/hr ${currency}` : `$${data.currentRateMin}+/hr ${currency}`
+    lines.push(`**Current Rate:** ${rateStr}`)
+    providedFields.push("current rate")
+  } else {
+    lines.push("**Current Rate:** Not collected")
+  }
+
+  // Dream Rate
+  if (isSkipped(data.dreamRateMin)) {
+    lines.push("**Dream Rate:** Skipped")
+    skippedFields.push("dream rate")
+  } else if (typeof data.dreamRateMin === "number") {
+    const max = typeof data.dreamRateMax === "number" ? data.dreamRateMax : null
+    const rateStr = max ? `$${data.dreamRateMin}–${max}/hr ${currency}` : `$${data.dreamRateMin}+/hr ${currency}`
+    lines.push(`**Dream Rate:** ${rateStr}`)
+    providedFields.push("dream rate")
+  } else {
+    lines.push("**Dream Rate:** Not collected")
+  }
+
+  // LinkedIn
+  if (isSkipped(data.linkedinUrl)) {
+    lines.push("**LinkedIn:** Skipped")
+    skippedFields.push("LinkedIn")
+  } else if (data.linkedinUrl) {
+    lines.push(`**LinkedIn:** ${data.linkedinUrl}`)
+    providedFields.push("LinkedIn")
+  }
+
+  return { summary: lines.join("\n"), skippedFields, providedFields }
 }
 
 function generateHeadline(data: Partial<CollectedData>): string {
@@ -201,7 +339,8 @@ export async function persistOnboardingComplete(
   authContext: { userId: string; teamId: string },
   collectedData: Partial<CollectedData>,
   analysis: ProfileAnalysis,
-  conversationId?: string | null
+  conversationId?: string | null,
+  promptVersionId?: string | null
 ) {
   const supabase = getSupabaseAdmin()
   const { userId, teamId } = authContext
@@ -318,5 +457,6 @@ export async function persistOnboardingComplete(
     improvements: analysis.improvements,
     detailed_feedback: analysis.detailedFeedback,
     conversation_id: conversationId ?? null,
+    prompt_version_id: promptVersionId ?? null,
   })
 }
