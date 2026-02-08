@@ -21,6 +21,39 @@ export type OnboardingToolContext = {
 }
 
 // ============================================================================
+// Skip guard: determine current step from collected data
+// ============================================================================
+
+function isFieldPresent(value: unknown): boolean {
+  if (value === "skipped") return true
+  if (typeof value === "string" && value.length > 0) return true
+  if (Array.isArray(value) && value.length > 0) return true
+  if (typeof value === "number") return true
+  return false
+}
+
+/**
+ * Returns the primary key of the first missing step, or null if all done.
+ * Only this step (and its paired fields) can be legitimately skipped.
+ */
+function getCurrentStep(data: Partial<CollectedData>): string | null {
+  const steps: Array<{ key: string; check: () => boolean }> = [
+    { key: "linkedinUrl", check: () => isFieldPresent(data.linkedinUrl) },
+    { key: "experienceLevel", check: () => isFieldPresent(data.experienceLevel) },
+    { key: "skills", check: () => isFieldPresent(data.skills) },
+    { key: "experiences", check: () => isFieldPresent(data.experiences) },
+    { key: "educations", check: () => isFieldPresent(data.educations) },
+    { key: "engagementTypes", check: () => isFieldPresent(data.engagementTypes) },
+    { key: "currentRateMin", check: () => isFieldPresent(data.currentRateMin) || isFieldPresent(data.currentRateMax) },
+    { key: "dreamRateMin", check: () => isFieldPresent(data.dreamRateMin) || isFieldPresent(data.dreamRateMax) },
+  ]
+  for (const step of steps) {
+    if (!step.check()) return step.key
+  }
+  return null
+}
+
+// ============================================================================
 // save_profile_data tool
 // ============================================================================
 
@@ -82,8 +115,35 @@ CRITICAL RULES:
         }
       }
 
-      if (newlySkippedSteps.size > 1) {
-        // Keep only the first skipped step (the one user was actually asked about)
+      // Check if real (non-skip) data is also being saved in this call
+      const hasSavingRealData = Object.entries(args).some(([key, value]) => {
+        if (value === null || value === undefined || value === "skipped") return false
+        // Ignore fields that already had a value (updates like skill context)
+        // — what matters is the call contains real data alongside skips
+        return STEP_ORDER.includes(PAIRED_FIELDS[key] ?? key) || key === "fullName"
+      })
+
+      if (newlySkippedSteps.size > 0 && hasSavingRealData) {
+        // Agent is saving real data AND skipping other fields in the same call.
+        // The user answered one question — they didn't also say "skip" for
+        // something they were never asked about. Drop ALL skips.
+        const dropped: string[] = []
+        for (const [key, value] of Object.entries(args)) {
+          if (value === "skipped") {
+            const origValue = (ctx.originalCollectedData as Record<string, unknown>)[key]
+            if (origValue === null || origValue === undefined) {
+              ;(args as Record<string, unknown>)[key] = null
+              dropped.push(key)
+            }
+          }
+        }
+        if (dropped.length > 0) {
+          console.warn(
+            `[save_profile_data] Blocked skip+data combo: dropped skips for ${dropped.join(", ")}`
+          )
+        }
+      } else if (newlySkippedSteps.size > 1) {
+        // Multiple skips without real data — keep only the first step
         const keepStep = STEP_ORDER.find((k) => newlySkippedSteps.has(k))
         const dropped: string[] = []
         for (const [key, value] of Object.entries(args)) {
@@ -98,6 +158,30 @@ CRITICAL RULES:
         if (dropped.length > 0) {
           console.warn(
             `[save_profile_data] Blocked bulk skip: kept ${keepStep}, dropped ${dropped.join(", ")}`
+          )
+        }
+      }
+
+      // ── Skip-only-current-step guard ──────────────────────────
+      // A skip is only valid for the CURRENT step (the first missing
+      // field). The agent sometimes fabricates skips for future steps
+      // it hasn't asked about yet (e.g., skipping dreamRate right
+      // after saving currentRate).
+      if (newlySkippedSteps.size > 0) {
+        const currentStep = getCurrentStep(ctx.originalCollectedData)
+        const dropped: string[] = []
+        for (const [key, value] of Object.entries(args)) {
+          if (value === "skipped") {
+            const stepKey = PAIRED_FIELDS[key] ?? key
+            if (currentStep && stepKey !== currentStep) {
+              ;(args as Record<string, unknown>)[key] = null
+              dropped.push(key)
+            }
+          }
+        }
+        if (dropped.length > 0) {
+          console.warn(
+            `[save_profile_data] Blocked off-step skip: current step is ${currentStep}, dropped ${dropped.join(", ")}`
           )
         }
       }

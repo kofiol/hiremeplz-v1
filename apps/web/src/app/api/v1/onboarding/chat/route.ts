@@ -19,6 +19,79 @@ import { contentModerationGuardrail } from "./guardrails"
 import { createConversation, saveMessage, completeConversation, getActivePromptVersion } from "./conversation.server"
 
 // ============================================================================
+// First-Message Template (skip LLM for the orientation)
+// ============================================================================
+
+const ORIENTATION_VARIANTS = [
+  { greeting: "Great to have you here", cta: "Let's start" },
+  { greeting: "Glad you could make it", cta: "Let's get started" },
+  { greeting: "Good to have you on board", cta: "Let's dive in" },
+]
+
+function generateOrientation(name: string): string {
+  const v = ORIENTATION_VARIANTS[Math.floor(Math.random() * ORIENTATION_VARIANTS.length)]
+  return `Hey ${name}! ${v.greeting}.
+
+## Who am I?
+I'm your personal AI career agent. I'll learn about your professional background — your skills, experience, rates, and what you're looking for — so I can work for you behind the scenes.
+
+## What this setup powers
+This profile setup powers everything I do for you: finding freelance gigs that match your expertise, writing proposals that actually sound like you, prepping you for interviews, and keeping your pipeline organized. The more you share, the better I can represent you to clients.
+
+## How long does this take?
+About 5-7 minutes. I'll walk you through it.
+
+## What you'll get
+- A ranked profile assessment with honest scoring
+- Your strengths and specific areas for improvement
+- Rate positioning and market insights
+- Clear, actionable next steps
+- Full access to your personalized dashboard with useful features like:
+  - Interview prep
+  - CV Building
+  - Winning cover letter generation
+  - And more!
+
+${v.cta} — do you have a LinkedIn profile I can import? It'll save you some typing, or you can skip and enter everything manually.`
+}
+
+function isFirstTurn(conversationHistory: Array<{ role: string; content: string }>): boolean {
+  return conversationHistory.filter((m) => m.role === "assistant").length === 0
+}
+
+/**
+ * Stream pre-built text in small chunks with realistic token-like delays.
+ * Mimics LLM output cadence: ~2-4 words per chunk, 20-50ms between chunks.
+ */
+async function streamTemplate(
+  text: string,
+  emit: SSEEmitter,
+  signal?: AbortSignal
+): Promise<void> {
+  const words = text.split(/( +)/)
+  let buffer = ""
+  let wordCount = 0
+  const chunkSize = 2 + Math.floor(Math.random() * 3) // 2-4 words per burst
+
+  for (const word of words) {
+    if (signal?.aborted) break
+    buffer += word
+    if (word.trim()) wordCount++
+
+    if (wordCount >= chunkSize || word.includes("\n")) {
+      emit({ type: "text", content: buffer })
+      buffer = ""
+      wordCount = 0
+      await new Promise((r) => setTimeout(r, 18 + Math.random() * 32))
+    }
+  }
+  // Flush remaining buffer
+  if (buffer && !signal?.aborted) {
+    emit({ type: "text", content: buffer })
+  }
+}
+
+// ============================================================================
 // LinkedIn URL Detection
 // ============================================================================
 
@@ -373,7 +446,13 @@ export async function POST(request: NextRequest) {
 
         let responseText = ""
 
-        if (linkedInUrl) {
+        // First turn: skip LLM, stream the orientation template with realistic delays
+        if (isFirstTurn(conversationHistory) && !linkedInUrl) {
+          const firstName = ctx.collectedData.fullName?.split(" ")[0] ?? "there"
+          responseText = generateOrientation(firstName)
+          await streamTemplate(responseText, emit, request.signal)
+          ctx.inputHint = { type: "suggestions", suggestions: ["Add my LinkedIn", "Skip, enter manually"] }
+        } else if (linkedInUrl) {
           responseText = await handleLinkedInFlow(emit, linkedInUrl, ctx, conversationHistory, conversationContext, message, request.signal)
         } else {
           const saveProfileData = createSaveProfileDataTool(ctx)
