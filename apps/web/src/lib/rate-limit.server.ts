@@ -53,6 +53,8 @@ export const RATE_LIMITS = {
   interviewPrepAnalyze: { maxRequests: 3, windowMs: 5 * 60_000 },
   profileAnalysis: { maxRequests: 2, windowMs: 10 * 60_000 },
   onboardingTranscribe: { maxRequests: 10, windowMs: 60_000 },
+  jobFetch: { maxRequests: 5, windowMs: 3_600_000 },
+  jobEnrichment: { maxRequests: 3, windowMs: 3_600_000 },
 } as const satisfies Record<string, RateLimitConfig>
 
 // ---------------------------------------------------------------------------

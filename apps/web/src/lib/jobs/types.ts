@@ -22,6 +22,9 @@ export type Job = {
   company_name: string | null
   company_logo_url: string | null
   ai_summary: string | null
+  ai_seniority: "junior" | "mid" | "senior" | null
+  description_md: string | null
+  enriched_at: string | null
   is_bookmarked: boolean
   ranking: {
     score: number

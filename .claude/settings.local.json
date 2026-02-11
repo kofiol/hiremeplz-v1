@@ -86,7 +86,10 @@
       "WebFetch(domain:shadcn-svelte.com)",
       "Bash(git -C \"C:\\\\Users\\\\psyhik1769\\\\hiremeplz\" show 59ff569:apps/web/src/app/\\\\\\(app\\\\\\)/jobs/page.tsx)",
       "Bash(git -C \"C:\\\\Users\\\\psyhik1769\\\\hiremeplz\" log --all --oneline --source --remotes --decorate)",
-      "WebFetch(domain:brightdata.com)"
+      "WebFetch(domain:brightdata.com)",
+      "Bash(TOKEN=\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImQyMzhlMTE4LTkzMjYtNDdmYi04N2U0LThiOTQxODdkMGQ4YiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3BldXJid2NyaWxvYm1qbHBia3JwLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJjMGE3MzkzOS1lMTA3LTQ4ZWMtODNmOS05NGQ4MDZjNTlkOTAiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcwODQzOTIwLCJpYXQiOjE3NzA4NDAzMjAsImVtYWlsIjoibWFyay5ib25kYXJlbmtvLmluZm9AZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJnb29nbGUiLCJwcm92aWRlcnMiOlsiZ29vZ2xlIl19LCJ1c2VyX21ldGFkYXRhIjp7ImF2YXRhcl91cmwiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJVEhuU2hCMFQ1QkNBODdGMjV4b0dIelFQeURESE05Ym9pQzVZYWtjdDlEQjJ3bUE9czk2LWMiLCJlbWFpbCI6Im1hcmsuYm9uZGFyZW5rby5pbmZvQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmdWxsX25hbWUiOiJNYXJrIEJvbmRhcmVua28iLCJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJuYW1lIjoiTWFyayBCb25kYXJlbmtvIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSVRIblNoQjBUNUJDQTg3RjI1eG9HSHpRUHlEREhNOWJvaUM1WWFrY3Q5REIyd21BPXM5Ni1jIiwicHJvdmlkZXJfaWQiOiIxMTAxOTU2MzYzNzY1NjIzNjkyNDAiLCJzdWIiOiIxMTAxOTU2MzYzNzY1NjIzNjkyNDAifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvYXV0aCIsInRpbWVzdGFtcCI6MTc3MDgyOTg1N31dLCJzZXNzaW9uX2lkIjoiNzlmMGYxMzQtOTNhZS00ZGY0LWJhYjEtODVlNDAxNDI5Y2EyIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.zM8YbfzLJT3vRSL45P5EUm73lEsHf_Hp82t1ynH7lTCZGK3Mv72WnzAv4SqvzuXOGsYAxmK2rKA954OwJjsXcw\")",
+      "Bash(python -m json.tool:*)",
+      "mcp__supabase__list_extensions"
     ]
   },
   "enableAllProjectMcpServers": true,

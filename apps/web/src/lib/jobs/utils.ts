@@ -76,8 +76,9 @@ export function filterJobs(jobs: Job[], filters: JobFilters): Job[] {
       if (!hasMatch) return false
     }
 
-    if (filters.seniority && job.seniority) {
-      if (job.seniority.toLowerCase() !== filters.seniority.toLowerCase()) return false
+    if (filters.seniority) {
+      const effective = job.ai_seniority ?? job.seniority
+      if (!effective || effective.toLowerCase() !== filters.seniority.toLowerCase()) return false
     }
 
     if (job.ranking && job.ranking.tightness < filters.tightness) {

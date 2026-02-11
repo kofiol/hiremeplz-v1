@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { useSession } from "@/app/auth/session-provider"
 import { supabase } from "@/lib/supabaseClient"
 import { Badge } from "@/components/ui/badge"
@@ -57,10 +58,13 @@ type ProfileData = {
 
 export default function ProposalWriterPage() {
   const { session } = useSession()
+  const searchParams = useSearchParams()
+  const jobIdParam = searchParams.get("job_id")
 
   // Input state
   const [jobPosting, setJobPosting] = useState("")
   const [platform, setPlatform] = useState<Platform>("upwork")
+  const [jobLoading, setJobLoading] = useState(!!jobIdParam)
   const [customPlatform, setCustomPlatform] = useState("")
   const [tone, setTone] = useState<Tone>("professional")
   const [length, setLength] = useState<Length>("medium")
@@ -90,6 +94,49 @@ export default function ProposalWriterPage() {
 
   // Abort controller
   const abortRef = useRef<AbortController | null>(null)
+
+  // Auto-generate ref (prevents double-fire)
+  const autoGenerateTriggered = useRef(false)
+
+  // ── Fetch job data when job_id param is present ────────────────────────
+
+  useEffect(() => {
+    if (!jobIdParam || !session?.access_token) {
+      setJobLoading(false)
+      return
+    }
+
+    async function fetchJob() {
+      try {
+        const response = await fetch(`/api/v1/jobs/${jobIdParam}`, {
+          headers: {
+            Authorization: `Bearer ${session!.access_token}`,
+          },
+        })
+
+        if (!response.ok) {
+          console.error("Failed to fetch job:", response.status)
+          setJobLoading(false)
+          return
+        }
+
+        const job = await response.json()
+        const description = job.description_md ?? job.description ?? ""
+        setJobPosting(`${job.title}\n\n${description}`)
+
+        // Match platform
+        if (job.platform === "linkedin" || job.platform === "upwork") {
+          setPlatform(job.platform)
+        }
+      } catch (err) {
+        console.error("Failed to fetch job:", err)
+      } finally {
+        setJobLoading(false)
+      }
+    }
+
+    fetchJob()
+  }, [jobIdParam, session?.access_token])
 
   // ── Fetch profile data on mount ──────────────────────────────────────────
 
@@ -283,6 +330,26 @@ export default function ProposalWriterPage() {
     streamProposal(history)
   }, [streamProposal])
 
+  // ── Auto-generate when job data loads from param ─────────────────────────
+
+  useEffect(() => {
+    if (
+      jobIdParam &&
+      !jobLoading &&
+      !profileLoading &&
+      jobPosting.trim().length >= 10 &&
+      !autoGenerateTriggered.current &&
+      !isStreaming &&
+      !hasGenerated
+    ) {
+      autoGenerateTriggered.current = true
+      const timer = setTimeout(() => {
+        handleGenerate()
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [jobIdParam, jobLoading, profileLoading, jobPosting, isStreaming, hasGenerated, handleGenerate])
+
   const handleRegenerate = useCallback(() => {
     setConversationHistory([])
     streamProposal([])
@@ -339,11 +406,11 @@ export default function ProposalWriterPage() {
 
         {/* Job Posting Input */}
         <Textarea
-          value={jobPosting}
+          value={jobLoading ? "Loading job details..." : jobPosting}
           onChange={(e) => setJobPosting(e.target.value)}
           placeholder="Paste the job title, description, and any requirements here..."
           className={`text-base ${hasGenerated || isStreaming ? "max-h-30 min-h-[80px] shrink-0" : "h-70 shrink-0 resize-none"}`}
-          disabled={isStreaming}
+          disabled={isStreaming || jobLoading}
         />
 
         {/* Config Selects */}

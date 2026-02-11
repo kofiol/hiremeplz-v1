@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { ArrowDownUp, RefreshCw } from "lucide-react"
+import { ArrowDownUp, RefreshCw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useSession } from "@/app/auth/session-provider"
 import {
   Select,
   SelectContent,
@@ -48,6 +49,7 @@ function filtersToParams(filters: JobFilters): URLSearchParams {
 export default function JobsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { session } = useSession()
 
   const [filters, setFilters] = React.useState<JobFilters>(() =>
     parseFiltersFromParams(searchParams)
@@ -58,8 +60,34 @@ export default function JobsPage() {
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
   const [selectedJob, setSelectedJob] = React.useState<Job | null>(null)
   const [drawerOpen, setDrawerOpen] = React.useState(false)
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(true)
   const [jobs, setJobs] = React.useState<Job[]>([])
+
+  // Fetch jobs from API on mount
+  React.useEffect(() => {
+    if (!session?.access_token) return
+
+    let cancelled = false
+
+    async function loadJobs() {
+      setIsLoading(true)
+      try {
+        const res = await fetch("/api/v1/jobs", {
+          headers: { Authorization: `Bearer ${session!.access_token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled) setJobs(data.jobs ?? [])
+      } catch {
+        // silently fail
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    loadJobs()
+    return () => { cancelled = true }
+  }, [session?.access_token])
 
   // All available skills for the filter (derived from current jobs)
   const allSkills = React.useMemo(() => getAllSkills(jobs), [jobs])
@@ -117,7 +145,9 @@ export default function JobsPage() {
         <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b">
           <div className="flex items-center gap-3">
             <h1 className="text-base font-semibold">Job Discovery</h1>
-            {!isLoading && (
+            {isLoading ? (
+              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+            ) : (
               <span className="text-xs text-muted-foreground">
                 {processedJobs.length} {processedJobs.length === 1 ? "job" : "jobs"} found
               </span>

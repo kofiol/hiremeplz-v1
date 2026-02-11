@@ -12,6 +12,8 @@ import {
   Layers,
   PenLine,
 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   Sheet,
   SheetContent,
@@ -124,9 +126,17 @@ export function JobDetailDrawer({ job, open, onOpenChange }: JobDetailDrawerProp
             {/* Description */}
             <div>
               <h4 className="text-sm font-medium mb-2">Description</h4>
-              <div className="prose prose-sm prose-invert max-w-none text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {job.description}
-              </div>
+              {job.description_md ? (
+                <div className="prose prose-sm prose-invert max-w-none text-sm text-muted-foreground leading-relaxed">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {job.description_md}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {job.description}
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -157,13 +167,15 @@ export function JobDetailDrawer({ job, open, onOpenChange }: JobDetailDrawerProp
               </div>
 
               {/* Seniority */}
-              {job.seniority && (
+              {(job.ai_seniority || job.seniority) && (
                 <div className="rounded-lg bg-muted/30 border border-border/30 p-3">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                     <Layers className="size-3.5" />
                     Seniority
                   </div>
-                  <p className="text-sm font-medium">{job.seniority}</p>
+                  <p className="text-sm font-medium capitalize">
+                    {job.ai_seniority ?? job.seniority}
+                  </p>
                 </div>
               )}
 

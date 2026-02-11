@@ -660,6 +660,45 @@ export type Database = {
           },
         ]
       }
+      job_bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_bookmarks_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_bookmarks_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_rankings: {
         Row: {
           agent_run_id: string | null
@@ -748,6 +787,8 @@ export type Database = {
       }
       jobs: {
         Row: {
+          ai_seniority: string | null
+          ai_summary: string | null
           apply_url: string
           budget_type: string
           canonical_hash: string
@@ -761,6 +802,9 @@ export type Database = {
           created_at: string
           currency: string
           description: string
+          description_md: string | null
+          embedding: string | null
+          enriched_at: string | null
           fetched_at: string
           fixed_budget_max: number | null
           fixed_budget_min: number | null
@@ -777,6 +821,8 @@ export type Database = {
           title: string
         }
         Insert: {
+          ai_seniority?: string | null
+          ai_summary?: string | null
           apply_url: string
           budget_type?: string
           canonical_hash: string
@@ -790,6 +836,9 @@ export type Database = {
           created_at?: string
           currency?: string
           description: string
+          description_md?: string | null
+          embedding?: string | null
+          enriched_at?: string | null
           fetched_at?: string
           fixed_budget_max?: number | null
           fixed_budget_min?: number | null
@@ -806,6 +855,8 @@ export type Database = {
           title: string
         }
         Update: {
+          ai_seniority?: string | null
+          ai_summary?: string | null
           apply_url?: string
           budget_type?: string
           canonical_hash?: string
@@ -819,6 +870,9 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string
+          description_md?: string | null
+          embedding?: string | null
+          enriched_at?: string | null
           fetched_at?: string
           fixed_budget_max?: number | null
           fixed_budget_min?: number | null
@@ -1012,6 +1066,8 @@ export type Database = {
           date_of_birth: string | null
           display_name: string | null
           email: string | null
+          embedding: string | null
+          embedding_updated_at: string | null
           headline: string | null
           linkedin_url: string | null
           location: string | null
@@ -1034,6 +1090,8 @@ export type Database = {
           date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
+          embedding?: string | null
+          embedding_updated_at?: string | null
           headline?: string | null
           linkedin_url?: string | null
           location?: string | null
@@ -1056,6 +1114,8 @@ export type Database = {
           date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
+          embedding?: string | null
+          embedding_updated_at?: string | null
           headline?: string | null
           linkedin_url?: string | null
           location?: string | null
@@ -1570,6 +1630,18 @@ export type Database = {
     Functions: {
       is_team_leader: { Args: { t: string }; Returns: boolean }
       is_team_member: { Args: { t: string }; Returns: boolean }
+      match_jobs_by_embedding: {
+        Args: {
+          p_embedding: string
+          p_match_count?: number
+          p_match_threshold?: number
+          p_team_id: string
+        }
+        Returns: {
+          job_id: string
+          similarity: number
+        }[]
+      }
       upsert_jobs_and_rankings: {
         Args: {
           p_agent_run_id: string
@@ -1591,6 +1663,7 @@ export type Database = {
         | "profile_parser"
         | "email_ingest"
         | "onboarding"
+        | "job_enrichment"
       application_status:
         | "shortlisted"
         | "ready_to_apply"
@@ -1741,6 +1814,7 @@ export const Constants = {
         "profile_parser",
         "email_ingest",
         "onboarding",
+        "job_enrichment",
       ],
       application_status: [
         "shortlisted",
