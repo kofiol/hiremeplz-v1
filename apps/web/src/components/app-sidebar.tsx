@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileText, Home, Settings, PanelLeft, Mic, PenLine, User, MessageSquare } from "lucide-react"
+import { FileText, Home, Settings, PanelLeft, Mic, PenLine, User, MessageSquare, Search, Kanban } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -31,6 +31,11 @@ import {
 const navMain = [
   { title: "Overview", url: "/overview", icon: Home },
   { title: "Profile", url: "/profile", icon: User },
+]
+
+const navJobs = [
+  { title: "Job Discovery", url: "/jobs", icon: Search },
+  { title: "Pipeline", url: "/pipeline", icon: Kanban },
 ]
 
 const navTools = [
@@ -127,6 +132,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain label="App" items={navMain} />
+        <NavMain label="Jobs" items={navJobs} />
         <NavMain label="Tools" items={navTools} />
         <div className="mt-auto">
           <SidebarGroup>
