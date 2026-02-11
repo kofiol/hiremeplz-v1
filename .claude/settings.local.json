@@ -81,7 +81,12 @@
       "mcp__notion__notion-fetch",
       "mcp__notion__notion-create-database",
       "mcp__notion__notion-create-pages",
-      "mcp__notion__notion-update-data-source"
+      "mcp__notion__notion-update-data-source",
+      "Bash(git -C \"C:\\\\Users\\\\psyhik1769\\\\hiremeplz\" log --all --oneline --grep=\"job\")",
+      "WebFetch(domain:shadcn-svelte.com)",
+      "Bash(git -C \"C:\\\\Users\\\\psyhik1769\\\\hiremeplz\" show 59ff569:apps/web/src/app/\\\\\\(app\\\\\\)/jobs/page.tsx)",
+      "Bash(git -C \"C:\\\\Users\\\\psyhik1769\\\\hiremeplz\" log --all --oneline --source --remotes --decorate)",
+      "WebFetch(domain:brightdata.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
