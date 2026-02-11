@@ -44,13 +44,19 @@ hiremeplz.app is a personal AI agent for finding freelance work. It's a Next.js 
 
 ## Git Workflow
 
-This project uses a **clean two-branch workflow** with custom Git aliases. **Always use these aliases instead of manual Git commands.**
+**Always follow [CONTRIBUTING.md](./CONTRIBUTING.md)** for the full branching strategy and PR process.
 
 ### Branch Structure
-- `main` - Production (deployed to hiremeplz.app via Vercel)
-- `dev` - Development (where all work happens)
+- `main` - Production (auto-deploys to hiremeplz.app via Vercel). **PRs only, never direct pushes.**
+- `dev` - Integration branch. All feature branches merge here via PR.
+- `feature/*` - Individual work branches. One per task, branched off `dev`.
 
-### Custom Git Commands
+### Flow
+```
+main ← (PR, Mark approves) ← dev ← (PR) ← feature/*
+```
+
+### Custom Git Commands (Mark only)
 
 **Starting work:**
 ```bash
@@ -60,10 +66,6 @@ git start  # Syncs dev with main before starting work
 **Saving progress:**
 ```bash
 git save  # Quick commit + push with "WIP" message
-# OR use regular commits:
-git add .
-git commit -m "Descriptive message"
-git push origin dev
 ```
 
 **Deploying to production:**
@@ -79,24 +81,25 @@ git reset-dev  # Nukes dev and recreates from main
 
 **Shortcuts:**
 - `git st` - Status
-- `git br` - List branches  
+- `git br` - List branches
 - `git visual` - Pretty branch graph
 - `git last` - Show last commit
 
 ### Important Git Rules
 
-1. **NEVER commit directly to `main`** - Always work on `dev`
-2. **NEVER force push** - Use `git ship` workflow instead
-3. **Always `git start` before work** - Ensures dev syncs with main
-4. **Use `git ship` for deploys** - Maintains clean PR history for rollbacks
+1. **NEVER commit directly to `main`** - Always PR from `dev`
+2. **NEVER push directly to `dev`** - Create a feature branch, PR into `dev`
+3. **NEVER force push** - Ask before rewriting history
+4. **Use `git ship` for production deploys** (Mark only)
 
 ### When Helping with Git
 
-- Always suggest the custom aliases (`git start`, `git save`, `git ship`)
-- Verify Mark is on `dev` branch before suggesting commits
-- For deployment questions → point to `git ship`
+- For new work → create `feature/descriptive-name` off `dev`
+- For PRs → always target `dev`, never `main` directly
+- For deployment questions → point to `git ship` (Mark only)
 - If workflow is broken → suggest `git reset-dev`
 - Never suggest force pushing or direct merging to main
+- Commit messages: `type(scope): description` (e.g., `feat(jobs): add BrightData fetcher`)
 
 ## Monorepo Structure
 
@@ -237,15 +240,17 @@ For local development: Supabase runs on `http://localhost:54321`.
   - `https://hiremeplz.app/auth/callback`
   - Vercel preview URLs
 
-## Abandoned Features
+## Suspended Features
 
-**Do NOT include these in context injections or code reviews:**
+- **Apify/Crawlee/Playwright scrapers** — Replaced by Bright Data. Code in `playground/apify/` is dead.
+- **Piloterr Upwork integration** — API access blocked. Code in `playground/piloterr-openai-test/` is dead.
+- **`playground/run-search-spec-agent.ts`** — References non-existent package. Dead code.
+- **`playground/openai-agent/`** — Empty SDK template. Dead code.
 
-- Job scraping (Apify, BrightData job datasets) - `/apps/web/src/app/api/v1/jobs/`
-- Job matching logic - related playground code
-- These will be resumed soon, but are currently suspended
-
-See `/apps/web/src/app/api/v1/jobs/README.md` and `/playground/README.md` for details.
+**Active playground code** (reusable for job engine):
+- `playground/raw-job-object-normalizer/` — Job normalization, 70% complete
+- `playground/brightdata-linkedin-search/` — Working BrightData integration
+- `playground/linkie-profiles/` — LinkedIn profile scraper, high quality
 
 ## Before Committing
 

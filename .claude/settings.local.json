@@ -68,7 +68,20 @@
       "Bash(xargs cat:*)",
       "WebFetch(domain:codesignal.com)",
       "WebFetch(domain:towardsdatascience.com)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(/c/Users/psyhik1769/AppData/Local/Programs/Python/Python312/python.exe:*)",
+      "Bash(gh pr view:*)",
+      "mcp__notion__notion-search",
+      "mcp__notion__notion-fetch",
+      "mcp__notion__notion-create-database",
+      "mcp__notion__notion-create-pages",
+      "mcp__notion__notion-update-data-source"
     ]
   },
   "enableAllProjectMcpServers": true,
